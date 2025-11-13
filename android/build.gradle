@@ -10,11 +10,30 @@ buildscript {
     repositories {
         google()
         mavenCentral()
+        // Repositorio Maven de Notifee
+        maven {
+            url 'https://notifee.github.io/maven'
+        }
     }
     dependencies {
         classpath("com.android.tools.build:gradle")
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        // Repositorio Maven remoto de Notifee
+        maven {
+            url 'https://notifee.github.io/maven'
+        }
+        // Repositorio Maven local de Notifee (para el core)
+        maven {
+            url "$rootDir/../node_modules/@notifee/react-native/android/libs"
+        }
     }
 }
 
