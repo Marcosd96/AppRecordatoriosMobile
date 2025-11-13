@@ -11,17 +11,34 @@ const NOTIFICATION_STORAGE_KEY = '@scheduled_notifications';
 class NotificationsService {
   /**
    * Solicita permisos para mostrar notificaciones
+   * Esto mostrará el diálogo nativo del sistema operativo
    */
   async requestPermissions(): Promise<boolean> {
     try {
       if (Platform.OS === 'android') {
-        // Solicitar permisos en Android 13+
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
-        );
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
+        // Verificar la versión de Android
+        const androidVersion = Platform.Version;
+        
+        // Android 13+ (API 33+) requiere solicitar permisos explícitamente
+        if (androidVersion >= 33) {
+          const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+            {
+              title: 'Permisos de Notificaciones',
+              message: 'Gesaccol necesita permisos para enviarte notificaciones sobre tus recordatorios fiscales importantes.',
+              buttonNeutral: 'Preguntar más tarde',
+              buttonNegative: 'Cancelar',
+              buttonPositive: 'Permitir',
+            }
+          );
+          return granted === PermissionsAndroid.RESULTS.GRANTED;
+        } else {
+          // Para versiones anteriores de Android, usar notifee directamente
+          const settings = await notifee.requestPermission();
+          return settings.authorizationStatus >= 1;
+        }
       } else {
-        // iOS maneja permisos automáticamente
+        // iOS: notifee.requestPermission() mostrará automáticamente el diálogo nativo
         const settings = await notifee.requestPermission();
         return settings.authorizationStatus >= 1; // 1 = AUTHORIZED, 2 = PROVISIONAL
       }
