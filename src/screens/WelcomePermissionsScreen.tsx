@@ -9,6 +9,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { notificationsService } from '../services/notificationsService';
+import { useTheme } from '../context/ThemeContext';
+import AnimatedView from '../components/AnimatedView';
+import AnimatedButton from '../components/AnimatedButton';
 
 const { width } = Dimensions.get('window');
 
@@ -19,6 +22,7 @@ interface WelcomePermissionsScreenProps {
 export default function WelcomePermissionsScreen({
   onComplete,
 }: WelcomePermissionsScreenProps) {
+  const { isDark } = useTheme();
   const [isRequesting, setIsRequesting] = useState(false);
   const [hasPermission, setHasPermission] = useState(false);
 
@@ -116,89 +120,120 @@ export default function WelcomePermissionsScreen({
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
       <View className="flex-1 items-center justify-center px-8">
         {/* Icono grande */}
-        <View className="mb-8">
-          <Text className="text-7xl">🔔</Text>
-        </View>
+        <AnimatedView animationType="scale" delay={0} duration={600}>
+          <View className="mb-8">
+            <Text className="text-7xl">🔔</Text>
+          </View>
+        </AnimatedView>
 
         {/* Título principal */}
-        <Text className="text-3xl font-bold text-gray-900 text-center mb-4">
-          Activa las Notificaciones
-        </Text>
+        <AnimatedView animationType="slideUp" delay={150} duration={600}>
+          <Text className={`text-3xl font-bold text-center mb-4 ${
+            isDark ? 'text-white' : 'text-gray-900'
+          }`}>
+            Activa las Notificaciones
+          </Text>
+        </AnimatedView>
 
         {/* Descripción */}
-        <View className="mb-8">
-          <Text className="text-lg text-gray-600 text-center leading-7 mb-4">
-            Para que Gesaccol pueda ayudarte a no perderte ningún recordatorio fiscal importante, necesitamos tu permiso para enviarte notificaciones.
-          </Text>
-          
-          <View className="bg-blue-50 rounded-lg p-4 mb-4">
-            <Text className="text-base text-gray-800 font-semibold mb-2">
-              📱 Recibirás notificaciones:
+        <AnimatedView animationType="fadeIn" delay={300} duration={600}>
+          <View className="mb-8">
+            <Text className={`text-lg text-center leading-7 mb-4 ${
+              isDark ? 'text-gray-300' : 'text-gray-600'
+            }`}>
+              Para que Gesaccol pueda ayudarte a no perderte ningún recordatorio fiscal importante, necesitamos tu permiso para enviarte notificaciones.
             </Text>
-            <View className="ml-2">
-              <Text className="text-sm text-gray-700 mb-1">
-                • 3 días antes del vencimiento
+            
+            <View className={`rounded-lg p-4 mb-4 ${
+              isDark 
+                ? 'bg-blue-900/30' 
+                : 'bg-blue-50'
+            }`}>
+              <Text className={`text-base font-semibold mb-2 ${
+                isDark ? 'text-blue-200' : 'text-gray-800'
+              }`}>
+                📱 Recibirás notificaciones:
               </Text>
-              <Text className="text-sm text-gray-700 mb-1">
-                • El día del vencimiento
-              </Text>
-              <Text className="text-sm text-gray-700">
-                • Recordatorios importantes
-              </Text>
+              <View className="ml-2">
+                <Text className={`text-sm mb-1 ${
+                  isDark ? 'text-blue-100' : 'text-gray-700'
+                }`}>
+                  • 3 días antes del vencimiento
+                </Text>
+                <Text className={`text-sm mb-1 ${
+                  isDark ? 'text-blue-100' : 'text-gray-700'
+                }`}>
+                  • El día del vencimiento
+                </Text>
+                <Text className={`text-sm ${
+                  isDark ? 'text-blue-100' : 'text-gray-700'
+                }`}>
+                  • Recordatorios importantes
+                </Text>
+              </View>
             </View>
-          </View>
 
-          <Text className="text-sm text-gray-500 text-center">
-            Puedes cambiar estos permisos en cualquier momento desde la configuración de tu dispositivo.
-          </Text>
-        </View>
+            <Text className={`text-sm text-center ${
+              isDark ? 'text-gray-400' : 'text-gray-500'
+            }`}>
+              Puedes cambiar estos permisos en cualquier momento desde la configuración de tu dispositivo.
+            </Text>
+          </View>
+        </AnimatedView>
 
         {/* Botón principal */}
-        <View className="w-full mb-4">
-          <TouchableOpacity
-            onPress={handleRequestPermissions}
-            disabled={isRequesting || hasPermission}
-            className={`py-4 rounded-lg items-center ${
-              isRequesting || hasPermission
-                ? 'bg-green-500'
-                : 'bg-blue-600'
-            }`}
-            style={{ width: width - 64 }}
-          >
-            {isRequesting ? (
-              <View className="flex-row items-center">
-                <ActivityIndicator color="white" size="small" className="mr-2" />
-                <Text className="text-white text-lg font-semibold">
-                  Solicitando permisos...
-                </Text>
+        <AnimatedView animationType="slideUp" delay={500} duration={600}>
+          <View className="w-full mb-4">
+            <AnimatedButton
+              onPress={handleRequestPermissions}
+              disabled={isRequesting || hasPermission}
+            >
+              <View
+                className={`py-4 rounded-lg items-center ${
+                  isRequesting || hasPermission
+                    ? 'bg-green-500'
+                    : 'bg-blue-600'
+                }`}
+                style={{ width: width - 64 }}
+              >
+                {isRequesting ? (
+                  <View className="flex-row items-center">
+                    <ActivityIndicator color="white" size="small" className="mr-2" />
+                    <Text className="text-white text-lg font-semibold">
+                      Solicitando permisos...
+                    </Text>
+                  </View>
+                ) : hasPermission ? (
+                  <View className="flex-row items-center">
+                    <Text className="text-white text-lg font-semibold mr-2">
+                      ✓ Permisos otorgados
+                    </Text>
+                  </View>
+                ) : (
+                  <Text className="text-white text-lg font-semibold">
+                    Activar Notificaciones
+                  </Text>
+                )}
               </View>
-            ) : hasPermission ? (
-              <View className="flex-row items-center">
-                <Text className="text-white text-lg font-semibold mr-2">
-                  ✓ Permisos otorgados
-                </Text>
-              </View>
-            ) : (
-              <Text className="text-white text-lg font-semibold">
-                Activar Notificaciones
-              </Text>
-            )}
-          </TouchableOpacity>
-        </View>
+            </AnimatedButton>
+          </View>
+        </AnimatedView>
 
         {/* Botón secundario */}
-        <TouchableOpacity
-          onPress={handleSkip}
-          disabled={isRequesting}
-          className="py-3 rounded-lg items-center"
-        >
-          <Text className="text-gray-600 text-base">
-            Omitir por ahora
-          </Text>
-        </TouchableOpacity>
+        <AnimatedView animationType="fadeIn" delay={700} duration={500}>
+          <AnimatedButton onPress={handleSkip} disabled={isRequesting}>
+            <View className="py-3 rounded-lg items-center">
+              <Text className={`text-base ${
+                isDark ? 'text-gray-300' : 'text-gray-600'
+              }`}>
+                Omitir por ahora
+              </Text>
+            </View>
+          </AnimatedButton>
+        </AnimatedView>
       </View>
     </SafeAreaView>
   );

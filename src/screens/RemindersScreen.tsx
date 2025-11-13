@@ -14,8 +14,11 @@ import { Reminder, ReminderFilter, SortBy, Company } from '../types';
 import { remindersService } from '../services/remindersService';
 import { companiesService } from '../services/companiesService';
 import { notificationsService } from '../services/notificationsService';
+import { useTheme } from '../context/ThemeContext';
+import StyledModal from '../components/StyledModal';
 
 export default function RemindersScreen() {
+  const { isDark } = useTheme();
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
@@ -24,6 +27,8 @@ export default function RemindersScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState({ title: '', message: '' });
 
   const loadData = async () => {
     try {
@@ -38,10 +43,11 @@ export default function RemindersScreen() {
       await notificationsService.scheduleAllReminders(remindersData);
     } catch (error: any) {
       console.error('Error al cargar datos:', error);
-      Alert.alert(
-        'Error',
-        error.message || 'No se pudieron cargar los datos. Verifica tu conexión.'
-      );
+      setErrorMessage({
+        title: 'Error',
+        message: error.message || 'No se pudieron cargar los datos. Verifica tu conexión.',
+      });
+      setShowErrorModal(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -150,7 +156,11 @@ export default function RemindersScreen() {
       }
     } catch (error: any) {
       console.error('Error al actualizar recordatorio:', error);
-      Alert.alert('Error', error.message || 'No se pudo actualizar el recordatorio');
+      setErrorMessage({
+        title: 'Error',
+        message: error.message || 'No se pudo actualizar el recordatorio',
+      });
+      setShowErrorModal(true);
     }
   };
 
@@ -170,21 +180,25 @@ export default function RemindersScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50 items-center justify-center" edges={['top']}>
+      <SafeAreaView className={`flex-1 items-center justify-center ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`} edges={['top']}>
         <ActivityIndicator size="large" color="#2563eb" />
-        <Text className="text-gray-600 mt-4">Cargando recordatorios...</Text>
+        <Text className={isDark ? 'text-gray-300 mt-4' : 'text-gray-600 mt-4'}>Cargando recordatorios...</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+    <SafeAreaView className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`} edges={['top']}>
       {/* Header */}
-      <View className="bg-white px-6 py-4 border-b border-gray-200">
-        <Text className="text-2xl font-bold text-gray-900">
+      <View className={`px-6 py-4 border-b ${
+        isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+      }`}>
+        <Text className={`text-2xl font-bold ${
+          isDark ? 'text-white' : 'text-gray-900'
+        }`}>
           Recordatorios Fiscales
         </Text>
-        <Text className="text-gray-600 mt-1">
+        <Text className={`mt-1 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
           Gestiona tus obligaciones fiscales
         </Text>
       </View>
@@ -200,33 +214,65 @@ export default function RemindersScreen() {
         <View className="px-6 py-4">
           <View className="flex-row flex-wrap -mx-2">
             <View className="w-1/2 px-2 mb-2">
-              <View className="bg-white rounded-lg p-3 border border-gray-200">
-                <Text className="text-xs text-gray-600 mb-1">Total</Text>
-                <Text className="text-xl font-bold text-gray-900">
+              <View className={`rounded-lg p-3 border ${
+                isDark 
+                  ? 'bg-gray-800 border-gray-700' 
+                  : 'bg-white border-gray-200'
+              }`}>
+                <Text className={`text-xs mb-1 ${
+                  isDark ? 'text-gray-400' : 'text-gray-600'
+                }`}>Total</Text>
+                <Text className={`text-xl font-bold ${
+                  isDark ? 'text-white' : 'text-gray-900'
+                }`}>
                   {stats.total}
                 </Text>
               </View>
             </View>
             <View className="w-1/2 px-2 mb-2">
-              <View className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
-                <Text className="text-xs text-yellow-700 mb-1">Pendientes</Text>
-                <Text className="text-xl font-bold text-yellow-900">
+              <View className={`rounded-lg p-3 border ${
+                isDark 
+                  ? 'bg-yellow-900/30 border-yellow-800' 
+                  : 'bg-yellow-50 border-yellow-200'
+              }`}>
+                <Text className={`text-xs mb-1 ${
+                  isDark ? 'text-yellow-300' : 'text-yellow-700'
+                }`}>Pendientes</Text>
+                <Text className={`text-xl font-bold ${
+                  isDark ? 'text-yellow-200' : 'text-yellow-900'
+                }`}>
                   {stats.pending}
                 </Text>
               </View>
             </View>
             <View className="w-1/2 px-2 mb-2">
-              <View className="bg-red-50 rounded-lg p-3 border border-red-200">
-                <Text className="text-xs text-red-700 mb-1">Vencidos</Text>
-                <Text className="text-xl font-bold text-red-900">
+              <View className={`rounded-lg p-3 border ${
+                isDark 
+                  ? 'bg-red-900/30 border-red-800' 
+                  : 'bg-red-50 border-red-200'
+              }`}>
+                <Text className={`text-xs mb-1 ${
+                  isDark ? 'text-red-300' : 'text-red-700'
+                }`}>Vencidos</Text>
+                <Text className={`text-xl font-bold ${
+                  isDark ? 'text-red-200' : 'text-red-900'
+                }`}>
                   {stats.overdue}
                 </Text>
               </View>
             </View>
             <View className="w-1/2 px-2 mb-2">
-              <View className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-                <Text className="text-xs text-blue-700 mb-1">Próximos</Text>
-                <Text className="text-xl font-bold text-blue-900">
+              <View className={`rounded-lg p-3 border ${
+                isDark 
+                  ? 'bg-blue-900/30 border-blue-800' 
+                  : 'bg-blue-50 border-blue-200'
+              }`}>
+                <Text className={`text-xs mb-1 ${
+                  isDark ? 'text-blue-300' : 'text-blue-700'
+                }`}>Próximos</Text>
+                <Text className={`text-xl font-bold ${
+                  isDark ? 'text-blue-200' : 'text-blue-900'
+                }`}>
                   {stats.upcoming}
                 </Text>
               </View>
@@ -237,11 +283,15 @@ export default function RemindersScreen() {
         {/* Búsqueda */}
         <View className="px-6 py-2">
           <TextInput
-            className="bg-white border border-gray-300 rounded-lg px-4 py-3 text-gray-900"
+            className={`border rounded-lg px-4 py-3 ${
+              isDark 
+                ? 'bg-gray-800 border-gray-700 text-white' 
+                : 'bg-white border-gray-300 text-gray-900'
+            }`}
             placeholder="Buscar recordatorios..."
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={isDark ? "#9ca3af" : "#9ca3af"}
           />
         </View>
 
@@ -257,12 +307,18 @@ export default function RemindersScreen() {
                     className={`px-4 py-2 rounded-lg ${idx > 0 ? 'ml-2' : ''} ${
                       filter === f
                         ? 'bg-blue-600'
-                        : 'bg-white border border-gray-300'
+                        : isDark
+                          ? 'bg-gray-800 border border-gray-700'
+                          : 'bg-white border border-gray-300'
                     }`}
                   >
                     <Text
                       className={`text-sm font-medium ${
-                        filter === f ? 'text-white' : 'text-gray-700'
+                        filter === f 
+                          ? 'text-white' 
+                          : isDark 
+                            ? 'text-gray-200' 
+                            : 'text-gray-700'
                       }`}
                     >
                       {f === 'all'
@@ -289,12 +345,18 @@ export default function RemindersScreen() {
                 className={`px-4 py-2 rounded-lg ${
                   selectedCompanyId === null
                     ? 'bg-blue-600'
-                    : 'bg-white border border-gray-300'
+                    : isDark
+                      ? 'bg-gray-800 border border-gray-700'
+                      : 'bg-white border border-gray-300'
                 }`}
               >
                 <Text
                   className={`text-sm font-medium ${
-                    selectedCompanyId === null ? 'text-white' : 'text-gray-700'
+                    selectedCompanyId === null 
+                      ? 'text-white' 
+                      : isDark 
+                        ? 'text-gray-200' 
+                        : 'text-gray-700'
                   }`}
                 >
                   Todas
@@ -307,14 +369,18 @@ export default function RemindersScreen() {
                   className={`px-4 py-2 rounded-lg ml-2 ${
                     selectedCompanyId === company.id
                       ? 'bg-blue-600'
-                      : 'bg-white border border-gray-300'
+                      : isDark
+                        ? 'bg-gray-800 border border-gray-700'
+                        : 'bg-white border border-gray-300'
                   }`}
                 >
                   <Text
                     className={`text-sm font-medium ${
                       selectedCompanyId === company.id
                         ? 'text-white'
-                        : 'text-gray-700'
+                        : isDark
+                          ? 'text-gray-200'
+                          : 'text-gray-700'
                     }`}
                   >
                     {company.name}
@@ -328,8 +394,14 @@ export default function RemindersScreen() {
         {/* Lista de recordatorios */}
         <View className="px-6 py-4">
           {filteredReminders.length === 0 ? (
-            <View className="bg-white rounded-xl p-8 border border-gray-200">
-              <Text className="text-gray-600 text-center">
+            <View className={`rounded-xl p-8 border ${
+              isDark 
+                ? 'bg-gray-800 border-gray-700' 
+                : 'bg-white border-gray-200'
+            }`}>
+              <Text className={`text-center ${
+                isDark ? 'text-gray-300' : 'text-gray-600'
+              }`}>
                 No hay recordatorios que coincidan con los filtros
               </Text>
             </View>
@@ -346,12 +418,20 @@ export default function RemindersScreen() {
                     key={reminder.id}
                     className={`rounded-xl p-4 border-2 ${index > 0 ? 'mt-3' : ''} ${
                       reminder.status === 'completed'
-                        ? 'bg-gray-50 border-gray-200 opacity-75'
+                        ? isDark
+                          ? 'bg-gray-800/50 border-gray-700 opacity-75'
+                          : 'bg-gray-50 border-gray-200 opacity-75'
                         : isOverdue
-                        ? 'bg-red-50 border-red-200'
+                        ? isDark
+                          ? 'bg-red-900/30 border-red-800'
+                          : 'bg-red-50 border-red-200'
                         : isUrgent
-                        ? 'bg-yellow-50 border-yellow-200'
-                        : 'bg-white border-gray-200'
+                        ? isDark
+                          ? 'bg-yellow-900/30 border-yellow-800'
+                          : 'bg-yellow-50 border-yellow-200'
+                        : isDark
+                          ? 'bg-gray-800 border-gray-700'
+                          : 'bg-white border-gray-200'
                     }`}
                   >
                     <View className="flex-row justify-between items-start mb-2">
@@ -380,27 +460,39 @@ export default function RemindersScreen() {
                             </Text>
                           </View>
                         </View>
-                        <Text className="font-semibold text-gray-900 mb-1">
+                        <Text className={`font-semibold mb-1 ${
+                          isDark ? 'text-white' : 'text-gray-900'
+                        }`}>
                           {reminder.description}
                         </Text>
-                        <Text className="text-sm text-gray-600">
+                        <Text className={`text-sm ${
+                          isDark ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
                           {reminder.companyName}
                         </Text>
                       </View>
                     </View>
-                    <View className="flex-row justify-between items-center mt-3 pt-3 border-t border-gray-200">
+                    <View className={`flex-row justify-between items-center mt-3 pt-3 border-t ${
+                      isDark ? 'border-gray-700' : 'border-gray-200'
+                    }`}>
                       <View>
-                        <Text className="text-xs text-gray-600">
+                        <Text className={`text-xs ${
+                          isDark ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
                           Fecha de vencimiento
                         </Text>
-                        <Text className="text-sm font-medium text-gray-900">
+                        <Text className={`text-sm font-medium ${
+                          isDark ? 'text-white' : 'text-gray-900'
+                        }`}>
                           {formatDate(reminder.dueDate)}
                         </Text>
                       </View>
                       <View className="items-end">
                         {reminder.status !== 'completed' && (
                           <>
-                            <Text className="text-xs text-gray-600">
+                            <Text className={`text-xs ${
+                              isDark ? 'text-gray-400' : 'text-gray-600'
+                            }`}>
                               Días restantes
                             </Text>
                             <Text
@@ -409,7 +501,9 @@ export default function RemindersScreen() {
                                   ? 'text-red-600'
                                   : isUrgent
                                   ? 'text-yellow-600'
-                                  : 'text-gray-900'
+                                  : isDark
+                                    ? 'text-white'
+                                    : 'text-gray-900'
                               }`}
                             >
                               {isOverdue
@@ -425,15 +519,23 @@ export default function RemindersScreen() {
                       disabled={loading}
                       className={`mt-3 py-2 rounded-lg ${
                         reminder.status === 'completed'
-                          ? 'bg-gray-200'
-                          : 'bg-green-100'
+                          ? isDark
+                            ? 'bg-gray-700'
+                            : 'bg-gray-200'
+                          : isDark
+                            ? 'bg-green-900/50'
+                            : 'bg-green-100'
                       }`}
                     >
                       <Text
                         className={`text-center font-medium ${
                           reminder.status === 'completed'
-                            ? 'text-gray-700'
-                            : 'text-green-700'
+                            ? isDark
+                              ? 'text-gray-300'
+                              : 'text-gray-700'
+                            : isDark
+                              ? 'text-green-300'
+                              : 'text-green-700'
                         }`}
                       >
                         {reminder.status === 'completed'
@@ -448,6 +550,20 @@ export default function RemindersScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Modal de error */}
+      <StyledModal
+        visible={showErrorModal}
+        onClose={() => setShowErrorModal(false)}
+        title={errorMessage.title}
+        message={errorMessage.message}
+        buttons={[
+          {
+            text: 'Aceptar',
+            onPress: () => setShowErrorModal(false),
+          },
+        ]}
+      />
     </SafeAreaView>
   );
 }

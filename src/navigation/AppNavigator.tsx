@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { View, Text, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 // Screens
 import OnboardingScreen from '../screens/OnboardingScreen';
@@ -20,17 +21,18 @@ const Tab = createBottomTabNavigator();
 
 function MainTabs() {
   const insets = useSafeAreaInsets();
+  const { isDark } = useTheme();
   
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: '#2563eb',
-        tabBarInactiveTintColor: '#6b7280',
+        tabBarInactiveTintColor: isDark ? '#9ca3af' : '#6b7280',
         tabBarStyle: {
-          backgroundColor: '#ffffff',
+          backgroundColor: isDark ? '#1f2937' : '#ffffff',
           borderTopWidth: 1,
-          borderTopColor: '#e5e7eb',
+          borderTopColor: isDark ? '#374151' : '#e5e7eb',
           paddingBottom: Math.max(insets.bottom, 5),
           paddingTop: 5,
           height: 60 + Math.max(insets.bottom - 5, 0),
@@ -73,12 +75,24 @@ function MainTabs() {
 
 function AppNavigatorContent() {
   const { isAuthenticated, loading } = useAuth();
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState<boolean | null>(null);
   const [isFirstLaunch, setIsFirstLaunch] = useState<boolean | null>(null);
   const [showPermissions, setShowPermissions] = useState(false);
 
   useEffect(() => {
+    checkOnboardingStatus();
     checkFirstLaunch();
   }, []);
+
+  const checkOnboardingStatus = async () => {
+    try {
+      const onboardingCompleted = await AsyncStorage.getItem('onboarding_completed');
+      setHasCompletedOnboarding(onboardingCompleted === 'true');
+    } catch (error) {
+      console.error('Error checking onboarding status:', error);
+      setHasCompletedOnboarding(false);
+    }
+  };
 
   const checkFirstLaunch = async () => {
     try {
@@ -92,10 +106,10 @@ function AppNavigatorContent() {
 
   const handleOnboardingComplete = async () => {
     try {
-      // Después del onboarding, mostrar la pantalla de permisos
-      setShowPermissions(true);
+      await AsyncStorage.setItem('onboarding_completed', 'true');
+      setHasCompletedOnboarding(true);
     } catch (error) {
-      console.error('Error saving launch status:', error);
+      console.error('Error saving onboarding status:', error);
     }
   };
 
@@ -109,21 +123,69 @@ function AppNavigatorContent() {
     }
   };
 
-  if (loading || isFirstLaunch === null) {
+  const { isDark } = useTheme();
+
+  if (loading || hasCompletedOnboarding === null || isFirstLaunch === null) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
+      <View className={`flex-1 items-center justify-center ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
         <ActivityIndicator size="large" color="#2563eb" />
-        <Text className="text-gray-600 mt-4">Cargando...</Text>
+        <Text className={isDark ? 'text-gray-300 mt-4' : 'text-gray-600 mt-4'}>Cargando...</Text>
       </View>
     );
   }
 
+  // Configuración de transiciones animadas
+  const screenOptions = {
+    headerShown: false,
+    cardStyleInterpolator: ({ current, layouts }: any) => {
+      return {
+        cardStyle: {
+          transform: [
+            {
+              translateX: current.progress.interpolate({
+                inputRange: [0, 1],
+                outputRange: [layouts.screen.width, 0],
+              }),
+            },
+          ],
+          opacity: current.progress.interpolate({
+            inputRange: [0, 0.5, 1],
+            outputRange: [0, 0.5, 1],
+          }),
+        },
+      };
+    },
+    transitionSpec: {
+      open: {
+        animation: 'spring',
+        config: {
+          stiffness: 1000,
+          damping: 500,
+          mass: 3,
+          overshootClamping: true,
+          restDisplacementThreshold: 0.01,
+          restSpeedThreshold: 0.01,
+        },
+      },
+      close: {
+        animation: 'spring',
+        config: {
+          stiffness: 1000,
+          damping: 500,
+          mass: 3,
+          overshootClamping: true,
+          restDisplacementThreshold: 0.01,
+          restSpeedThreshold: 0.01,
+        },
+      },
+    },
+  };
+
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {!isAuthenticated ? (
-          <Stack.Screen name="Login" component={LoginScreen} />
-        ) : isFirstLaunch && !showPermissions ? (
+      <Stack.Navigator screenOptions={screenOptions}>
+        {!hasCompletedOnboarding ? (
+          // Mostrar onboarding primero (antes del login)
           <Stack.Screen name="Onboarding">
             {(props) => (
               <OnboardingScreen
@@ -132,7 +194,11 @@ function AppNavigatorContent() {
               />
             )}
           </Stack.Screen>
-        ) : isFirstLaunch && showPermissions ? (
+        ) : !isAuthenticated ? (
+          // Después del onboarding, mostrar login
+          <Stack.Screen name="Login" component={LoginScreen} />
+        ) : isFirstLaunch && !showPermissions ? (
+          // Si es el primer lanzamiento después del login, mostrar permisos
           <Stack.Screen name="WelcomePermissions">
             {(props) => (
               <WelcomePermissionsScreen
@@ -142,6 +208,7 @@ function AppNavigatorContent() {
             )}
           </Stack.Screen>
         ) : (
+          // Pantalla principal
           <Stack.Screen name="Main" component={MainTabs} />
         )}
       </Stack.Navigator>

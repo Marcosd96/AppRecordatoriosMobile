@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,13 +6,29 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import AnimatedView from '../components/AnimatedView';
+import AnimatedButton from '../components/AnimatedButton';
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
+  const { isDark } = useTheme();
   const [loading, setLoading] = useState(false);
+  const logoScale = React.useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Animación de entrada del logo
+    Animated.spring(logoScale, {
+      toValue: 1,
+      tension: 50,
+      friction: 7,
+      useNativeDriver: true,
+    }).start();
+  }, []);
 
   const handleSignIn = async () => {
     try {
@@ -30,47 +46,67 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
       <View className="flex-1 items-center justify-center px-8">
-        <View className="mb-12 items-center">
-          <Text className="text-4xl font-bold text-gray-900 mb-4">
-            AppRecordatorios
-          </Text>
-          <Text className="text-lg text-gray-600 text-center">
-            Gestiona tus recordatorios fiscales de forma fácil y segura
-          </Text>
-        </View>
-
-        <View className="w-full max-w-sm">
-          <TouchableOpacity
-            onPress={handleSignIn}
-            disabled={loading}
-            className={`bg-white border-2 border-gray-300 rounded-lg py-4 px-6 flex-row items-center justify-center ${
-              loading ? 'opacity-50' : ''
-            }`}
+        <AnimatedView animationType="slideDown" delay={0} duration={600}>
+          <Animated.View
+            style={{
+              transform: [{ scale: logoScale }],
+              marginBottom: 48,
+              alignItems: 'center',
+            }}
           >
-            {loading ? (
-              <ActivityIndicator color="#4285F4" />
-            ) : (
-              <>
-                <Image
-                  source={{
-                    uri: 'https://www.google.com/favicon.ico',
-                  }}
-                  className="w-6 h-6 mr-3"
-                />
-                <Text className="text-gray-700 font-semibold text-base">
-                  Continuar con Google
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
+            <Text className={`text-4xl font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Gesaccol
+            </Text>
+            <Text className={`text-lg text-center ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+              Gestiona tus recordatorios fiscales de forma fácil y segura
+            </Text>
+          </Animated.View>
+        </AnimatedView>
 
-          <Text className="text-xs text-gray-500 text-center mt-6">
-            Al iniciar sesión, aceptas nuestros términos de servicio y política
-            de privacidad
-          </Text>
-        </View>
+        <AnimatedView animationType="slideUp" delay={200} duration={600}>
+          <View className="w-full max-w-sm">
+            <AnimatedButton onPress={handleSignIn} disabled={loading}>
+              <View
+                className={`rounded-lg py-4 px-6 flex-row items-center justify-center border-2 ${
+                  loading ? 'opacity-50' : ''
+                } ${
+                  isDark 
+                    ? 'bg-gray-800 border-gray-600' 
+                    : 'bg-white border-gray-300'
+                }`}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#4285F4" />
+                ) : (
+                  <>
+                    <Image
+                      source={{
+                        uri: 'https://www.google.com/favicon.ico',
+                      }}
+                      className="w-6 h-6 mr-3"
+                    />
+                    <Text className={`font-semibold text-base ${
+                      isDark ? 'text-gray-200' : 'text-gray-700'
+                    }`}>
+                      Continuar con Google
+                    </Text>
+                  </>
+                )}
+              </View>
+            </AnimatedButton>
+
+            <AnimatedView animationType="fadeIn" delay={400} duration={500}>
+              <Text className={`text-xs text-center mt-6 ${
+                isDark ? 'text-gray-400' : 'text-gray-500'
+              }`}>
+                Al iniciar sesión, aceptas nuestros términos de servicio y política
+                de privacidad
+              </Text>
+            </AnimatedView>
+          </View>
+        </AnimatedView>
       </View>
     </SafeAreaView>
   );

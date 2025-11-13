@@ -14,8 +14,11 @@ import { Company, Reminder } from '../types';
 import { companiesService } from '../services/companiesService';
 import { remindersService } from '../services/remindersService';
 import { notificationsService } from '../services/notificationsService';
+import { useTheme } from '../context/ThemeContext';
+import StyledModal from '../components/StyledModal';
 
 export default function CompaniesScreen() {
+  const { isDark } = useTheme();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -24,6 +27,11 @@ export default function CompaniesScreen() {
   const [newCompanyName, setNewCompanyName] = useState('');
   const [newCompanyNit, setNewCompanyNit] = useState('');
   const [creating, setCreating] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [companyToDelete, setCompanyToDelete] = useState<string | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [modalMessage, setModalMessage] = useState({ title: '', message: '' });
 
   const loadData = async () => {
     try {
@@ -38,10 +46,11 @@ export default function CompaniesScreen() {
       await notificationsService.scheduleAllReminders(remindersData);
     } catch (error: any) {
       console.error('Error al cargar datos:', error);
-      Alert.alert(
-        'Error',
-        error.message || 'No se pudieron cargar los datos. Verifica tu conexión.'
-      );
+      setModalMessage({
+        title: 'Error',
+        message: error.message || 'No se pudieron cargar los datos. Verifica tu conexión.',
+      });
+      setShowErrorModal(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -83,7 +92,11 @@ export default function CompaniesScreen() {
 
   const handleAddCompany = async () => {
     if (!newCompanyName.trim() || !newCompanyNit.trim()) {
-      Alert.alert('Error', 'Por favor completa todos los campos');
+      setModalMessage({
+        title: 'Error',
+        message: 'Por favor completa todos los campos',
+      });
+      setShowErrorModal(true);
       return;
     }
 
@@ -104,69 +117,89 @@ export default function CompaniesScreen() {
         await loadData();
         
         // Las notificaciones se programan automáticamente en loadData()
-        Alert.alert('Éxito', 'Empresa agregada correctamente. Las notificaciones de recordatorios se han programado automáticamente.');
+        setModalMessage({
+          title: 'Éxito',
+          message: 'Empresa agregada correctamente. Las notificaciones de recordatorios se han programado automáticamente.',
+        });
+        setShowSuccessModal(true);
       }
     } catch (error: any) {
       console.error('Error al crear empresa:', error);
-      Alert.alert('Error', error.message || 'No se pudo crear la empresa');
+      setModalMessage({
+        title: 'Error',
+        message: error.message || 'No se pudo crear la empresa',
+      });
+      setShowErrorModal(true);
     } finally {
       setCreating(false);
     }
   };
 
   const handleDeleteCompany = (companyId: string) => {
-    Alert.alert(
-      'Confirmar eliminación',
-      '¿Estás seguro de que deseas eliminar esta empresa? Se eliminarán todos sus recordatorios.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              // Obtener los recordatorios de la empresa antes de eliminarla
-              const companyReminders = reminders.filter((r) => r.companyId === companyId);
-              
-              await companiesService.delete(companyId);
-              setCompanies(companies.filter((c) => c.id !== companyId));
-              setReminders(reminders.filter((r) => r.companyId !== companyId));
-              
-              // Cancelar todas las notificaciones de los recordatorios de esta empresa
-              for (const reminder of companyReminders) {
-                await notificationsService.cancelReminderNotifications(reminder.id);
-              }
-              
-              Alert.alert('Éxito', 'Empresa eliminada correctamente. Las notificaciones asociadas han sido canceladas.');
-            } catch (error: any) {
-              console.error('Error al eliminar empresa:', error);
-              Alert.alert('Error', error.message || 'No se pudo eliminar la empresa');
-            }
-          },
-        },
-      ]
-    );
+    setCompanyToDelete(companyId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteCompany = async () => {
+    if (!companyToDelete) return;
+    
+    try {
+      // Obtener los recordatorios de la empresa antes de eliminarla
+      const companyReminders = reminders.filter((r) => r.companyId === companyToDelete);
+      
+      await companiesService.delete(companyToDelete);
+      setCompanies(companies.filter((c) => c.id !== companyToDelete));
+      setReminders(reminders.filter((r) => r.companyId !== companyToDelete));
+      
+      // Cancelar todas las notificaciones de los recordatorios de esta empresa
+      for (const reminder of companyReminders) {
+        await notificationsService.cancelReminderNotifications(reminder.id);
+      }
+      
+      setShowDeleteModal(false);
+      setCompanyToDelete(null);
+      setModalMessage({
+        title: 'Éxito',
+        message: 'Empresa eliminada correctamente. Las notificaciones asociadas han sido canceladas.',
+      });
+      setShowSuccessModal(true);
+    } catch (error: any) {
+      console.error('Error al eliminar empresa:', error);
+      setShowDeleteModal(false);
+      setCompanyToDelete(null);
+      setModalMessage({
+        title: 'Error',
+        message: error.message || 'No se pudo eliminar la empresa',
+      });
+      setShowErrorModal(true);
+    }
   };
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50 items-center justify-center" edges={['top']}>
+      <SafeAreaView className={`flex-1 items-center justify-center ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`} edges={['top']}>
         <ActivityIndicator size="large" color="#2563eb" />
-        <Text className="text-gray-600 mt-4">Cargando empresas...</Text>
+        <Text className={isDark ? 'text-gray-300 mt-4' : 'text-gray-600 mt-4'}>Cargando empresas...</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+    <SafeAreaView className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`} edges={['top']}>
       {/* Header */}
-      <View className="bg-white px-6 py-4 border-b border-gray-200">
+      <View className={`px-6 py-4 border-b ${
+        isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+      }`}>
         <View className="flex-row justify-between items-center">
           <View>
-            <Text className="text-2xl font-bold text-gray-900">
+            <Text className={`text-2xl font-bold ${
+              isDark ? 'text-white' : 'text-gray-900'
+            }`}>
               Empresas
             </Text>
-            <Text className="text-gray-600 mt-1">
+            <Text className={`mt-1 ${
+              isDark ? 'text-gray-300' : 'text-gray-600'
+            }`}>
               Gestiona tus empresas y clientes
             </Text>
           </View>
@@ -188,58 +221,18 @@ export default function CompaniesScreen() {
         }
         contentContainerStyle={{ paddingBottom: 20 }}
       >
-        {/* Formulario de agregar empresa */}
-        {showAddForm && (
-          <View className="mx-6 mt-4 bg-white rounded-xl p-4 border border-gray-200">
-            <Text className="text-lg font-semibold text-gray-900 mb-4">
-              Nueva Empresa
-            </Text>
-            <View className="mb-4">
-              <Text className="text-sm font-medium text-gray-700 mb-2">
-                Nombre de la empresa
-              </Text>
-              <TextInput
-                className="bg-gray-50 border border-gray-300 rounded-lg px-4 py-3 text-gray-900"
-                placeholder="Ej: Mi Empresa S.A.S."
-                value={newCompanyName}
-                onChangeText={setNewCompanyName}
-                placeholderTextColor="#9ca3af"
-              />
-            </View>
-            <View className="mb-4">
-              <Text className="text-sm font-medium text-gray-700 mb-2">
-                NIT
-              </Text>
-              <TextInput
-                className="bg-gray-50 border border-gray-300 rounded-lg px-4 py-3 text-gray-900"
-                placeholder="Ej: 900123456-7"
-                value={newCompanyNit}
-                onChangeText={setNewCompanyNit}
-                placeholderTextColor="#9ca3af"
-                keyboardType="numeric"
-              />
-            </View>
-            <TouchableOpacity
-              onPress={handleAddCompany}
-              disabled={creating}
-              className={`bg-blue-600 py-3 rounded-lg ${creating ? 'opacity-50' : ''}`}
-            >
-              {creating ? (
-                <ActivityIndicator color="#ffffff" />
-              ) : (
-                <Text className="text-white text-center font-semibold">
-                  Agregar Empresa
-                </Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
 
         {/* Lista de empresas */}
         <View className="px-6 py-4">
           {companies.length === 0 ? (
-            <View className="bg-white rounded-xl p-8 border border-gray-200">
-              <Text className="text-gray-600 text-center mb-4">
+            <View className={`rounded-xl p-8 border ${
+              isDark 
+                ? 'bg-gray-800 border-gray-700' 
+                : 'bg-white border-gray-200'
+            }`}>
+              <Text className={`text-center mb-4 ${
+                isDark ? 'text-gray-300' : 'text-gray-600'
+              }`}>
                 No hay empresas registradas
               </Text>
               <TouchableOpacity
@@ -258,14 +251,22 @@ export default function CompaniesScreen() {
                 return (
                   <View
                     key={company.id}
-                    className={`bg-white rounded-xl p-4 border border-gray-200 shadow-sm ${index > 0 ? 'mt-4' : ''}`}
+                    className={`rounded-xl p-4 border shadow-sm ${index > 0 ? 'mt-4' : ''} ${
+                      isDark 
+                        ? 'bg-gray-800 border-gray-700' 
+                        : 'bg-white border-gray-200'
+                    }`}
                   >
                     <View className="flex-row justify-between items-start mb-3">
                       <View className="flex-1">
-                        <Text className="text-lg font-semibold text-gray-900 mb-1">
+                        <Text className={`text-lg font-semibold mb-1 ${
+                          isDark ? 'text-white' : 'text-gray-900'
+                        }`}>
                           {company.name}
                         </Text>
-                        <Text className="text-sm text-gray-600">
+                        <Text className={`text-sm ${
+                          isDark ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
                           NIT: {company.nit}
                         </Text>
                       </View>
@@ -280,31 +281,53 @@ export default function CompaniesScreen() {
                     {/* Estadísticas */}
                     <View className="flex-row flex-wrap -mx-1 mb-3">
                       <View className="w-1/3 px-1">
-                        <View className="bg-gray-50 rounded-lg p-2">
-                          <Text className="text-xs text-gray-600 mb-1">
+                        <View className={`rounded-lg p-2 ${
+                          isDark ? 'bg-gray-700' : 'bg-gray-50'
+                        }`}>
+                          <Text className={`text-xs mb-1 ${
+                            isDark ? 'text-gray-400' : 'text-gray-600'
+                          }`}>
                             Total
                           </Text>
-                          <Text className="text-lg font-bold text-gray-900">
+                          <Text className={`text-lg font-bold ${
+                            isDark ? 'text-white' : 'text-gray-900'
+                          }`}>
                             {stats.total}
                           </Text>
                         </View>
                       </View>
                       <View className="w-1/3 px-1">
-                        <View className="bg-yellow-50 rounded-lg p-2">
-                          <Text className="text-xs text-yellow-700 mb-1">
+                        <View className={`rounded-lg p-2 ${
+                          isDark 
+                            ? 'bg-yellow-900/30' 
+                            : 'bg-yellow-50'
+                        }`}>
+                          <Text className={`text-xs mb-1 ${
+                            isDark ? 'text-yellow-300' : 'text-yellow-700'
+                          }`}>
                             Pendientes
                           </Text>
-                          <Text className="text-lg font-bold text-yellow-900">
+                          <Text className={`text-lg font-bold ${
+                            isDark ? 'text-yellow-200' : 'text-yellow-900'
+                          }`}>
                             {stats.pending}
                           </Text>
                         </View>
                       </View>
                       <View className="w-1/3 px-1">
-                        <View className="bg-red-50 rounded-lg p-2">
-                          <Text className="text-xs text-red-700 mb-1">
+                        <View className={`rounded-lg p-2 ${
+                          isDark 
+                            ? 'bg-red-900/30' 
+                            : 'bg-red-50'
+                        }`}>
+                          <Text className={`text-xs mb-1 ${
+                            isDark ? 'text-red-300' : 'text-red-700'
+                          }`}>
                             Vencidos
                           </Text>
-                          <Text className="text-lg font-bold text-red-900">
+                          <Text className={`text-lg font-bold ${
+                            isDark ? 'text-red-200' : 'text-red-900'
+                          }`}>
                             {stats.overdue}
                           </Text>
                         </View>
@@ -324,17 +347,168 @@ export default function CompaniesScreen() {
         </View>
 
         {/* Información */}
-        <View className="mx-6 mb-4 bg-blue-50 rounded-xl p-4 border border-blue-200">
-          <Text className="text-sm font-semibold text-blue-900 mb-2">
+        <View className={`mx-6 mb-4 rounded-xl p-4 border ${
+          isDark 
+            ? 'bg-blue-900/30 border-blue-800' 
+            : 'bg-blue-50 border-blue-200'
+        }`}>
+          <Text className={`text-sm font-semibold mb-2 ${
+            isDark ? 'text-blue-200' : 'text-blue-900'
+          }`}>
             💡 Información
           </Text>
-          <Text className="text-xs text-blue-800 leading-5">
+          <Text className={`text-xs leading-5 ${
+            isDark ? 'text-blue-300' : 'text-blue-800'
+          }`}>
             Al agregar una empresa, el sistema generará automáticamente los
             recordatorios fiscales según los calendarios de la DIAN. Puedes
             gestionar los calendarios desde la configuración de cada empresa.
           </Text>
         </View>
       </ScrollView>
+
+      {/* Modal de formulario para agregar empresa */}
+      <StyledModal
+        visible={showAddForm}
+        onClose={() => {
+          setShowAddForm(false);
+          setNewCompanyName('');
+          setNewCompanyNit('');
+        }}
+        title="Nueva Empresa"
+      >
+        <View className="mt-4">
+          <View className="mb-4">
+            <Text className={`text-sm font-medium mb-2 ${
+              isDark ? 'text-gray-300' : 'text-gray-700'
+            }`}>
+              Nombre de la empresa
+            </Text>
+            <TextInput
+              className={`border rounded-lg px-4 py-3 ${
+                isDark 
+                  ? 'bg-gray-700 border-gray-600 text-white' 
+                  : 'bg-gray-50 border-gray-300 text-gray-900'
+              }`}
+              placeholder="Ej: Mi Empresa S.A.S."
+              value={newCompanyName}
+              onChangeText={setNewCompanyName}
+              placeholderTextColor="#9ca3af"
+            />
+          </View>
+          <View className="mb-4">
+            <Text className={`text-sm font-medium mb-2 ${
+              isDark ? 'text-gray-300' : 'text-gray-700'
+            }`}>
+              NIT
+            </Text>
+            <TextInput
+              className={`border rounded-lg px-4 py-3 ${
+                isDark 
+                  ? 'bg-gray-700 border-gray-600 text-white' 
+                  : 'bg-gray-50 border-gray-300 text-gray-900'
+              }`}
+              placeholder="Ej: 900123456-7"
+              value={newCompanyNit}
+              onChangeText={setNewCompanyNit}
+              placeholderTextColor="#9ca3af"
+              keyboardType="numeric"
+            />
+          </View>
+        </View>
+        <View className={`px-6 pb-6 pt-2 border-t ${
+          isDark ? 'border-gray-700' : 'border-gray-200'
+        }`}>
+          <View className="flex-row justify-end gap-3">
+            <TouchableOpacity
+              onPress={() => {
+                setShowAddForm(false);
+                setNewCompanyName('');
+                setNewCompanyNit('');
+              }}
+              className="px-5 py-3 rounded-lg"
+              style={{ backgroundColor: isDark ? '#374151' : '#e5e7eb' }}
+            >
+              <Text className={`font-semibold ${
+                isDark ? 'text-gray-200' : 'text-gray-700'
+              }`}>
+                Cancelar
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleAddCompany}
+              disabled={creating}
+              className="px-5 py-3 rounded-lg"
+              style={{
+                backgroundColor: creating ? '#9ca3af' : '#2563eb',
+                opacity: creating ? 0.5 : 1,
+              }}
+            >
+              {creating ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <Text className="text-white font-semibold">
+                  Agregar Empresa
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </StyledModal>
+
+      {/* Modal de confirmación de eliminación */}
+      <StyledModal
+        visible={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setCompanyToDelete(null);
+        }}
+        title="Confirmar eliminación"
+        message="¿Estás seguro de que deseas eliminar esta empresa? Se eliminarán todos sus recordatorios."
+        buttons={[
+          {
+            text: 'Cancelar',
+            style: 'cancel',
+            onPress: () => {
+              setShowDeleteModal(false);
+              setCompanyToDelete(null);
+            },
+          },
+          {
+            text: 'Eliminar',
+            style: 'destructive',
+            onPress: confirmDeleteCompany,
+          },
+        ]}
+      />
+
+      {/* Modal de éxito */}
+      <StyledModal
+        visible={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
+        title={modalMessage.title}
+        message={modalMessage.message}
+        buttons={[
+          {
+            text: 'Aceptar',
+            onPress: () => setShowSuccessModal(false),
+          },
+        ]}
+      />
+
+      {/* Modal de error */}
+      <StyledModal
+        visible={showErrorModal}
+        onClose={() => setShowErrorModal(false)}
+        title={modalMessage.title}
+        message={modalMessage.message}
+        buttons={[
+          {
+            text: 'Aceptar',
+            onPress: () => setShowErrorModal(false),
+          },
+        ]}
+      />
     </SafeAreaView>
   );
 }
