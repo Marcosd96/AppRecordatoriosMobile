@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Reminder, ReminderFilter, SortBy, Company } from '../types';
 import { remindersService } from '../services/remindersService';
 import { companiesService } from '../services/companiesService';
+import { notificationsService } from '../services/notificationsService';
 
 export default function RemindersScreen() {
   const [reminders, setReminders] = useState<Reminder[]>([]);
@@ -32,6 +33,9 @@ export default function RemindersScreen() {
       ]);
       setReminders(remindersData);
       setCompanies(companiesData);
+      
+      // Programar notificaciones para los recordatorios pendientes
+      await notificationsService.scheduleAllReminders(remindersData);
     } catch (error: any) {
       console.error('Error al cargar datos:', error);
       Alert.alert(
@@ -45,6 +49,13 @@ export default function RemindersScreen() {
   };
 
   useEffect(() => {
+    // Inicializar notificaciones al montar el componente
+    const initializeNotifications = async () => {
+      await notificationsService.createNotificationChannel();
+      await notificationsService.requestPermissions();
+    };
+    
+    initializeNotifications();
     loadData();
   }, []);
 
@@ -127,9 +138,16 @@ export default function RemindersScreen() {
 
     try {
       const result = await remindersService.toggleStatus(id, reminder.status);
-      setReminders((prev) =>
-        prev.map((r) => (r.id === id ? result.reminder : r))
-      );
+      const updatedReminders = reminders.map((r) => (r.id === id ? result.reminder : r));
+      setReminders(updatedReminders);
+      
+      // Si se completó el recordatorio, cancelar sus notificaciones
+      if (result.reminder.status === 'completed') {
+        await notificationsService.cancelReminderNotifications(id);
+      } else {
+        // Si se reactivó, reprogramar notificaciones
+        await notificationsService.scheduleReminderNotification(result.reminder);
+      }
     } catch (error: any) {
       console.error('Error al actualizar recordatorio:', error);
       Alert.alert('Error', error.message || 'No se pudo actualizar el recordatorio');

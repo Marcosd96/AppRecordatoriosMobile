@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Company, Reminder } from '../types';
 import { companiesService } from '../services/companiesService';
 import { remindersService } from '../services/remindersService';
+import { notificationsService } from '../services/notificationsService';
 
 export default function CompaniesScreen() {
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -32,6 +33,9 @@ export default function CompaniesScreen() {
       ]);
       setCompanies(companiesData);
       setReminders(remindersData);
+      
+      // Programar notificaciones automáticamente para todos los recordatorios pendientes
+      await notificationsService.scheduleAllReminders(remindersData);
     } catch (error: any) {
       console.error('Error al cargar datos:', error);
       Alert.alert(
@@ -45,6 +49,13 @@ export default function CompaniesScreen() {
   };
 
   useEffect(() => {
+    // Inicializar notificaciones al montar el componente
+    const initializeNotifications = async () => {
+      await notificationsService.createNotificationChannel();
+      await notificationsService.requestPermissions();
+    };
+    
+    initializeNotifications();
     loadData();
   }, []);
 
@@ -88,9 +99,12 @@ export default function CompaniesScreen() {
         setNewCompanyName('');
         setNewCompanyNit('');
         setShowAddForm(false);
-        Alert.alert('Éxito', 'Empresa agregada correctamente');
+        
         // Recargar datos para obtener los recordatorios generados
         await loadData();
+        
+        // Las notificaciones se programan automáticamente en loadData()
+        Alert.alert('Éxito', 'Empresa agregada correctamente. Las notificaciones de recordatorios se han programado automáticamente.');
       }
     } catch (error: any) {
       console.error('Error al crear empresa:', error);
@@ -111,10 +125,19 @@ export default function CompaniesScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
+              // Obtener los recordatorios de la empresa antes de eliminarla
+              const companyReminders = reminders.filter((r) => r.companyId === companyId);
+              
               await companiesService.delete(companyId);
               setCompanies(companies.filter((c) => c.id !== companyId));
               setReminders(reminders.filter((r) => r.companyId !== companyId));
-              Alert.alert('Éxito', 'Empresa eliminada correctamente');
+              
+              // Cancelar todas las notificaciones de los recordatorios de esta empresa
+              for (const reminder of companyReminders) {
+                await notificationsService.cancelReminderNotifications(reminder.id);
+              }
+              
+              Alert.alert('Éxito', 'Empresa eliminada correctamente. Las notificaciones asociadas han sido canceladas.');
             } catch (error: any) {
               console.error('Error al eliminar empresa:', error);
               Alert.alert('Error', error.message || 'No se pudo eliminar la empresa');
