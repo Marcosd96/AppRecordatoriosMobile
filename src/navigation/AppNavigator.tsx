@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from '../context/AuthContext';
 
 // Screens
 import OnboardingScreen from '../screens/OnboardingScreen';
+import WelcomePermissionsScreen from '../screens/WelcomePermissionsScreen';
 import LoginScreen from '../screens/LoginScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import RemindersScreen from '../screens/RemindersScreen';
@@ -73,6 +74,7 @@ function MainTabs() {
 function AppNavigatorContent() {
   const { isAuthenticated, loading } = useAuth();
   const [isFirstLaunch, setIsFirstLaunch] = useState<boolean | null>(null);
+  const [showPermissions, setShowPermissions] = useState(false);
 
   useEffect(() => {
     checkFirstLaunch();
@@ -90,8 +92,18 @@ function AppNavigatorContent() {
 
   const handleOnboardingComplete = async () => {
     try {
+      // Después del onboarding, mostrar la pantalla de permisos
+      setShowPermissions(true);
+    } catch (error) {
+      console.error('Error saving launch status:', error);
+    }
+  };
+
+  const handlePermissionsComplete = async () => {
+    try {
       await AsyncStorage.setItem('hasLaunched', 'true');
       setIsFirstLaunch(false);
+      setShowPermissions(false);
     } catch (error) {
       console.error('Error saving launch status:', error);
     }
@@ -111,12 +123,21 @@ function AppNavigatorContent() {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!isAuthenticated ? (
           <Stack.Screen name="Login" component={LoginScreen} />
-        ) : isFirstLaunch ? (
+        ) : isFirstLaunch && !showPermissions ? (
           <Stack.Screen name="Onboarding">
             {(props) => (
               <OnboardingScreen
                 {...props}
                 onComplete={handleOnboardingComplete}
+              />
+            )}
+          </Stack.Screen>
+        ) : isFirstLaunch && showPermissions ? (
+          <Stack.Screen name="WelcomePermissions">
+            {(props) => (
+              <WelcomePermissionsScreen
+                {...props}
+                onComplete={handlePermissionsComplete}
               />
             )}
           </Stack.Screen>

@@ -18,8 +18,8 @@ interface OnboardingScreenProps {
 
 const onboardingData = [
   {
-    title: 'Bienvenido a AppRecordatorios',
-    description: 'Gestiona tus recordatorios fiscales de manera fácil y eficiente',
+    title: 'Bienvenido a Gesaccol',
+    description: 'Tu asistente inteligente para gestionar recordatorios fiscales de manera fácil y eficiente',
     icon: '📋',
   },
   {
