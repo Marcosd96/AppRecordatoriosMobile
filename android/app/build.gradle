@@ -78,6 +78,10 @@ android {
     compileSdk rootProject.ext.compileSdkVersion
 
     namespace "com.apprecordatoriosmobile"
+    
+    // Configuración para evitar rutas largas en Windows
+    buildDir = new File(rootProject.projectDir, "../.build/${project.name}")
+    
     defaultConfig {
         applicationId "com.apprecordatoriosmobile"
         minSdkVersion rootProject.ext.minSdkVersion
