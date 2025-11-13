@@ -1,5 +1,5 @@
 /**
- * AppRecordatorios Mobile
+ * Gesaccol
  * Aplicación móvil para gestión de recordatorios fiscales
  *
  * @format
