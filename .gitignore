@@ -56,6 +56,7 @@ yarn-error.log
 
 # Bundle artifact
 *.jsbundle
+android/app/src/main/assets/index.android.bundle
 
 # APK files
 releases/*.apk

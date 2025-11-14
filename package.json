@@ -9,7 +9,7 @@
     "start": "react-native start",
     "test": "jest",
     "generate-icons": "node scripts/generate-icons.js",
-    "build:apk": "cd android && ./gradlew assembleDebug && mkdir -p ../releases && cp .build/app/outputs/apk/debug/app-debug.apk ../releases/Gesaccol-debug.apk && echo 'APK generado en: releases/Gesaccol-debug.apk'"
+    "build:apk": "npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res && cd android && ./gradlew assembleDebug && mkdir -p ../releases && cp ../.build/app/outputs/apk/debug/app-debug.apk ../releases/Gesaccol-debug.apk && echo 'APK generado en: releases/Gesaccol-debug.apk'"
   },
   "dependencies": {
     "@notifee/react-native": "^7.8.2",
