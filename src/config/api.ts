@@ -22,6 +22,8 @@ export const API_ENDPOINTS = {
   companies: '/api/mobile/companies',
   company: (id: string) => `/api/mobile/companies/${id}`,
   dashboard: '/api/mobile/dashboard',
+  calendars: '/api/mobile/calendars',
+  cities: '/api/mobile/cities',
 };
 
 /**
@@ -51,10 +53,18 @@ async function fetchAPI<T>(
   try {
     console.log(`[API] Fetching: ${url}`);
     
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...options?.headers,
     };
+
+    // Copiar headers existentes si los hay
+    if (options?.headers) {
+      Object.entries(options.headers).forEach(([key, value]) => {
+        if (typeof value === 'string') {
+          headers[key] = value;
+        }
+      });
+    }
     
     // Agregar token de autenticación si existe
     if (token) {
