@@ -4,6 +4,7 @@ import { Reminder } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const NOTIFICATION_STORAGE_KEY = '@scheduled_notifications';
+const IMMEDIATE_NOTIFICATIONS_TODAY_KEY = '@immediate_notifications_today';
 
 /**
  * Servicio para manejar notificaciones locales de recordatorios
@@ -80,8 +81,10 @@ class NotificationsService {
 
   /**
    * Programa notificaciones diarias para un recordatorio desde 3 días antes hasta el día de vencimiento
+   * @param reminder El recordatorio a programar
+   * @param sendImmediate Si es true, envía notificación inmediata si aplica. Si es false, solo programa notificaciones futuras.
    */
-  async scheduleReminderNotification(reminder: Reminder): Promise<void> {
+  async scheduleReminderNotification(reminder: Reminder, sendImmediate: boolean = false): Promise<void> {
     try {
       // Solo programar notificaciones para recordatorios pendientes
       if (reminder.status !== 'pending') {
@@ -90,18 +93,92 @@ class NotificationsService {
 
       const dueDate = new Date(reminder.dueDate);
       const now = new Date();
-      now.setHours(0, 0, 0, 0);
+      const nowMidnight = new Date(now);
+      nowMidnight.setHours(0, 0, 0, 0);
+      
+      // Normalizar la fecha de vencimiento a medianoche para comparación correcta
+      const dueDateMidnight = new Date(dueDate);
+      dueDateMidnight.setHours(0, 0, 0, 0);
 
       // No programar notificaciones para fechas pasadas
-      if (dueDate < now) {
+      if (dueDateMidnight < nowMidnight) {
         return;
       }
 
       // Crear canal de notificaciones si es necesario
       await this.createNotificationChannel();
 
-      // Calcular días hasta el vencimiento
-      const daysUntilDue = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      // Calcular días hasta el vencimiento (diferencia en días completos)
+      const daysUntilDue = Math.floor((dueDateMidnight.getTime() - nowMidnight.getTime()) / (1000 * 60 * 60 * 24));
+
+      // Verificar si el recordatorio está dentro de los próximos 3 días y ya pasaron las 9 AM
+      const isWithin3Days = daysUntilDue >= 0 && daysUntilDue <= 3;
+      const currentHour = now.getHours();
+      const currentMinutes = now.getMinutes();
+      const hasPassed9AM = currentHour > 9 || (currentHour === 9 && currentMinutes > 0);
+      
+      // Verificar si ya se envió una notificación inmediata para este recordatorio hoy
+      const alreadyNotifiedToday = await this.hasImmediateNotificationToday(reminder.id);
+      // Solo enviar notificación inmediata si sendImmediate es true, está dentro de 3 días, pasaron las 9 AM y no se ha notificado hoy
+      const shouldSendImmediateNotification = sendImmediate && isWithin3Days && hasPassed9AM && daysUntilDue >= 0 && !alreadyNotifiedToday;
+
+      // Enviar notificación inmediata solo si es necesario y no se ha enviado ya hoy
+      if (shouldSendImmediateNotification) {
+        let immediateTitle: string;
+        let immediateBody: string;
+        let immediateColor: string;
+
+        if (daysUntilDue === 0) {
+          immediateTitle = '📅 Recordatorio Fiscal - Vence Hoy';
+          immediateBody = `${reminder.description} - ${reminder.companyName}\n⚠️ Vence hoy - ¡Acción requerida!`;
+          immediateColor = '#dc2626'; // Rojo para urgencia
+        } else if (daysUntilDue === 1) {
+          immediateTitle = '⏰ Recordatorio Fiscal - Mañana';
+          immediateBody = `${reminder.description} - ${reminder.companyName}\nVence mañana - ¡No olvides completarlo!`;
+          immediateColor = '#f59e0b'; // Amarillo/naranja
+        } else if (daysUntilDue === 2) {
+          immediateTitle = '⏰ Recordatorio Fiscal';
+          immediateBody = `${reminder.description} - ${reminder.companyName}\nVence en 2 días - Recuerda prepararlo`;
+          immediateColor = '#f59e0b'; // Amarillo/naranja
+        } else {
+          immediateTitle = '⏰ Recordatorio Fiscal';
+          immediateBody = `${reminder.description} - ${reminder.companyName}\nVence en 3 días - Nuevo recordatorio`;
+          immediateColor = '#2563eb'; // Azul
+        }
+
+        // Enviar notificación inmediata
+        await notifee.displayNotification({
+          id: `reminder_${reminder.id}_immediate`,
+          title: immediateTitle,
+          body: immediateBody,
+          data: {
+            reminderId: reminder.id,
+            type: 'immediate',
+            daysUntilDue: daysUntilDue,
+          },
+          android: {
+            channelId: 'reminders',
+            importance: AndroidImportance.HIGH,
+            pressAction: {
+              id: 'default',
+            },
+            smallIcon: 'ic_launcher',
+            color: immediateColor,
+          },
+          ios: {
+            sound: 'default',
+            foregroundPresentationOptions: {
+              alert: true,
+              badge: true,
+              sound: true,
+            },
+          },
+        });
+
+        // Marcar que se envió notificación inmediata para este recordatorio hoy
+        await this.markImmediateNotificationSent(reminder.id);
+        console.log(`Notificación inmediata enviada para recordatorio ${reminder.id} (vence en ${daysUntilDue} días)`);
+      }
 
       // Programar notificaciones diarias desde 3 días antes hasta el día de vencimiento
       const notificationIds: string[] = [];
@@ -112,8 +189,12 @@ class NotificationsService {
         notificationDate.setDate(notificationDate.getDate() - daysBefore);
         notificationDate.setHours(9, 0, 0, 0);
 
-        // Solo programar si la fecha es futura
-        if (notificationDate >= now) {
+        // Solo programar si la fecha es futura (debe ser mayor que la hora actual)
+        // Si ya enviamos una notificación inmediata, no programar la del día actual si ya pasaron las 9 AM
+        const isTodayNotification = daysBefore === 0;
+        const shouldSkipTodayNotification = isTodayNotification && hasPassed9AM && shouldSendImmediateNotification;
+
+        if (notificationDate.getTime() > now.getTime() && !shouldSkipTodayNotification) {
           let title: string;
           let body: string;
           let color: string;
@@ -208,8 +289,10 @@ class NotificationsService {
 
   /**
    * Programa notificaciones para todos los recordatorios pendientes
+   * @param reminders Lista de recordatorios
+   * @param sendImmediate Si es true, envía notificaciones inmediatas para recordatorios dentro de 3 días. Si es false, solo programa notificaciones futuras.
    */
-  async scheduleAllReminders(reminders: Reminder[]): Promise<void> {
+  async scheduleAllReminders(reminders: Reminder[], sendImmediate: boolean = false): Promise<void> {
     try {
       // Verificar permisos primero
       const hasPermission = await this.checkPermissions();
@@ -221,6 +304,9 @@ class NotificationsService {
         }
       }
 
+      // Limpiar notificaciones inmediatas de días anteriores
+      await this.cleanOldImmediateNotifications();
+
       // Cancelar todas las notificaciones existentes
       await this.cancelAllNotifications();
 
@@ -228,10 +314,10 @@ class NotificationsService {
       const pendingReminders = reminders.filter((r) => r.status === 'pending');
       
       for (const reminder of pendingReminders) {
-        await this.scheduleReminderNotification(reminder);
+        await this.scheduleReminderNotification(reminder, sendImmediate);
       }
 
-      console.log(`Programadas ${pendingReminders.length} notificaciones de recordatorios`);
+      console.log(`Programadas notificaciones para ${pendingReminders.length} recordatorios (inmediatas: ${sendImmediate})`);
     } catch (error) {
       console.error('Error al programar notificaciones:', error);
     }
@@ -360,6 +446,70 @@ class NotificationsService {
     } catch (error) {
       console.error('Error al obtener notificaciones programadas:', error);
       return [];
+    }
+  }
+
+  /**
+   * Verifica si ya se envió una notificación inmediata para un recordatorio hoy
+   */
+  private async hasImmediateNotificationToday(reminderId: string): Promise<boolean> {
+    try {
+      const stored = await AsyncStorage.getItem(IMMEDIATE_NOTIFICATIONS_TODAY_KEY);
+      if (!stored) return false;
+      
+      const data = JSON.parse(stored);
+      const today = new Date().toDateString();
+      
+      // Verificar si hay una entrada para este recordatorio hoy
+      return data[today] && data[today].includes(reminderId);
+    } catch (error) {
+      console.error('Error al verificar notificación inmediata:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Marca que se envió una notificación inmediata para un recordatorio hoy
+   */
+  private async markImmediateNotificationSent(reminderId: string): Promise<void> {
+    try {
+      const stored = await AsyncStorage.getItem(IMMEDIATE_NOTIFICATIONS_TODAY_KEY);
+      const data = stored ? JSON.parse(stored) : {};
+      const today = new Date().toDateString();
+      
+      if (!data[today]) {
+        data[today] = [];
+      }
+      
+      if (!data[today].includes(reminderId)) {
+        data[today].push(reminderId);
+        await AsyncStorage.setItem(IMMEDIATE_NOTIFICATIONS_TODAY_KEY, JSON.stringify(data));
+      }
+    } catch (error) {
+      console.error('Error al marcar notificación inmediata:', error);
+    }
+  }
+
+  /**
+   * Limpia las notificaciones inmediatas de días anteriores (mantener solo las de hoy)
+   */
+  private async cleanOldImmediateNotifications(): Promise<void> {
+    try {
+      const stored = await AsyncStorage.getItem(IMMEDIATE_NOTIFICATIONS_TODAY_KEY);
+      if (!stored) return;
+      
+      const data = JSON.parse(stored);
+      const today = new Date().toDateString();
+      
+      // Mantener solo las entradas de hoy
+      const cleanedData: { [key: string]: string[] } = {};
+      if (data[today]) {
+        cleanedData[today] = data[today];
+      }
+      
+      await AsyncStorage.setItem(IMMEDIATE_NOTIFICATIONS_TODAY_KEY, JSON.stringify(cleanedData));
+    } catch (error) {
+      console.error('Error al limpiar notificaciones inmediatas antiguas:', error);
     }
   }
 
