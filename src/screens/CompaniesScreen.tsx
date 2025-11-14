@@ -16,6 +16,8 @@ import { remindersService } from '../services/remindersService';
 import { notificationsService } from '../services/notificationsService';
 import { useTheme } from '../context/ThemeContext';
 import StyledModal from '../components/StyledModal';
+import CalendarSelector from '../components/CalendarSelector';
+import { CalendarType } from '../config/calendarTypes';
 
 export default function CompaniesScreen({ navigation }: any) {
   const { isDark } = useTheme();
@@ -32,6 +34,9 @@ export default function CompaniesScreen({ navigation }: any) {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [modalMessage, setModalMessage] = useState({ title: '', message: '' });
+  const [selectedCompanyForCalendars, setSelectedCompanyForCalendars] = useState<Company | null>(null);
+  const [showCalendarSelector, setShowCalendarSelector] = useState(false);
+  const [availableCalendars, setAvailableCalendars] = useState<CalendarType[]>([]);
 
   const loadData = async () => {
     try {
@@ -66,7 +71,20 @@ export default function CompaniesScreen({ navigation }: any) {
     
     initializeNotifications();
     loadData();
+    loadAvailableCalendars();
   }, []);
+
+  const loadAvailableCalendars = async () => {
+    try {
+      console.log('[CompaniesScreen] Cargando calendarios disponibles...');
+      const calendars = await companiesService.getAvailableCalendars();
+      console.log('[CompaniesScreen] Calendarios obtenidos:', calendars);
+      console.log('[CompaniesScreen] Número de calendarios:', calendars.length);
+      setAvailableCalendars(calendars);
+    } catch (error) {
+      console.error('Error al cargar calendarios disponibles:', error);
+    }
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -105,10 +123,30 @@ export default function CompaniesScreen({ navigation }: any) {
       const result = await companiesService.create({
         name: newCompanyName.trim(),
         nit: newCompanyNit.trim(),
+        calendarTypes: [], // No preseleccionar calendarios
       });
 
       if (result.success && result.company) {
-        setCompanies([...companies, result.company]);
+        // Si el backend asignó calendarios por defecto, limpiarlos
+        let company = result.company;
+        if (company.calendarTypes && company.calendarTypes.length > 0) {
+          try {
+            const updateResult = await companiesService.update(company.id, {
+              name: company.name,
+              nit: company.nit,
+              cityId: company.cityId,
+              calendarTypes: [], // Limpiar calendarios preseleccionados
+            });
+            if (updateResult.success && updateResult.company) {
+              company = updateResult.company;
+            }
+          } catch (updateError) {
+            console.error('Error al limpiar calendarios preseleccionados:', updateError);
+            // Continuar aunque falle la actualización
+          }
+        }
+
+        setCompanies([...companies, company]);
         setNewCompanyName('');
         setNewCompanyNit('');
         setShowAddForm(false);
@@ -119,7 +157,7 @@ export default function CompaniesScreen({ navigation }: any) {
         // Las notificaciones se programan automáticamente en loadData()
         setModalMessage({
           title: 'Éxito',
-          message: 'Empresa agregada correctamente. Las notificaciones de recordatorios se han programado automáticamente.',
+          message: 'Empresa agregada correctamente. Puedes gestionar los calendarios desde la configuración de la empresa.',
         });
         setShowSuccessModal(true);
       }
@@ -172,6 +210,41 @@ export default function CompaniesScreen({ navigation }: any) {
         message: error.message || 'No se pudo eliminar la empresa',
       });
       setShowErrorModal(true);
+    }
+  };
+
+  const handleSaveCalendars = async (selectedCalendars: CalendarType[]) => {
+    if (!selectedCompanyForCalendars) return;
+
+    try {
+      // Actualizar empresa con los calendarios seleccionados
+      await companiesService.update(selectedCompanyForCalendars.id, {
+        name: selectedCompanyForCalendars.name,
+        nit: selectedCompanyForCalendars.nit,
+        cityId: selectedCompanyForCalendars.cityId,
+        calendarTypes: selectedCalendars,
+      });
+
+      // Recargar datos (esto regenerará los recordatorios en el backend)
+      await loadData();
+      
+      // Programar notificaciones con notificaciones inmediatas habilitadas
+      // porque se acaban de crear/actualizar recordatorios
+      try {
+        const allReminders = await remindersService.getAll();
+        await notificationsService.scheduleAllReminders(allReminders, true);
+      } catch (notifError) {
+        console.error('Error al programar notificaciones después de actualizar calendarios:', notifError);
+      }
+
+      setModalMessage({
+        title: 'Éxito',
+        message: 'Calendarios actualizados correctamente. Los recordatorios se han regenerado.',
+      });
+      setShowSuccessModal(true);
+    } catch (error: any) {
+      console.error('Error al guardar calendarios:', error);
+      throw error;
     }
   };
 
@@ -334,14 +407,41 @@ export default function CompaniesScreen({ navigation }: any) {
                       </View>
                     </View>
 
-                    <TouchableOpacity 
-                      onPress={() => navigation.navigate('Reminders', { companyId: company.id })}
-                      className="bg-blue-50 py-2 rounded-lg border border-blue-200"
-                    >
-                      <Text className="text-blue-700 text-center font-medium">
-                        Ver Recordatorios
-                      </Text>
-                    </TouchableOpacity>
+                    {/* Botones de acción */}
+                    <View className="space-y-2">
+                      <TouchableOpacity 
+                        onPress={() => {
+                          setSelectedCompanyForCalendars(company);
+                          setShowCalendarSelector(true);
+                        }}
+                        className={`py-2 rounded-lg border ${
+                          isDark 
+                            ? 'bg-green-900/30 border-green-800' 
+                            : 'bg-green-50 border-green-200'
+                        }`}
+                      >
+                        <Text className={`text-center font-medium ${
+                          isDark ? 'text-green-300' : 'text-green-700'
+                        }`}>
+                          📅 Gestionar Calendarios
+                        </Text>
+                      </TouchableOpacity>
+                      
+                      <TouchableOpacity 
+                        onPress={() => navigation.navigate('Reminders', { companyId: company.id })}
+                        className={`py-2 rounded-lg border ${
+                          isDark 
+                            ? 'bg-blue-900/30 border-blue-800' 
+                            : 'bg-blue-50 border-blue-200'
+                        }`}
+                      >
+                        <Text className={`text-center font-medium ${
+                          isDark ? 'text-blue-300' : 'text-blue-700'
+                        }`}>
+                          Ver Recordatorios
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 );
               })}
@@ -512,6 +612,23 @@ export default function CompaniesScreen({ navigation }: any) {
           },
         ]}
       />
+
+      {/* Selector de calendarios */}
+      {selectedCompanyForCalendars && (
+        <CalendarSelector
+          company={selectedCompanyForCalendars}
+          availableCalendars={availableCalendars}
+          visible={showCalendarSelector}
+          onClose={() => {
+            setShowCalendarSelector(false);
+            // Esperar a que termine la animación antes de limpiar el estado
+            setTimeout(() => {
+              setSelectedCompanyForCalendars(null);
+            }, 300);
+          }}
+          onSave={handleSaveCalendars}
+        />
+      )}
     </SafeAreaView>
   );
 }
