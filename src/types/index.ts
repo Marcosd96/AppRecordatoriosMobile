@@ -11,6 +11,11 @@ export interface Company {
   createdAt: Date | string;
 }
 
+export interface City {
+  id: string;
+  name: string;
+}
+
 export interface Reminder {
   id: string;
   companyId: string;
