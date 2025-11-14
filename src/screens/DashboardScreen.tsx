@@ -295,7 +295,7 @@ export default function DashboardScreen({ navigation }: any) {
                 <Text className={`text-2xl font-bold ${
                   isDark ? 'text-white' : 'text-gray-900'
                 }`}>
-                  Dashboard
+                  Menú Principal
                 </Text>
                 <Text className={`mt-1 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
                   {user?.name ? `Hola, ${user.name}` : 'Resumen de tus recordatorios fiscales'}

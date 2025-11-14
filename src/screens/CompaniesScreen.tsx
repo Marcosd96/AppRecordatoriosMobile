@@ -17,7 +17,7 @@ import { notificationsService } from '../services/notificationsService';
 import { useTheme } from '../context/ThemeContext';
 import StyledModal from '../components/StyledModal';
 
-export default function CompaniesScreen() {
+export default function CompaniesScreen({ navigation }: any) {
   const { isDark } = useTheme();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
@@ -334,7 +334,10 @@ export default function CompaniesScreen() {
                       </View>
                     </View>
 
-                    <TouchableOpacity className="bg-blue-50 py-2 rounded-lg border border-blue-200">
+                    <TouchableOpacity 
+                      onPress={() => navigation.navigate('Reminders', { companyId: company.id })}
+                      className="bg-blue-50 py-2 rounded-lg border border-blue-200"
+                    >
                       <Text className="text-blue-700 text-center font-medium">
                         Ver Recordatorios
                       </Text>

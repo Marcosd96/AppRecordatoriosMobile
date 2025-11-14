@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,12 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  LayoutAnimation,
+  Platform,
+  UIManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Reminder, ReminderFilter, SortBy, Company } from '../types';
 import { remindersService } from '../services/remindersService';
 import { companiesService } from '../services/companiesService';
@@ -17,7 +21,12 @@ import { notificationsService } from '../services/notificationsService';
 import { useTheme } from '../context/ThemeContext';
 import StyledModal from '../components/StyledModal';
 
-export default function RemindersScreen() {
+// Habilitar animaciones de layout en Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+export default function RemindersScreen({ route }: any) {
   const { isDark } = useTheme();
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -29,6 +38,19 @@ export default function RemindersScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState({ title: '', message: '' });
+  const [showStatusFilter, setShowStatusFilter] = useState(false);
+  const [showCompanyFilter, setShowCompanyFilter] = useState(false);
+
+  // Función para animar los cambios de layout
+  const animateLayout = () => {
+    LayoutAnimation.configureNext(
+      LayoutAnimation.create(
+        250, // duración en ms
+        LayoutAnimation.Types.easeInEaseOut,
+        LayoutAnimation.Properties.opacity
+      )
+    );
+  };
 
   const loadData = async () => {
     try {
@@ -65,12 +87,31 @@ export default function RemindersScreen() {
     loadData();
   }, []);
 
+  // Actualizar selectedCompanyId cuando cambian los parámetros de ruta
+  useEffect(() => {
+    if (route?.params?.companyId) {
+      setSelectedCompanyId(route.params.companyId);
+    }
+  }, [route?.params?.companyId]);
+
+  // Limpiar el filtro cuando la pantalla pierde el foco (opcional)
+  useFocusEffect(
+    React.useCallback(() => {
+      // Si hay params, establecer el filtro
+      if (route?.params?.companyId) {
+        setSelectedCompanyId(route.params.companyId);
+      }
+      // No limpiar automáticamente para mantener el filtro activo
+    }, [route?.params?.companyId])
+  );
+
   const onRefresh = async () => {
     setRefreshing(true);
     await loadData();
   };
 
-  const filteredReminders = reminders
+  // Memoizar los recordatorios filtrados para evitar recalcular en cada render
+  const filteredReminders = useMemo(() => reminders
     .filter((r) => {
       // Filtrar por empresa
       if (selectedCompanyId && r.companyId !== selectedCompanyId) return false;
@@ -106,7 +147,7 @@ export default function RemindersScreen() {
       } else {
         return a.type.localeCompare(b.type);
       }
-    });
+    }), [reminders, selectedCompanyId, filter, sortBy, searchQuery]);
 
   const stats = {
     total: reminders.length,
@@ -138,7 +179,8 @@ export default function RemindersScreen() {
     return Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
   };
 
-  const toggleReminderStatus = async (id: string) => {
+  // Memoizar la función para evitar recrearla en cada render
+  const toggleReminderStatus = useCallback(async (id: string) => {
     const reminder = reminders.find((r) => r.id === id);
     if (!reminder) return;
 
@@ -162,7 +204,7 @@ export default function RemindersScreen() {
       });
       setShowErrorModal(true);
     }
-  };
+  }, [reminders]);
 
   const getStatusBadge = (status: Reminder['status']) => {
     const styles = {
@@ -295,100 +337,216 @@ export default function RemindersScreen() {
           />
         </View>
 
-        {/* Filtros */}
+        {/* Filtros - Lista Desplegable */}
         <View className="px-6 py-2">
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View className="flex-row">
-              {(['all', 'pending', 'overdue', 'upcoming'] as ReminderFilter[]).map(
-                (f, idx) => (
-                  <TouchableOpacity
-                    key={f}
-                    onPress={() => setFilter(f)}
-                    className={`px-4 py-2 rounded-lg ${idx > 0 ? 'ml-2' : ''} ${
-                      filter === f
-                        ? 'bg-blue-600'
-                        : isDark
-                          ? 'bg-gray-800 border border-gray-700'
-                          : 'bg-white border border-gray-300'
-                    }`}
-                  >
-                    <Text
-                      className={`text-sm font-medium ${
-                        filter === f 
-                          ? 'text-white' 
-                          : isDark 
-                            ? 'text-gray-200' 
-                            : 'text-gray-700'
+          <View className={`rounded-xl border overflow-hidden ${
+            isDark 
+              ? 'bg-gray-800 border-gray-700' 
+              : 'bg-white border-gray-200'
+          }`}>
+            <TouchableOpacity
+              onPress={() => {
+                animateLayout();
+                setShowStatusFilter(!showStatusFilter);
+              }}
+              className={`px-4 py-3 flex-row justify-between items-center ${
+                isDark ? 'bg-gray-800' : 'bg-white'
+              }`}
+            >
+              <View className="flex-row items-center">
+                <Text className={`text-base font-semibold ${
+                  isDark ? 'text-white' : 'text-gray-900'
+                }`}>
+                  📋 Filtrar por Estado
+                </Text>
+                {filter !== 'all' && (
+                  <View className={`ml-2 px-2 py-1 rounded ${
+                    isDark ? 'bg-blue-900/50' : 'bg-blue-100'
+                  }`}>
+                    <Text className={`text-xs font-medium ${
+                      isDark ? 'text-blue-200' : 'text-blue-800'
+                    }`}>
+                      {filter === 'pending' ? 'Pendientes' : 
+                       filter === 'overdue' ? 'Vencidos' : 'Próximos'}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <Text className={`text-lg ${
+                isDark ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+                {showStatusFilter ? '▲' : '▼'}
+              </Text>
+            </TouchableOpacity>
+            {showStatusFilter && (
+              <View className={`border-t ${
+                isDark ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+                {(['all', 'pending', 'overdue', 'upcoming'] as ReminderFilter[]).map(
+                  (f) => (
+                    <TouchableOpacity
+                      key={f}
+                      onPress={() => {
+                        animateLayout();
+                        setFilter(f);
+                        setShowStatusFilter(false);
+                      }}
+                      className={`px-4 py-3 border-b ${
+                        filter === f
+                          ? isDark
+                            ? 'bg-blue-900/30'
+                            : 'bg-blue-50'
+                          : isDark
+                            ? 'bg-gray-800 border-gray-700'
+                            : 'bg-white border-gray-200'
                       }`}
                     >
-                      {f === 'all'
-                        ? 'Todos'
-                        : f === 'pending'
-                        ? 'Pendientes'
-                        : f === 'overdue'
-                        ? 'Vencidos'
-                        : 'Próximos'}
-                    </Text>
-                  </TouchableOpacity>
-                )
-              )}
-            </View>
-          </ScrollView>
+                      <View className="flex-row items-center">
+                        <Text className={`text-sm font-medium ${
+                          filter === f
+                            ? isDark
+                              ? 'text-blue-200'
+                              : 'text-blue-700'
+                            : isDark
+                              ? 'text-gray-200'
+                              : 'text-gray-700'
+                        }`}>
+                          {f === 'all'
+                            ? '✓ Todos'
+                            : f === 'pending'
+                            ? '⏳ Pendientes'
+                            : f === 'overdue'
+                            ? '⚠️ Vencidos'
+                            : '📅 Próximos'}
+                        </Text>
+                        {filter === f && (
+                          <Text className="ml-2 text-blue-600">✓</Text>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  )
+                )}
+              </View>
+            )}
+          </View>
         </View>
 
-        {/* Selector de empresa */}
+        {/* Selector de empresa - Lista Desplegable */}
         <View className="px-6 py-2">
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View className="flex-row">
-              <TouchableOpacity
-                onPress={() => setSelectedCompanyId(null)}
-                className={`px-4 py-2 rounded-lg ${
-                  selectedCompanyId === null
-                    ? 'bg-blue-600'
-                    : isDark
-                      ? 'bg-gray-800 border border-gray-700'
-                      : 'bg-white border border-gray-300'
-                }`}
-              >
-                <Text
-                  className={`text-sm font-medium ${
-                    selectedCompanyId === null 
-                      ? 'text-white' 
-                      : isDark 
-                        ? 'text-gray-200' 
-                        : 'text-gray-700'
-                  }`}
-                >
-                  Todas
+          <View className={`rounded-xl border overflow-hidden ${
+            isDark 
+              ? 'bg-gray-800 border-gray-700' 
+              : 'bg-white border-gray-200'
+          }`}>
+            <TouchableOpacity
+              onPress={() => {
+                animateLayout();
+                setShowCompanyFilter(!showCompanyFilter);
+              }}
+              className={`px-4 py-3 flex-row justify-between items-center ${
+                isDark ? 'bg-gray-800' : 'bg-white'
+              }`}
+            >
+              <View className="flex-row items-center">
+                <Text className={`text-base font-semibold ${
+                  isDark ? 'text-white' : 'text-gray-900'
+                }`}>
+                  🏢 Filtrar por Empresa
                 </Text>
-              </TouchableOpacity>
-              {companies.map((company, idx) => (
+                {selectedCompanyId && (
+                  <View className={`ml-2 px-2 py-1 rounded ${
+                    isDark ? 'bg-blue-900/50' : 'bg-blue-100'
+                  }`}>
+                    <Text className={`text-xs font-medium ${
+                      isDark ? 'text-blue-200' : 'text-blue-800'
+                    }`}>
+                      {companies.find(c => c.id === selectedCompanyId)?.name || ''}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <Text className={`text-lg ${
+                isDark ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+                {showCompanyFilter ? '▲' : '▼'}
+              </Text>
+            </TouchableOpacity>
+            {showCompanyFilter && (
+              <View className={`border-t ${
+                isDark ? 'border-gray-700' : 'border-gray-200'
+              }`}>
                 <TouchableOpacity
-                  key={company.id}
-                  onPress={() => setSelectedCompanyId(company.id)}
-                  className={`px-4 py-2 rounded-lg ml-2 ${
-                    selectedCompanyId === company.id
-                      ? 'bg-blue-600'
+                  onPress={() => {
+                    animateLayout();
+                    setSelectedCompanyId(null);
+                    setShowCompanyFilter(false);
+                  }}
+                  className={`px-4 py-3 border-b ${
+                    selectedCompanyId === null
+                      ? isDark
+                        ? 'bg-blue-900/30'
+                        : 'bg-blue-50'
                       : isDark
-                        ? 'bg-gray-800 border border-gray-700'
-                        : 'bg-white border border-gray-300'
+                        ? 'bg-gray-800 border-gray-700'
+                        : 'bg-white border-gray-200'
                   }`}
                 >
-                  <Text
-                    className={`text-sm font-medium ${
-                      selectedCompanyId === company.id
-                        ? 'text-white'
+                  <View className="flex-row items-center">
+                    <Text className={`text-sm font-medium ${
+                      selectedCompanyId === null
+                        ? isDark
+                          ? 'text-blue-200'
+                          : 'text-blue-700'
                         : isDark
                           ? 'text-gray-200'
                           : 'text-gray-700'
+                    }`}>
+                      ✓ Todas las empresas
+                    </Text>
+                    {selectedCompanyId === null && (
+                      <Text className="ml-2 text-blue-600">✓</Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+                {companies.map((company) => (
+                  <TouchableOpacity
+                    key={company.id}
+                    onPress={() => {
+                      animateLayout();
+                      setSelectedCompanyId(company.id);
+                      setShowCompanyFilter(false);
+                    }}
+                    className={`px-4 py-3 border-b ${
+                      selectedCompanyId === company.id
+                        ? isDark
+                          ? 'bg-blue-900/30'
+                          : 'bg-blue-50'
+                        : isDark
+                          ? 'bg-gray-800 border-gray-700'
+                          : 'bg-white border-gray-200'
                     }`}
                   >
-                    {company.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </ScrollView>
+                    <View className="flex-row items-center">
+                      <Text className={`text-sm font-medium ${
+                        selectedCompanyId === company.id
+                          ? isDark
+                            ? 'text-blue-200'
+                            : 'text-blue-700'
+                          : isDark
+                            ? 'text-gray-200'
+                            : 'text-gray-700'
+                      }`}>
+                        {company.name}
+                      </Text>
+                      {selectedCompanyId === company.id && (
+                        <Text className="ml-2 text-blue-600">✓</Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
         </View>
 
         {/* Lista de recordatorios */}
@@ -445,15 +603,15 @@ export default function RemindersScreen() {
                           <View
                             className={`px-2 py-1 rounded ${
                               reminder.type === 'IVA'
-                                ? 'bg-blue-100'
-                                : 'bg-purple-100'
+                                ? isDark ? 'bg-blue-900/50' : 'bg-blue-100'
+                                : isDark ? 'bg-purple-900/50' : 'bg-purple-100'
                             }`}
                           >
                             <Text
                               className={`text-xs font-medium ${
                                 reminder.type === 'IVA'
-                                  ? 'text-blue-800'
-                                  : 'text-purple-800'
+                                  ? isDark ? 'text-blue-200' : 'text-blue-800'
+                                  : isDark ? 'text-purple-200' : 'text-purple-800'
                               }`}
                             >
                               {reminder.type}
