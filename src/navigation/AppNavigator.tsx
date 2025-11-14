@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
 // Screens
+import SplashScreen from '../screens/SplashScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import WelcomePermissionsScreen from '../screens/WelcomePermissionsScreen';
 import LoginScreen from '../screens/LoginScreen';
@@ -78,6 +79,7 @@ function AppNavigatorContent() {
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState<boolean | null>(null);
   const [isFirstLaunch, setIsFirstLaunch] = useState<boolean | null>(null);
   const [showPermissions, setShowPermissions] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
     checkOnboardingStatus();
@@ -121,6 +123,10 @@ function AppNavigatorContent() {
     } catch (error) {
       console.error('Error saving launch status:', error);
     }
+  };
+
+  const handleSplashFinish = () => {
+    setShowSplash(false);
   };
 
   const { isDark } = useTheme();
@@ -184,7 +190,17 @@ function AppNavigatorContent() {
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={screenOptions}>
-        {!hasCompletedOnboarding ? (
+        {showSplash ? (
+          // Mostrar splash screen primero
+          <Stack.Screen name="Splash">
+            {(props) => (
+              <SplashScreen
+                {...props}
+                onFinish={handleSplashFinish}
+              />
+            )}
+          </Stack.Screen>
+        ) : !hasCompletedOnboarding ? (
           // Mostrar onboarding primero (antes del login)
           <Stack.Screen name="Onboarding">
             {(props) => (
