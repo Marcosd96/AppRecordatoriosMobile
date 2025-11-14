@@ -94,7 +94,7 @@ export default function StyledModal({
           useNativeDriver: true,
         }),
         Animated.timing(slideAnim, {
-          toValue: 300,
+          toValue: animationType === 'slide' ? 300 : 0,
           duration: 250,
           useNativeDriver: true,
         }),
@@ -108,7 +108,7 @@ export default function StyledModal({
         animationRef.current = null;
       });
     }
-  }, [visible]);
+  }, [visible, animationType]);
 
   // No renderizar si no está visible y no hay animación
   if (!isModalVisible && !visible) {
@@ -255,6 +255,7 @@ const styles = StyleSheet.create({
   modalContainer: {
     width: '100%',
     maxWidth: 400,
+    maxHeight: '90%',
     borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: {
