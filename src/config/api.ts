@@ -24,6 +24,10 @@ export const API_ENDPOINTS = {
   dashboard: '/api/mobile/dashboard',
   calendars: '/api/mobile/calendars',
   cities: '/api/mobile/cities',
+  personalTasks: '/api/mobile/tasks',
+  personalTask: (id: string) => `/api/mobile/tasks/${id}`,
+  personalTaskComplete: (id: string) => `/api/mobile/tasks/${id}/complete`,
+  personalTasksUpcoming: '/api/mobile/tasks/upcoming',
 };
 
 /**
