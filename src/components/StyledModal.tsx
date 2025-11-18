@@ -9,6 +9,7 @@ import {
   Animated,
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
+import { useResponsive } from '../hooks/useResponsive';
 
 interface StyledModalProps {
   visible: boolean;
@@ -34,8 +35,9 @@ export default function StyledModal({
   animationType = 'fade',
 }: StyledModalProps) {
   const { isDark } = useTheme();
+  const responsive = useResponsive();
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
-  const slideAnim = React.useRef(new Animated.Value(300)).current;
+  const slideAnim = React.useRef(new Animated.Value(responsive.scale(300))).current;
   const animationRef = React.useRef<Animated.CompositeAnimation | null>(null);
   const [isModalVisible, setIsModalVisible] = React.useState(false);
   const isAnimatingRef = React.useRef(false);
@@ -53,7 +55,7 @@ export default function StyledModal({
       
       // Reiniciar valores antes de animar
       fadeAnim.setValue(0);
-      slideAnim.setValue(300);
+      slideAnim.setValue(responsive.scale(300));
 
       // Pequeño delay para asegurar que los valores se han establecido
       const timer = setTimeout(() => {
@@ -94,7 +96,7 @@ export default function StyledModal({
           useNativeDriver: true,
         }),
         Animated.timing(slideAnim, {
-          toValue: animationType === 'slide' ? 300 : 0,
+          toValue: animationType === 'slide' ? responsive.scale(300) : 0,
           duration: 250,
           useNativeDriver: true,
         }),
@@ -108,7 +110,7 @@ export default function StyledModal({
         animationRef.current = null;
       });
     }
-  }, [visible, animationType]);
+  }, [visible]);
 
   // No renderizar si no está visible y no hay animación
   if (!isModalVisible && !visible) {
@@ -141,6 +143,68 @@ export default function StyledModal({
     }
   };
 
+  const dynamicStyles = StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: responsive.spacing.md,
+    },
+    modalContainer: {
+      width: responsive.isTablet ? '80%' : '90%',
+      maxWidth: responsive.isTablet ? 500 : 400,
+      maxHeight: '90%',
+      borderRadius: responsive.borderRadius.xl,
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 4,
+      },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 8,
+    },
+    contentContainer: {
+      paddingHorizontal: responsive.spacing.lg,
+      paddingTop: responsive.spacing.lg,
+      paddingBottom: responsive.spacing.md,
+    },
+    title: {
+      fontSize: responsive.fontSize['2xl'],
+      fontWeight: '700',
+      marginBottom: responsive.spacing.sm,
+    },
+    message: {
+      fontSize: responsive.fontSize.base,
+      lineHeight: responsive.fontSize.base * 1.5,
+    },
+    buttonsContainer: {
+      paddingHorizontal: responsive.spacing.lg,
+      paddingBottom: responsive.spacing.lg,
+      paddingTop: responsive.spacing.sm,
+      borderTopWidth: 1,
+    },
+    buttonsRow: {
+      flexDirection: responsive.isTablet ? 'row' : buttons && buttons.length > 2 ? 'column' : 'row',
+      justifyContent: 'flex-end',
+      flexWrap: 'wrap',
+      gap: responsive.spacing.sm,
+    },
+    button: {
+      paddingHorizontal: responsive.spacing.md,
+      paddingVertical: responsive.spacing.sm,
+      borderRadius: responsive.borderRadius.md,
+      minWidth: responsive.isTablet ? 120 : 100,
+      alignItems: 'center',
+      flex: responsive.isTablet && buttons && buttons.length <= 2 ? 0 : buttons && buttons.length > 2 ? 1 : 0,
+    },
+    buttonText: {
+      fontSize: responsive.fontSize.base,
+      fontWeight: '600',
+    },
+  });
+
   return (
     <Modal
       visible={isModalVisible}
@@ -151,7 +215,7 @@ export default function StyledModal({
       <TouchableWithoutFeedback onPress={handleClose}>
         <Animated.View
           style={[
-            styles.overlay,
+            dynamicStyles.overlay,
             {
               opacity: fadeAnim,
             },
@@ -160,17 +224,17 @@ export default function StyledModal({
           <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
             <Animated.View
               style={[
-                styles.modalContainer,
+                dynamicStyles.modalContainer,
                 {
                   backgroundColor: isDark ? '#1f2937' : '#ffffff',
                   transform: [{ translateY: slideAnim }],
                 },
               ]}
             >
-              <View style={styles.contentContainer}>
+              <View style={dynamicStyles.contentContainer}>
                 <Text
                   style={[
-                    styles.title,
+                    dynamicStyles.title,
                     { color: isDark ? '#ffffff' : '#111827' },
                   ]}
                 >
@@ -179,7 +243,7 @@ export default function StyledModal({
                 {message && (
                   <Text
                     style={[
-                      styles.message,
+                      dynamicStyles.message,
                       { color: isDark ? '#d1d5db' : '#4b5563' },
                     ]}
                   >
@@ -192,13 +256,13 @@ export default function StyledModal({
               {buttons && buttons.length > 0 && (
                 <View
                   style={[
-                    styles.buttonsContainer,
+                    dynamicStyles.buttonsContainer,
                     {
                       borderTopColor: isDark ? '#374151' : '#e5e7eb',
                     },
                   ]}
                 >
-                  <View style={styles.buttonsRow}>
+                  <View style={dynamicStyles.buttonsRow}>
                     {buttons.map((button, index) => {
                       const buttonStyle = getButtonStyle(button.style);
                       return (
@@ -213,16 +277,16 @@ export default function StyledModal({
                             }
                           }}
                           style={[
-                            styles.button,
+                            dynamicStyles.button,
                             {
                               backgroundColor: buttonStyle.backgroundColor,
-                              marginLeft: index > 0 ? 12 : 0,
+                              marginLeft: index > 0 && !responsive.isTablet && buttons.length <= 2 ? responsive.spacing.sm : 0,
                             },
                           ]}
                         >
                           <Text
                             style={[
-                              styles.buttonText,
+                              dynamicStyles.buttonText,
                               {
                                 color: buttonStyle.textColor,
                               },
@@ -244,62 +308,4 @@ export default function StyledModal({
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContainer: {
-    width: '100%',
-    maxWidth: 400,
-    maxHeight: '90%',
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  contentContainer: {
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  message: {
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  buttonsContainer: {
-    paddingHorizontal: 24,
-    paddingBottom: 24,
-    paddingTop: 8,
-    borderTopWidth: 1,
-  },
-  buttonsRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-  },
-  button: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    minWidth: 100,
-    alignItems: 'center',
-  },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});
 

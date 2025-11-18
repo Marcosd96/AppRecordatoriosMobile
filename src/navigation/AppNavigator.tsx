@@ -7,6 +7,7 @@ import { View, Text, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useResponsive } from '../hooks/useResponsive';
 
 // Screens
 import SplashScreen from '../screens/SplashScreen';
@@ -24,6 +25,7 @@ const Tab = createBottomTabNavigator();
 function MainTabs() {
   const insets = useSafeAreaInsets();
   const { isDark } = useTheme();
+  const responsive = useResponsive();
   
   return (
     <Tab.Navigator
@@ -35,9 +37,15 @@ function MainTabs() {
           backgroundColor: isDark ? '#1f2937' : '#ffffff',
           borderTopWidth: 1,
           borderTopColor: isDark ? '#374151' : '#e5e7eb',
-          paddingBottom: Math.max(insets.bottom, 5),
-          paddingTop: 5,
-          height: 60 + Math.max(insets.bottom - 5, 0),
+          paddingBottom: Math.max(insets.bottom, responsive.spacing.xs),
+          paddingTop: responsive.spacing.xs,
+          height: responsive.scale(60) + Math.max(insets.bottom - responsive.spacing.xs, 0),
+        },
+        tabBarLabelStyle: {
+          fontSize: responsive.fontSize.xs,
+        },
+        tabBarIconStyle: {
+          marginTop: responsive.spacing.xs,
         },
       }}
     >
