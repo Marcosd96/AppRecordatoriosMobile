@@ -1,6 +1,6 @@
 import notifee, { AndroidImportance, TriggerType } from '@notifee/react-native';
 import { Platform, PermissionsAndroid } from 'react-native';
-import { Reminder } from '../types';
+import { Reminder, PersonalTask } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const NOTIFICATION_STORAGE_KEY = '@scheduled_notifications';
@@ -71,6 +71,17 @@ class NotificationsService {
         id: 'reminders',
         name: 'Recordatorios Fiscales',
         description: 'Notificaciones para recordatorios fiscales',
+        importance: AndroidImportance.HIGH,
+        sound: 'default',
+        vibration: true,
+        vibrationPattern: [300, 500],
+      });
+      
+      // Canal para tareas personales
+      await notifee.createChannel({
+        id: 'personal-tasks',
+        name: 'Tareas Personales',
+        description: 'Notificaciones para tareas personales',
         importance: AndroidImportance.HIGH,
         sound: 'default',
         vibration: true,
@@ -555,6 +566,237 @@ class NotificationsService {
     } catch (error) {
       console.error('Error al obtener próxima notificación:', error);
       return { exists: false };
+    }
+  }
+
+  /**
+   * Programa una notificación para una tarea personal
+   * @param task La tarea personal a programar
+   */
+  async schedulePersonalTaskNotification(task: PersonalTask): Promise<void> {
+    try {
+      // Solo programar notificaciones si están habilitadas y la tarea está activa
+      if (!task.reminderEnabled || task.status !== 'active') {
+        return;
+      }
+
+      // Determinar la fecha objetivo para la notificación
+      let targetDate: Date;
+      
+      if (task.nextOccurrence) {
+        // Si hay una próxima ocurrencia, usar esa fecha
+        targetDate = new Date(task.nextOccurrence);
+      } else if (task.startDate) {
+        // Si no hay próxima ocurrencia pero hay fecha de inicio, usar esa
+        targetDate = new Date(task.startDate);
+      } else {
+        // Si no hay fecha válida, no programar
+        return;
+      }
+
+      const now = new Date();
+      
+      // Calcular la fecha de la notificación (targetDate - reminderMinutes)
+      const notificationDate = new Date(targetDate);
+      notificationDate.setMinutes(
+        notificationDate.getMinutes() - (task.reminderMinutes || 60)
+      );
+
+      // No programar notificaciones para fechas pasadas
+      if (notificationDate.getTime() <= now.getTime()) {
+        return;
+      }
+
+      // Crear canal de notificaciones si es necesario
+      await this.createNotificationChannel();
+
+      // Determinar el color según la prioridad
+      const priorityColors: Record<string, string> = {
+        urgent: '#dc2626', // Rojo
+        high: '#f59e0b',   // Naranja
+        medium: '#2563eb', // Azul
+        low: '#10b981',    // Verde
+      };
+
+      const color = priorityColors[task.priority] || '#2563eb';
+
+      // Determinar el emoji según la prioridad
+      const priorityEmojis: Record<string, string> = {
+        urgent: '🚨',
+        high: '⚠️',
+        medium: '📋',
+        low: '✓',
+      };
+
+      const emoji = priorityEmojis[task.priority] || '📋';
+
+      const notificationId = `personal_task_${task.id}`;
+
+      await notifee.createTriggerNotification(
+        {
+          id: notificationId,
+          title: `${emoji} Tarea: ${task.title}`,
+          body: task.description 
+            ? task.description.substring(0, 100) 
+            : `Tarea programada para ${new Intl.DateTimeFormat('es-CO', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              }).format(targetDate)}`,
+          data: {
+            taskId: task.id,
+            type: 'personal-task',
+          },
+          android: {
+            channelId: 'personal-tasks',
+            importance: AndroidImportance.HIGH,
+            pressAction: {
+              id: 'default',
+            },
+            smallIcon: 'ic_launcher',
+            color: color,
+          },
+          ios: {
+            sound: 'default',
+            foregroundPresentationOptions: {
+              alert: true,
+              badge: true,
+              sound: true,
+            },
+          },
+        },
+        {
+          type: TriggerType.TIMESTAMP,
+          timestamp: notificationDate.getTime(),
+        }
+      );
+
+      // Guardar ID de notificación programada
+      await this.saveScheduledPersonalTaskNotification(task.id, notificationId);
+      
+      console.log(`Notificación programada para tarea personal ${task.id} en ${notificationDate.toISOString()}`);
+    } catch (error) {
+      console.error(`Error al programar notificación para tarea personal ${task.id}:`, error);
+    }
+  }
+
+  /**
+   * Cancela todas las notificaciones de una tarea personal
+   */
+  async cancelPersonalTaskNotifications(taskId: string): Promise<void> {
+    try {
+      const notificationId = await this.getScheduledPersonalTaskNotificationId(taskId);
+      
+      if (notificationId) {
+        await notifee.cancelNotification(notificationId);
+      }
+
+      await this.removeScheduledPersonalTaskNotification(taskId);
+    } catch (error) {
+      console.error(`Error al cancelar notificaciones de la tarea personal ${taskId}:`, error);
+    }
+  }
+
+  /**
+   * Programa notificaciones para todas las tareas personales activas
+   * @param tasks Lista de tareas personales
+   */
+  async scheduleAllPersonalTasks(tasks: PersonalTask[]): Promise<void> {
+    try {
+      // Verificar permisos primero
+      const hasPermission = await this.checkPermissions();
+      if (!hasPermission) {
+        const granted = await this.requestPermissions();
+        if (!granted) {
+          console.warn('Permisos de notificación no concedidos para tareas personales');
+          return;
+        }
+      }
+
+      // Cancelar todas las notificaciones de tareas personales existentes
+      await this.cancelAllPersonalTaskNotifications();
+
+      // Programar nuevas notificaciones solo para tareas activas con recordatorios habilitados
+      const activeTasksWithReminders = tasks.filter(
+        (t) => t.status === 'active' && t.reminderEnabled
+      );
+      
+      for (const task of activeTasksWithReminders) {
+        await this.schedulePersonalTaskNotification(task);
+      }
+
+      console.log(`Programadas notificaciones para ${activeTasksWithReminders.length} tareas personales`);
+    } catch (error) {
+      console.error('Error al programar notificaciones de tareas personales:', error);
+    }
+  }
+
+  /**
+   * Cancela todas las notificaciones de tareas personales
+   */
+  async cancelAllPersonalTaskNotifications(): Promise<void> {
+    try {
+      const stored = await AsyncStorage.getItem('@scheduled_personal_task_notifications');
+      if (!stored) return;
+
+      const notifications = JSON.parse(stored);
+      const notificationIds = Object.values(notifications) as string[];
+
+      for (const id of notificationIds) {
+        await notifee.cancelNotification(id);
+      }
+
+      await AsyncStorage.removeItem('@scheduled_personal_task_notifications');
+    } catch (error) {
+      console.error('Error al cancelar todas las notificaciones de tareas personales:', error);
+    }
+  }
+
+  /**
+   * Guarda el ID de notificación programada para una tarea personal
+   */
+  private async saveScheduledPersonalTaskNotification(
+    taskId: string,
+    notificationId: string
+  ): Promise<void> {
+    try {
+      const stored = await AsyncStorage.getItem('@scheduled_personal_task_notifications');
+      const notifications = stored ? JSON.parse(stored) : {};
+      notifications[taskId] = notificationId;
+      await AsyncStorage.setItem('@scheduled_personal_task_notifications', JSON.stringify(notifications));
+    } catch (error) {
+      console.error('Error al guardar notificación de tarea personal programada:', error);
+    }
+  }
+
+  /**
+   * Obtiene el ID de notificación programada para una tarea personal
+   */
+  private async getScheduledPersonalTaskNotificationId(taskId: string): Promise<string | null> {
+    try {
+      const stored = await AsyncStorage.getItem('@scheduled_personal_task_notifications');
+      if (!stored) return null;
+      const notifications = JSON.parse(stored);
+      return notifications[taskId] || null;
+    } catch (error) {
+      console.error('Error al obtener ID de notificación de tarea personal:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Elimina el ID de notificación programada para una tarea personal
+   */
+  private async removeScheduledPersonalTaskNotification(taskId: string): Promise<void> {
+    try {
+      const stored = await AsyncStorage.getItem('@scheduled_personal_task_notifications');
+      if (!stored) return;
+      const notifications = JSON.parse(stored);
+      delete notifications[taskId];
+      await AsyncStorage.setItem('@scheduled_personal_task_notifications', JSON.stringify(notifications));
+    } catch (error) {
+      console.error('Error al eliminar notificación de tarea personal:', error);
     }
   }
 }
