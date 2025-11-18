@@ -17,6 +17,7 @@ import AnimatedButton from '../components/AnimatedButton';
 import AnimatedView from '../components/AnimatedView';
 import StyledModal from '../components/StyledModal';
 import { useTheme } from '../context/ThemeContext';
+import { useResponsive } from '../hooks/useResponsive';
 import {
   PersonalTask,
   RecurrenceType,
@@ -70,6 +71,7 @@ const statusLabels: Record<TaskStatus, string> = {
 
 export default function PersonalTasksScreen() {
   const { isDark } = useTheme();
+  const responsive = useResponsive();
   const [tasks, setTasks] = useState<PersonalTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -478,24 +480,33 @@ export default function PersonalTasksScreen() {
       edges={['top']}
     >
       <View
-        className={`px-6 py-4 border-b ${
+        className={`border-b ${
           isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
         }`}
+        style={{
+          paddingHorizontal: responsive.spacing.lg,
+          paddingVertical: responsive.spacing.md,
+        }}
       >
-        <View className="flex-row items-center mb-2">
-          <Text className="text-3xl mr-2">✅</Text>
+        <View className="flex-row items-center" style={{ marginBottom: responsive.spacing.sm }}>
+          <Text style={{ fontSize: responsive.fontSize['3xl'], marginRight: responsive.spacing.sm }}>✅</Text>
           <Text
-            className={`text-3xl font-bold ${
+            className={`font-bold ${
               isDark ? 'text-white' : 'text-gray-900'
             }`}
+            style={{ fontSize: responsive.fontSize['3xl'] }}
           >
             Tareas Personales
           </Text>
         </View>
         <Text
-          className={`mt-2 text-base ${
+          className={`${
             isDark ? 'text-gray-300' : 'text-gray-600'
           }`}
+          style={{
+            marginTop: responsive.spacing.sm,
+            fontSize: responsive.fontSize.base,
+          }}
         >
           Organiza tus pendientes diarios
         </Text>
@@ -508,31 +519,46 @@ export default function PersonalTasksScreen() {
         }
         contentContainerStyle={{ paddingBottom: 32 }}
       >
-        <View className="px-6 py-4 space-y-4">
+        <View style={{ paddingHorizontal: responsive.spacing.lg, paddingVertical: responsive.spacing.md }}>
           <View
-            className={`rounded-3xl p-5 border ${
+            className={`rounded-3xl border ${
               isDark
                 ? 'bg-gray-800 border-gray-700'
                 : 'bg-white border-gray-200'
             }`}
+            style={{ padding: responsive.spacing.lg }}
           >
             <Text
-              className={`text-sm font-semibold mb-4 ${
+              className={`font-semibold ${
                 isDark ? 'text-blue-200' : 'text-blue-600'
               }`}
+              style={{
+                fontSize: responsive.fontSize.sm,
+                marginBottom: responsive.spacing.md,
+              }}
             >
               Resumen rápido
             </Text>
             <Text
-              className={`text-2xl font-bold mt-1 ${
+              className={`font-bold ${
                 isDark ? 'text-white' : 'text-gray-900'
               }`}
+              style={{
+                fontSize: responsive.fontSize['2xl'],
+                marginTop: responsive.spacing.xs,
+              }}
             >
               {stats.active
                 ? 'Sigue completando tus tareas'
                 : 'Todo en orden'}
             </Text>
-            <View className="flex-row flex-wrap -mx-2 mt-4">
+            <View 
+              className="flex-row flex-wrap"
+              style={{
+                marginTop: responsive.spacing.md,
+                marginHorizontal: -responsive.spacing.xs,
+              }}
+            >
               {[
                 {
                   label: 'Total',
@@ -559,16 +585,27 @@ export default function PersonalTasksScreen() {
                   text: isDark ? 'text-indigo-200' : 'text-indigo-700',
                 },
               ].map(item => (
-                <View key={item.label} className="w-1/2 px-2 mb-4">
-                  <View className={`rounded-2xl p-4 ${item.bg}`}>
+                <View 
+                  key={item.label} 
+                  style={{
+                    width: responsive.isTablet ? '25%' : responsive.isSmallDevice ? '100%' : '50%',
+                    paddingHorizontal: responsive.spacing.xs,
+                    marginBottom: responsive.spacing.md,
+                  }}
+                >
+                  <View className={`rounded-2xl ${item.bg}`} style={{ padding: responsive.spacing.md }}>
                     <Text
-                      className={`text-xs font-medium mb-1 ${
+                      className={`font-medium ${
                         isDark ? 'text-gray-300' : 'text-gray-500'
                       }`}
+                      style={{
+                        fontSize: responsive.fontSize.xs,
+                        marginBottom: responsive.spacing.xs,
+                      }}
                     >
                       {item.label}
                     </Text>
-                    <Text className={`text-2xl font-bold ${item.text}`}>
+                    <Text className={`font-bold ${item.text}`} style={{ fontSize: responsive.fontSize['2xl'] }}>
                       {item.value}
                     </Text>
                   </View>

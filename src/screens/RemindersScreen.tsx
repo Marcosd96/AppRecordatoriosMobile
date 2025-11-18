@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ import { remindersService } from '../services/remindersService';
 import { companiesService } from '../services/companiesService';
 import { notificationsService } from '../services/notificationsService';
 import { useTheme } from '../context/ThemeContext';
+import { useResponsive } from '../hooks/useResponsive';
 import StyledModal from '../components/StyledModal';
 
 // Habilitar animaciones de layout en Android
@@ -31,6 +32,7 @@ if (
 
 export default function RemindersScreen({ route }: any) {
   const { isDark } = useTheme();
+  const responsive = useResponsive();
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(
@@ -45,6 +47,7 @@ export default function RemindersScreen({ route }: any) {
   const [errorMessage, setErrorMessage] = useState({ title: '', message: '' });
   const [showStatusFilter, setShowStatusFilter] = useState(false);
   const [showCompanyFilter, setShowCompanyFilter] = useState(false);
+  const isInitialMount = useRef(true);
 
   // Función para animar los cambios de layout
   const animateLayout = () => {
@@ -90,8 +93,14 @@ export default function RemindersScreen({ route }: any) {
       await notificationsService.requestPermissions();
     };
 
-    initializeNotifications();
-    loadData();
+    const initialize = async () => {
+      await initializeNotifications();
+      await loadData();
+      // Marcar que la carga inicial se completó después de que termine
+      isInitialMount.current = false;
+    };
+
+    initialize();
   }, []);
 
   // Actualizar selectedCompanyId cuando cambian los parámetros de ruta
@@ -101,14 +110,17 @@ export default function RemindersScreen({ route }: any) {
     }
   }, [route?.params?.companyId]);
 
-  // Limpiar el filtro cuando la pantalla pierde el foco (opcional)
+  // Recargar datos cuando la pantalla recibe el foco
   useFocusEffect(
     React.useCallback(() => {
       // Si hay params, establecer el filtro
       if (route?.params?.companyId) {
         setSelectedCompanyId(route.params.companyId);
       }
-      // No limpiar automáticamente para mantener el filtro activo
+      // Recargar datos cuando la pantalla recibe el foco (evitar doble carga al inicio)
+      if (!isInitialMount.current) {
+        loadData();
+      }
     }, [route?.params?.companyId]),
   );
 
@@ -262,24 +274,33 @@ export default function RemindersScreen({ route }: any) {
     >
       {/* Header */}
       <View
-        className={`px-6 py-4 border-b ${
+        className={`border-b ${
           isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
         }`}
+        style={{
+          paddingHorizontal: responsive.spacing.lg,
+          paddingVertical: responsive.spacing.md,
+        }}
       >
-        <View className="flex-row items-center mb-2">
-          <Text className="text-3xl mr-2">📅</Text>
+        <View className="flex-row items-center" style={{ marginBottom: responsive.spacing.sm }}>
+          <Text style={{ fontSize: responsive.fontSize['3xl'], marginRight: responsive.spacing.sm }}>📅</Text>
           <Text
-            className={`text-3xl font-bold ${
+            className={`font-bold ${
               isDark ? 'text-white' : 'text-gray-900'
             }`}
+            style={{ fontSize: responsive.fontSize['3xl'] }}
           >
             Recordatorios Fiscales
           </Text>
         </View>
         <Text
-          className={`mt-2 text-base ${
+          className={`${
             isDark ? 'text-gray-300' : 'text-gray-600'
           }`}
+          style={{
+            marginTop: responsive.spacing.sm,
+            fontSize: responsive.fontSize.base,
+          }}
         >
           Gestiona tus obligaciones fiscales
         </Text>
@@ -293,31 +314,46 @@ export default function RemindersScreen({ route }: any) {
         contentContainerStyle={{ paddingBottom: 20 }}
       >
         {/* Estadísticas */}
-        <View className="px-6 py-4">
+        <View style={{ paddingHorizontal: responsive.spacing.lg, paddingVertical: responsive.spacing.md }}>
           <View
-            className={`rounded-3xl p-5 border ${
+            className={`rounded-3xl border ${
               isDark
                 ? 'bg-gray-800 border-gray-700'
                 : 'bg-white border-gray-200'
             }`}
+            style={{ padding: responsive.spacing.lg }}
           >
             <Text
-              className={`text-sm font-semibold mb-4 ${
+              className={`font-semibold ${
                 isDark ? 'text-blue-200' : 'text-blue-600'
               }`}
+              style={{
+                fontSize: responsive.fontSize.sm,
+                marginBottom: responsive.spacing.md,
+              }}
             >
               Resumen rápido
             </Text>
             <Text
-              className={`text-2xl font-bold mt-1 ${
+              className={`font-bold ${
                 isDark ? 'text-white' : 'text-gray-900'
               }`}
+              style={{
+                fontSize: responsive.fontSize['2xl'],
+                marginTop: responsive.spacing.xs,
+              }}
             >
               {stats.pending > 0
                 ? 'Sigue al día con tus obligaciones fiscales'
                 : 'Todo en orden'}
             </Text>
-            <View className="flex-row flex-wrap -mx-2 mt-4">
+            <View 
+              className="flex-row flex-wrap"
+              style={{
+                marginTop: responsive.spacing.md,
+                marginHorizontal: -responsive.spacing.xs,
+              }}
+            >
               {[
                 {
                   label: 'Total',
@@ -344,16 +380,27 @@ export default function RemindersScreen({ route }: any) {
                   text: isDark ? 'text-indigo-200' : 'text-indigo-700',
                 },
               ].map(item => (
-                <View key={item.label} className="w-1/2 px-2 mb-4">
-                  <View className={`rounded-2xl p-4 ${item.bg}`}>
+                <View 
+                  key={item.label} 
+                  style={{
+                    width: responsive.isTablet ? '25%' : responsive.isSmallDevice ? '100%' : '50%',
+                    paddingHorizontal: responsive.spacing.xs,
+                    marginBottom: responsive.spacing.md,
+                  }}
+                >
+                  <View className={`rounded-2xl ${item.bg}`} style={{ padding: responsive.spacing.md }}>
                     <Text
-                      className={`text-xs font-medium mb-1 ${
+                      className={`font-medium ${
                         isDark ? 'text-gray-300' : 'text-gray-500'
                       }`}
+                      style={{
+                        fontSize: responsive.fontSize.xs,
+                        marginBottom: responsive.spacing.xs,
+                      }}
                     >
                       {item.label}
                     </Text>
-                    <Text className={`text-2xl font-bold ${item.text}`}>
+                    <Text className={`font-bold ${item.text}`} style={{ fontSize: responsive.fontSize['2xl'] }}>
                       {item.value}
                     </Text>
                   </View>
@@ -390,27 +437,37 @@ export default function RemindersScreen({ route }: any) {
         </View>
 
         {/* Búsqueda y Filtros */}
-        <View className="px-6 py-4">
+        <View style={{ paddingHorizontal: responsive.spacing.lg, paddingVertical: responsive.spacing.md }}>
           <View
-            className={`rounded-3xl p-4 border ${
+            className={`rounded-3xl border ${
               isDark
                 ? 'border-gray-700 bg-gray-800/80'
                 : 'border-gray-200 bg-white'
             }`}
+            style={{ padding: responsive.spacing.md }}
           >
             <Text
-              className={`text-sm font-semibold mb-2 ${
+              className={`font-semibold ${
                 isDark ? 'text-gray-100' : 'text-gray-800'
               }`}
+              style={{
+                fontSize: responsive.fontSize.sm,
+                marginBottom: responsive.spacing.sm,
+              }}
             >
               Búsqueda rápida
             </Text>
             <TextInput
-              className={`border rounded-2xl px-4 py-3 ${
+              className={`border rounded-2xl ${
                 isDark
                   ? 'bg-gray-900 border-gray-700 text-white'
                   : 'bg-gray-50 border-gray-200 text-gray-900'
               }`}
+              style={{
+                paddingHorizontal: responsive.spacing.md,
+                paddingVertical: responsive.spacing.md,
+                fontSize: responsive.fontSize.base,
+              }}
               placeholder="Buscar por descripción o empresa..."
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -420,7 +477,7 @@ export default function RemindersScreen({ route }: any) {
         </View>
 
         {/* Filtros - Lista Desplegable */}
-        <View className="px-6 py-2">
+        <View style={{ paddingHorizontal: responsive.spacing.lg, paddingVertical: responsive.spacing.sm }}>
           <View
             className={`rounded-xl border overflow-hidden ${
               isDark
@@ -531,7 +588,7 @@ export default function RemindersScreen({ route }: any) {
         </View>
 
         {/* Selector de empresa - Lista Desplegable */}
-        <View className="px-6 py-2">
+        <View style={{ paddingHorizontal: responsive.spacing.lg, paddingVertical: responsive.spacing.sm }}>
           <View
             className={`rounded-xl border overflow-hidden ${
               isDark
@@ -666,7 +723,7 @@ export default function RemindersScreen({ route }: any) {
         </View>
 
         {/* Lista de recordatorios */}
-        <View className="px-6 py-4">
+        <View style={{ paddingHorizontal: responsive.spacing.lg, paddingVertical: responsive.spacing.md }}>
           {filteredReminders.length === 0 ? (
             <View
               className={`rounded-3xl p-8 border items-center ${

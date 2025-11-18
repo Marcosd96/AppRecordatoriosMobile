@@ -12,6 +12,7 @@ import { notificationsService } from '../services/notificationsService';
 import { useTheme } from '../context/ThemeContext';
 import AnimatedView from '../components/AnimatedView';
 import AnimatedButton from '../components/AnimatedButton';
+import StyledModal from '../components/StyledModal';
 
 const { width } = Dimensions.get('window');
 
@@ -25,6 +26,7 @@ export default function WelcomePermissionsScreen({
   const { isDark } = useTheme();
   const [isRequesting, setIsRequesting] = useState(false);
   const [hasPermission, setHasPermission] = useState(false);
+  const [showPermissionsGrantedModal, setShowPermissionsGrantedModal] = useState(false);
 
   const handleRequestPermissions = async () => {
     try {
@@ -48,20 +50,8 @@ export default function WelcomePermissionsScreen({
         // Crear el canal de notificaciones para Android
         await notificationsService.createNotificationChannel();
         
-        Alert.alert(
-          '¡Permisos otorgados!',
-          'Ahora recibirás notificaciones sobre tus recordatorios fiscales importantes.',
-          [
-            {
-              text: 'Continuar',
-              onPress: () => {
-                setTimeout(() => {
-                  onComplete();
-                }, 300);
-              },
-            },
-          ]
-        );
+        // Mostrar modal de permisos otorgados
+        setShowPermissionsGrantedModal(true);
       } else {
         Alert.alert(
           'Permisos no otorgados',
@@ -235,6 +225,30 @@ export default function WelcomePermissionsScreen({
           </AnimatedButton>
         </AnimatedView>
       </View>
+
+      {/* Modal de Permisos Otorgados */}
+      <StyledModal
+        visible={showPermissionsGrantedModal}
+        onClose={() => {
+          setShowPermissionsGrantedModal(false);
+          setTimeout(() => {
+            onComplete();
+          }, 300);
+        }}
+        title="✅ ¡Permisos Otorgados!"
+        message="Ahora recibirás notificaciones sobre tus recordatorios fiscales importantes."
+        buttons={[
+          {
+            text: 'Continuar',
+            onPress: () => {
+              setShowPermissionsGrantedModal(false);
+              setTimeout(() => {
+                onComplete();
+              }, 300);
+            },
+          },
+        ]}
+      />
     </SafeAreaView>
   );
 }

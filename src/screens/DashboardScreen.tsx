@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,10 @@ import {
   RefreshControl,
   Alert,
   ActivityIndicator,
+  StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Reminder } from '../types';
 import { dashboardService } from '../services/dashboardService';
 import { companiesService } from '../services/companiesService';
@@ -17,6 +19,7 @@ import { remindersService } from '../services/remindersService';
 import { notificationsService } from '../services/notificationsService';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useResponsive } from '../hooks/useResponsive';
 import AnimatedView from '../components/AnimatedView';
 import AnimatedButton from '../components/AnimatedButton';
 import StyledModal from '../components/StyledModal';
@@ -24,6 +27,7 @@ import StyledModal from '../components/StyledModal';
 export default function DashboardScreen({ navigation }: any) {
   const { user, signOut } = useAuth();
   const { isDark } = useTheme();
+  const responsive = useResponsive();
   const [upcomingReminders, setUpcomingReminders] = useState<Reminder[]>([]);
   const [stats, setStats] = useState({
     total: 0,
@@ -51,6 +55,7 @@ export default function DashboardScreen({ navigation }: any) {
     title: '',
     message: '',
   });
+  const isInitialMount = useRef(true);
 
   const loadData = async () => {
     try {
@@ -171,9 +176,25 @@ export default function DashboardScreen({ navigation }: any) {
       }
     };
 
-    initializeNotifications();
-    loadData();
+    const initialize = async () => {
+      await initializeNotifications();
+      await loadData();
+      // Marcar que la carga inicial se completó después de que termine
+      isInitialMount.current = false;
+    };
+
+    initialize();
   }, []);
+
+  // Recargar datos cuando la pantalla recibe el foco
+  useFocusEffect(
+    React.useCallback(() => {
+      // Recargar datos cuando la pantalla recibe el foco (evitar doble carga al inicio)
+      if (!isInitialMount.current) {
+        loadData();
+      }
+    }, []),
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -316,72 +337,90 @@ export default function DashboardScreen({ navigation }: any) {
       className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}
       edges={['top']}
     >
+      {/* Header fijo */}
+      <View
+        className={`border-b ${
+          isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+        }`}
+        style={{
+          paddingHorizontal: responsive.spacing.lg,
+          paddingVertical: responsive.spacing.md,
+        }}
+      >
+        <View className="flex-row justify-between items-center" style={{ marginBottom: responsive.spacing.sm }}>
+          <View className="flex-1">
+            <Text
+              className={`font-bold ${
+                isDark ? 'text-white' : 'text-gray-900'
+              }`}
+              style={{ fontSize: responsive.fontSize['3xl'] }}
+            >
+              Menú Principal
+            </Text>
+            <Text
+              className={`${
+                isDark ? 'text-gray-300' : 'text-gray-600'
+              }`}
+              style={{
+                marginTop: responsive.spacing.sm,
+                fontSize: responsive.fontSize.base,
+              }}
+            >
+              {user?.name
+                ? `Hola, ${user.name} 👋`
+                : 'Resumen de tus recordatorios fiscales'}
+            </Text>
+          </View>
+          <AnimatedButton onPress={handleSignOut}>
+            <View
+              className={`rounded-xl ${
+                isDark ? 'bg-gray-700' : 'bg-gray-100'
+              }`}
+              style={{
+                marginLeft: responsive.spacing.md,
+                paddingHorizontal: responsive.spacing.md,
+                paddingVertical: responsive.spacing.sm,
+              }}
+            >
+              <Text
+                className={`font-semibold ${
+                  isDark ? 'text-gray-200' : 'text-gray-700'
+                }`}
+                style={{ fontSize: responsive.fontSize.sm }}
+              >
+                Salir
+              </Text>
+            </View>
+          </AnimatedButton>
+        </View>
+      </View>
+
       <ScrollView
         className="flex-1"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
-        contentContainerStyle={{ paddingBottom: 20 }}
+        contentContainerStyle={{ paddingBottom: responsive.spacing.lg }}
       >
-        {/* Header */}
-        <View
-          className={`px-6 py-4 border-b ${
-            isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-          }`}
-        >
-          <View className="flex-row justify-between items-center mb-2">
-            <View className="flex-1">
-              <Text
-                className={`text-3xl font-bold ${
-                  isDark ? 'text-white' : 'text-gray-900'
-                }`}
-              >
-                Menú Principal
-              </Text>
-              <Text
-                className={`mt-2 text-base ${
-                  isDark ? 'text-gray-300' : 'text-gray-600'
-                }`}
-              >
-                {user?.name
-                  ? `Hola, ${user.name} 👋`
-                  : 'Resumen de tus recordatorios fiscales'}
-              </Text>
-            </View>
-            <AnimatedButton onPress={handleSignOut}>
-              <View
-                className={`ml-4 px-4 py-2.5 rounded-xl ${
-                  isDark ? 'bg-gray-700' : 'bg-gray-100'
-                }`}
-              >
-                <Text
-                  className={`font-semibold text-sm ${
-                    isDark ? 'text-gray-200' : 'text-gray-700'
-                  }`}
-                >
-                  Salir
-                </Text>
-              </View>
-            </AnimatedButton>
-          </View>
-        </View>
 
         {/* Estadísticas */}
-        <View className="px-6 py-4">
+        <View style={{ paddingHorizontal: responsive.spacing.lg, paddingVertical: responsive.spacing.md }}>
           <View
-            className={`rounded-3xl p-6 border ${
+            className={`rounded-3xl border ${
               isDark
                 ? 'bg-gray-800 border-gray-700'
                 : 'bg-white border-gray-200'
             }`}
+            style={{ padding: responsive.spacing.lg }}
           >
-            <View className="flex-row items-center justify-between mb-5">
+            <View className="flex-row items-center justify-between" style={{ marginBottom: responsive.spacing.lg }}>
               <View className="flex-row items-center">
-                <Text className="text-2xl mr-2">📊</Text>
+                <Text style={{ fontSize: responsive.fontSize['2xl'], marginRight: responsive.spacing.sm }}>📊</Text>
                 <Text
-                  className={`text-xl font-bold ${
+                  className={`font-bold ${
                     isDark ? 'text-white' : 'text-gray-900'
                   }`}
+                  style={{ fontSize: responsive.fontSize.xl }}
                 >
                   Resumen General
                 </Text>
@@ -415,7 +454,13 @@ export default function DashboardScreen({ navigation }: any) {
               </View>
             </View>
 
-            <View className="flex-row flex-wrap -mx-2 mt-2">
+            <View 
+              className="flex-row flex-wrap"
+              style={{
+                marginTop: responsive.spacing.sm,
+                marginHorizontal: -responsive.spacing.xs,
+              }}
+            >
               {[
                 {
                   label: 'Total',
@@ -450,21 +495,30 @@ export default function DashboardScreen({ navigation }: any) {
                   border: isDark ? 'border-indigo-500/20' : 'border-indigo-200',
                 },
               ].map(item => (
-                <View key={item.label} className="w-1/2 px-2 mb-3">
+                <View 
+                  key={item.label} 
+                  style={{
+                    width: responsive.isTablet ? '25%' : responsive.isSmallDevice ? '100%' : '50%',
+                    paddingHorizontal: responsive.spacing.xs,
+                    marginBottom: responsive.spacing.md,
+                  }}
+                >
                   <View
-                    className={`rounded-2xl p-4 border ${item.bg} ${item.border}`}
+                    className={`rounded-2xl border ${item.bg} ${item.border}`}
+                    style={{ padding: responsive.spacing.md }}
                   >
-                    <View className="flex-row items-center justify-between mb-2">
-                      <Text className="text-lg">{item.icon}</Text>
+                    <View className="flex-row items-center justify-between" style={{ marginBottom: responsive.spacing.sm }}>
+                      <Text style={{ fontSize: responsive.fontSize.lg }}>{item.icon}</Text>
                       <Text
-                        className={`text-xs font-medium ${
+                        className={`font-medium ${
                           isDark ? 'text-gray-300' : 'text-gray-500'
                         }`}
+                        style={{ fontSize: responsive.fontSize.xs }}
                       >
                         {item.label}
                       </Text>
                     </View>
-                    <Text className={`text-3xl font-bold ${item.text}`}>
+                    <Text className={`font-bold ${item.text}`} style={{ fontSize: responsive.fontSize['3xl'] }}>
                       {item.value}
                     </Text>
                   </View>
@@ -473,23 +527,33 @@ export default function DashboardScreen({ navigation }: any) {
             </View>
 
             <View
-              className={`mt-4 rounded-2xl px-4 py-3 border ${
+              className={`rounded-2xl border ${
                 isDark
                   ? 'border-blue-900/40 bg-blue-900/10'
                   : 'border-blue-100 bg-blue-50'
               }`}
+              style={{
+                marginTop: responsive.spacing.md,
+                paddingHorizontal: responsive.spacing.md,
+                paddingVertical: responsive.spacing.md,
+              }}
             >
               <Text
-                className={`text-sm font-semibold mb-1 ${
+                className={`font-semibold ${
                   isDark ? 'text-blue-100' : 'text-blue-700'
                 }`}
+                style={{
+                  fontSize: responsive.fontSize.sm,
+                  marginBottom: responsive.spacing.xs,
+                }}
               >
                 💡 Estado Actual
               </Text>
               <Text
-                className={`text-sm ${
+                className={`${
                   isDark ? 'text-gray-300' : 'text-gray-600'
                 }`}
+                style={{ fontSize: responsive.fontSize.sm }}
               >
                 {stats.pending > 0
                   ? `Tienes ${stats.pending} recordatorio${
@@ -508,40 +572,25 @@ export default function DashboardScreen({ navigation }: any) {
         </View>
 
         {/* Próximos Recordatorios */}
-        <View className="px-6 py-4">
+        <View style={{ paddingHorizontal: responsive.spacing.lg, paddingVertical: responsive.spacing.md }}>
           <View
-            className={`rounded-3xl p-6 border ${
+            className={`rounded-3xl border ${
               isDark
                 ? 'bg-gray-800 border-gray-700'
                 : 'bg-white border-gray-200'
             }`}
+            style={{ padding: responsive.spacing.lg }}
           >
-            <View className="flex-row justify-between items-center mb-5">
-              <View className="flex-row items-center">
-                <Text className="text-2xl mr-2">📅</Text>
-                <Text
-                  className={`text-xl font-bold ${
-                    isDark ? 'text-white' : 'text-gray-900'
-                  }`}
-                >
-                  Próximos Recordatorios
-                </Text>
-              </View>
-              <AnimatedButton onPress={() => navigation.navigate('Reminders')}>
-                <View
-                  className={`px-3 py-1.5 rounded-lg ${
-                    isDark ? 'bg-blue-500/20' : 'bg-blue-50'
-                  }`}
-                >
-                  <Text
-                    className={`text-sm font-semibold ${
-                      isDark ? 'text-blue-300' : 'text-blue-700'
-                    }`}
-                  >
-                    Ver todos →
-                  </Text>
-                </View>
-              </AnimatedButton>
+            <View className="flex-row items-center" style={{ marginBottom: responsive.spacing.lg }}>
+              <Text style={{ fontSize: responsive.fontSize['2xl'], marginRight: responsive.spacing.sm }}>📅</Text>
+              <Text
+                className={`font-bold ${
+                  isDark ? 'text-white' : 'text-gray-900'
+                }`}
+                style={{ fontSize: responsive.fontSize.xl }}
+              >
+                Próximos Recordatorios
+              </Text>
             </View>
 
             {upcomingReminders.length === 0 ? (
@@ -674,24 +723,48 @@ export default function DashboardScreen({ navigation }: any) {
                 })}
               </View>
             )}
+
+            {/* Botón Ver todos al final */}
+            {upcomingReminders.length > 0 && (
+              <AnimatedButton 
+                onPress={() => navigation.navigate('Reminders')}
+                style={{ marginTop: responsive.spacing.md }}
+              >
+                <View
+                  className={`px-4 py-3 rounded-xl ${
+                    isDark ? 'bg-blue-500/20' : 'bg-blue-50'
+                  }`}
+                >
+                  <Text
+                    className={`text-sm font-semibold text-center ${
+                      isDark ? 'text-blue-300' : 'text-blue-700'
+                    }`}
+                  >
+                    Ver todos →
+                  </Text>
+                </View>
+              </AnimatedButton>
+            )}
           </View>
         </View>
 
         {/* Estado de Notificaciones */}
-        <View className="px-6 py-4">
+        <View style={{ paddingHorizontal: responsive.spacing.lg, paddingVertical: responsive.spacing.md }}>
           <View
-            className={`rounded-3xl p-6 border ${
+            className={`rounded-3xl border ${
               isDark
                 ? 'bg-gray-800 border-gray-700'
                 : 'bg-white border-gray-200'
             }`}
+            style={{ padding: responsive.spacing.lg }}
           >
-            <View className="flex-row items-center mb-5">
-              <Text className="text-2xl mr-2">🔔</Text>
+            <View className="flex-row items-center" style={{ marginBottom: responsive.spacing.lg }}>
+              <Text style={{ fontSize: responsive.fontSize['2xl'], marginRight: responsive.spacing.sm }}>🔔</Text>
               <Text
-                className={`text-xl font-bold ${
+                className={`font-bold ${
                   isDark ? 'text-white' : 'text-gray-900'
                 }`}
+                style={{ fontSize: responsive.fontSize.xl }}
               >
                 Notificaciones
               </Text>
@@ -831,21 +904,23 @@ export default function DashboardScreen({ navigation }: any) {
         </View>
 
         {/* Empresas */}
-        <View className="px-6 py-4">
+        <View style={{ paddingHorizontal: responsive.spacing.lg, paddingVertical: responsive.spacing.md }}>
           <View
-            className={`rounded-3xl p-6 border ${
+            className={`rounded-3xl border ${
               isDark
                 ? 'bg-gray-800 border-gray-700'
                 : 'bg-white border-gray-200'
             }`}
+            style={{ padding: responsive.spacing.lg }}
           >
-            <View className="flex-row justify-between items-center mb-5">
+            <View className="flex-row justify-between items-center" style={{ marginBottom: responsive.spacing.lg }}>
               <View className="flex-row items-center">
-                <Text className="text-2xl mr-2">🏢</Text>
+                <Text style={{ fontSize: responsive.fontSize['2xl'], marginRight: responsive.spacing.sm }}>🏢</Text>
                 <Text
-                  className={`text-xl font-bold ${
+                  className={`font-bold ${
                     isDark ? 'text-white' : 'text-gray-900'
                   }`}
+                  style={{ fontSize: responsive.fontSize.xl }}
                 >
                   Empresas
                 </Text>
