@@ -14,6 +14,7 @@ import OnboardingScreen from '../screens/OnboardingScreen';
 import WelcomePermissionsScreen from '../screens/WelcomePermissionsScreen';
 import LoginScreen from '../screens/LoginScreen';
 import DashboardScreen from '../screens/DashboardScreen';
+import PersonalTasksScreen from '../screens/PersonalTasksScreen';
 import RemindersScreen from '../screens/RemindersScreen';
 import CompaniesScreen from '../screens/CompaniesScreen';
 
@@ -47,6 +48,16 @@ function MainTabs() {
           tabBarLabel: 'Inicio',
           tabBarIcon: ({ color }) => (
             <Text style={{ fontSize: 20, color }}>🏠</Text>
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="PersonalTasks"
+        component={PersonalTasksScreen}
+        options={{
+          tabBarLabel: 'Tareas',
+          tabBarIcon: ({ color }) => (
+            <Text style={{ fontSize: 20, color }}>✅</Text>
           ),
         }}
       />
@@ -163,7 +174,7 @@ function AppNavigatorContent() {
     },
     transitionSpec: {
       open: {
-        animation: 'spring',
+        animation: 'spring' as const,
         config: {
           stiffness: 1000,
           damping: 500,
@@ -174,7 +185,7 @@ function AppNavigatorContent() {
         },
       },
       close: {
-        animation: 'spring',
+        animation: 'spring' as const,
         config: {
           stiffness: 1000,
           damping: 500,
