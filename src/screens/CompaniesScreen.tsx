@@ -260,27 +260,50 @@ export default function CompaniesScreen({ navigation }: any) {
   return (
     <SafeAreaView className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`} edges={['top']}>
       {/* Header */}
-      <View className={`px-6 py-4 border-b ${
-        isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-      }`}>
+      <View
+        className={`px-6 py-4 border-b ${
+          isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+        }`}
+      >
         <View className="flex-row justify-between items-center">
-          <View>
-            <Text className={`text-2xl font-bold ${
-              isDark ? 'text-white' : 'text-gray-900'
-            }`}>
-              Empresas
-            </Text>
-            <Text className={`mt-1 ${
-              isDark ? 'text-gray-300' : 'text-gray-600'
-            }`}>
+          <View className="flex-1">
+            <View className="flex-row items-center mb-2">
+              <Text className="text-3xl mr-2">🏢</Text>
+              <Text
+                className={`text-3xl font-bold ${
+                  isDark ? 'text-white' : 'text-gray-900'
+                }`}
+              >
+                Empresas
+              </Text>
+            </View>
+            <Text
+              className={`mt-2 text-base ${
+                isDark ? 'text-gray-300' : 'text-gray-600'
+              }`}
+            >
               Gestiona tus empresas y clientes
             </Text>
           </View>
           <TouchableOpacity
             onPress={() => setShowAddForm(!showAddForm)}
-            className="bg-blue-600 px-4 py-2 rounded-lg"
+            className={`px-4 py-2.5 rounded-xl ml-4 ${
+              showAddForm
+                ? isDark
+                  ? 'bg-gray-700'
+                  : 'bg-gray-200'
+                : 'bg-blue-600'
+            }`}
           >
-            <Text className="text-white font-semibold">
+            <Text
+              className={`font-semibold text-sm ${
+                showAddForm
+                  ? isDark
+                    ? 'text-gray-200'
+                    : 'text-gray-700'
+                  : 'text-white'
+              }`}
+            >
               {showAddForm ? 'Cancelar' : '+ Agregar'}
             </Text>
           </TouchableOpacity>
@@ -298,19 +321,25 @@ export default function CompaniesScreen({ navigation }: any) {
         {/* Lista de empresas */}
         <View className="px-6 py-4">
           {companies.length === 0 ? (
-            <View className={`rounded-xl p-8 border ${
+            <View className={`rounded-3xl p-8 border items-center ${
               isDark 
                 ? 'bg-gray-800 border-gray-700' 
                 : 'bg-white border-gray-200'
             }`}>
-              <Text className={`text-center mb-4 ${
-                isDark ? 'text-gray-300' : 'text-gray-600'
+              <Text className="text-4xl mb-3">🏢</Text>
+              <Text className={`text-base font-semibold text-center mb-2 ${
+                isDark ? 'text-white' : 'text-gray-900'
               }`}>
                 No hay empresas registradas
               </Text>
+              <Text className={`text-center mb-4 ${
+                isDark ? 'text-gray-400' : 'text-gray-500'
+              }`}>
+                Agrega tu primera empresa para comenzar a gestionar recordatorios fiscales.
+              </Text>
               <TouchableOpacity
                 onPress={() => setShowAddForm(true)}
-                className="bg-blue-600 py-3 rounded-lg"
+                className="bg-blue-600 py-3 px-6 rounded-2xl"
               >
                 <Text className="text-white text-center font-semibold">
                   Agregar Primera Empresa
@@ -324,9 +353,9 @@ export default function CompaniesScreen({ navigation }: any) {
                 return (
                   <View
                     key={company.id}
-                    className={`rounded-xl p-4 border shadow-sm ${index > 0 ? 'mt-4' : ''} ${
+                    className={`rounded-3xl p-5 border mb-4 ${
                       isDark 
-                        ? 'bg-gray-800 border-gray-700' 
+                        ? 'bg-gray-800/80 border-gray-700' 
                         : 'bg-white border-gray-200'
                     }`}
                   >
@@ -352,95 +381,108 @@ export default function CompaniesScreen({ navigation }: any) {
                     </View>
 
                     {/* Estadísticas */}
-                    <View className="flex-row flex-wrap -mx-1 mb-3">
-                      <View className="w-1/3 px-1">
-                        <View className={`rounded-lg p-2 ${
-                          isDark ? 'bg-gray-700' : 'bg-gray-50'
-                        }`}>
-                          <Text className={`text-xs mb-1 ${
-                            isDark ? 'text-gray-400' : 'text-gray-600'
+                    <View className={`rounded-2xl p-4 mb-3 ${
+                      isDark ? 'bg-gray-900/60' : 'bg-gray-50'
+                    }`}>
+                      <Text className={`text-xs font-semibold mb-3 ${
+                        isDark ? 'text-gray-300' : 'text-gray-600'
+                      }`}>
+                        Estadísticas
+                      </Text>
+                      <View className="flex-row flex-wrap -mx-1">
+                        <View className="w-1/3 px-1">
+                          <View className={`rounded-xl p-3 ${
+                            isDark ? 'bg-blue-500/10' : 'bg-blue-50'
                           }`}>
-                            Total
-                          </Text>
-                          <Text className={`text-lg font-bold ${
-                            isDark ? 'text-white' : 'text-gray-900'
-                          }`}>
-                            {stats.total}
-                          </Text>
+                            <Text className={`text-xs mb-1 ${
+                              isDark ? 'text-gray-400' : 'text-gray-600'
+                            }`}>
+                              Total
+                            </Text>
+                            <Text className={`text-xl font-bold ${
+                              isDark ? 'text-blue-200' : 'text-blue-700'
+                            }`}>
+                              {stats.total}
+                            </Text>
+                          </View>
                         </View>
-                      </View>
-                      <View className="w-1/3 px-1">
-                        <View className={`rounded-lg p-2 ${
-                          isDark 
-                            ? 'bg-yellow-900/30' 
-                            : 'bg-yellow-50'
-                        }`}>
-                          <Text className={`text-xs mb-1 ${
-                            isDark ? 'text-yellow-300' : 'text-yellow-700'
+                        <View className="w-1/3 px-1">
+                          <View className={`rounded-xl p-3 ${
+                            isDark 
+                              ? 'bg-yellow-500/10' 
+                              : 'bg-yellow-50'
                           }`}>
-                            Pendientes
-                          </Text>
-                          <Text className={`text-lg font-bold ${
-                            isDark ? 'text-yellow-200' : 'text-yellow-900'
-                          }`}>
-                            {stats.pending}
-                          </Text>
+                            <Text className={`text-xs mb-1 ${
+                              isDark ? 'text-yellow-300' : 'text-yellow-700'
+                            }`}>
+                              Pendientes
+                            </Text>
+                            <Text className={`text-xl font-bold ${
+                              isDark ? 'text-yellow-200' : 'text-yellow-900'
+                            }`}>
+                              {stats.pending}
+                            </Text>
+                          </View>
                         </View>
-                      </View>
-                      <View className="w-1/3 px-1">
-                        <View className={`rounded-lg p-2 ${
-                          isDark 
-                            ? 'bg-red-900/30' 
-                            : 'bg-red-50'
-                        }`}>
-                          <Text className={`text-xs mb-1 ${
-                            isDark ? 'text-red-300' : 'text-red-700'
+                        <View className="w-1/3 px-1">
+                          <View className={`rounded-xl p-3 ${
+                            isDark 
+                              ? 'bg-red-500/10' 
+                              : 'bg-red-50'
                           }`}>
-                            Vencidos
-                          </Text>
-                          <Text className={`text-lg font-bold ${
-                            isDark ? 'text-red-200' : 'text-red-900'
-                          }`}>
-                            {stats.overdue}
-                          </Text>
+                            <Text className={`text-xs mb-1 ${
+                              isDark ? 'text-red-300' : 'text-red-700'
+                            }`}>
+                              Vencidos
+                            </Text>
+                            <Text className={`text-xl font-bold ${
+                              isDark ? 'text-red-200' : 'text-red-900'
+                            }`}>
+                              {stats.overdue}
+                            </Text>
+                          </View>
                         </View>
                       </View>
                     </View>
 
                     {/* Botones de acción */}
-                    <View className="space-y-2">
-                      <TouchableOpacity 
-                        onPress={() => {
-                          setSelectedCompanyForCalendars(company);
-                          setShowCalendarSelector(true);
-                        }}
-                        className={`py-2 rounded-lg border ${
-                          isDark 
-                            ? 'bg-green-900/30 border-green-800' 
-                            : 'bg-green-50 border-green-200'
-                        }`}
-                      >
-                        <Text className={`text-center font-medium ${
-                          isDark ? 'text-green-300' : 'text-green-700'
-                        }`}>
-                          📅 Gestionar Calendarios
-                        </Text>
-                      </TouchableOpacity>
+                    <View className="flex-row flex-wrap -mx-1">
+                      <View className="w-1/2 px-1">
+                        <TouchableOpacity 
+                          onPress={() => {
+                            setSelectedCompanyForCalendars(company);
+                            setShowCalendarSelector(true);
+                          }}
+                          className={`py-2.5 rounded-2xl items-center justify-center ${
+                            isDark 
+                              ? 'bg-green-900/40' 
+                              : 'bg-green-100'
+                          }`}
+                        >
+                          <Text className={`text-sm font-semibold ${
+                            isDark ? 'text-green-100' : 'text-green-800'
+                          }`}>
+                            📅 Calendarios
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
                       
-                      <TouchableOpacity 
-                        onPress={() => navigation.navigate('Reminders', { companyId: company.id })}
-                        className={`py-2 rounded-lg border ${
-                          isDark 
-                            ? 'bg-blue-900/30 border-blue-800' 
-                            : 'bg-blue-50 border-blue-200'
-                        }`}
-                      >
-                        <Text className={`text-center font-medium ${
-                          isDark ? 'text-blue-300' : 'text-blue-700'
-                        }`}>
-                          Ver Recordatorios
-                        </Text>
-                      </TouchableOpacity>
+                      <View className="w-1/2 px-1">
+                        <TouchableOpacity 
+                          onPress={() => navigation.navigate('Reminders', { companyId: company.id })}
+                          className={`py-2.5 rounded-2xl items-center justify-center ${
+                            isDark 
+                              ? 'bg-blue-900/40' 
+                              : 'bg-blue-100'
+                          }`}
+                        >
+                          <Text className={`text-sm font-semibold ${
+                            isDark ? 'text-blue-100' : 'text-blue-800'
+                          }`}>
+                            Ver Recordatorios
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   </View>
                 );

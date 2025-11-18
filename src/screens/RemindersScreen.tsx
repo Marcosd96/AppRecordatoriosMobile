@@ -22,7 +22,10 @@ import { useTheme } from '../context/ThemeContext';
 import StyledModal from '../components/StyledModal';
 
 // Habilitar animaciones de layout en Android
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+if (
+  Platform.OS === 'android' &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
@@ -30,7 +33,9 @@ export default function RemindersScreen({ route }: any) {
   const { isDark } = useTheme();
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(
+    null,
+  );
   const [filter, setFilter] = useState<ReminderFilter>('all');
   const [sortBy, setSortBy] = useState<SortBy>('date');
   const [refreshing, setRefreshing] = useState(false);
@@ -47,8 +52,8 @@ export default function RemindersScreen({ route }: any) {
       LayoutAnimation.create(
         250, // duración en ms
         LayoutAnimation.Types.easeInEaseOut,
-        LayoutAnimation.Properties.opacity
-      )
+        LayoutAnimation.Properties.opacity,
+      ),
     );
   };
 
@@ -60,14 +65,16 @@ export default function RemindersScreen({ route }: any) {
       ]);
       setReminders(remindersData);
       setCompanies(companiesData);
-      
+
       // Programar notificaciones para los recordatorios pendientes
       await notificationsService.scheduleAllReminders(remindersData);
     } catch (error: any) {
       console.error('Error al cargar datos:', error);
       setErrorMessage({
         title: 'Error',
-        message: error.message || 'No se pudieron cargar los datos. Verifica tu conexión.',
+        message:
+          error.message ||
+          'No se pudieron cargar los datos. Verifica tu conexión.',
       });
       setShowErrorModal(true);
     } finally {
@@ -82,7 +89,7 @@ export default function RemindersScreen({ route }: any) {
       await notificationsService.createNotificationChannel();
       await notificationsService.requestPermissions();
     };
-    
+
     initializeNotifications();
     loadData();
   }, []);
@@ -102,7 +109,7 @@ export default function RemindersScreen({ route }: any) {
         setSelectedCompanyId(route.params.companyId);
       }
       // No limpiar automáticamente para mantener el filtro activo
-    }, [route?.params?.companyId])
+    }, [route?.params?.companyId]),
   );
 
   const onRefresh = async () => {
@@ -111,55 +118,60 @@ export default function RemindersScreen({ route }: any) {
   };
 
   // Memoizar los recordatorios filtrados para evitar recalcular en cada render
-  const filteredReminders = useMemo(() => reminders
-    .filter((r) => {
-      // Filtrar por empresa
-      if (selectedCompanyId && r.companyId !== selectedCompanyId) return false;
+  const filteredReminders = useMemo(
+    () =>
+      reminders
+        .filter(r => {
+          // Filtrar por empresa
+          if (selectedCompanyId && r.companyId !== selectedCompanyId)
+            return false;
 
-      // Filtrar por estado
-      if (filter === 'pending' && r.status !== 'pending') return false;
-      if (filter === 'overdue' && r.status !== 'overdue') return false;
-      if (filter === 'upcoming') {
-        const dueDate = new Date(r.dueDate);
-        const now = new Date();
-        const next30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-        if (r.status !== 'pending' || dueDate < now || dueDate > next30Days)
-          return false;
-      }
+          // Filtrar por estado
+          if (filter === 'pending' && r.status !== 'pending') return false;
+          if (filter === 'overdue' && r.status !== 'overdue') return false;
+          if (filter === 'upcoming') {
+            const dueDate = new Date(r.dueDate);
+            const now = new Date();
+            const next30Days = new Date(
+              now.getTime() + 30 * 24 * 60 * 60 * 1000,
+            );
+            if (r.status !== 'pending' || dueDate < now || dueDate > next30Days)
+              return false;
+          }
 
-      // Filtrar por búsqueda
-      if (
-        searchQuery &&
-        !r.description.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !r.companyName.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-        return false;
+          // Filtrar por búsqueda
+          if (
+            searchQuery &&
+            !r.description.toLowerCase().includes(searchQuery.toLowerCase()) &&
+            !r.companyName.toLowerCase().includes(searchQuery.toLowerCase())
+          )
+            return false;
 
-      return true;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'date') {
-        return (
-          new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
-        );
-      } else if (sortBy === 'company') {
-        return a.companyName.localeCompare(b.companyName);
-      } else {
-        return a.type.localeCompare(b.type);
-      }
-    }), [reminders, selectedCompanyId, filter, sortBy, searchQuery]);
+          return true;
+        })
+        .sort((a, b) => {
+          if (sortBy === 'date') {
+            return (
+              new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+            );
+          } else if (sortBy === 'company') {
+            return a.companyName.localeCompare(b.companyName);
+          } else {
+            return a.type.localeCompare(b.type);
+          }
+        }),
+    [reminders, selectedCompanyId, filter, sortBy, searchQuery],
+  );
 
   const stats = {
     total: reminders.length,
-    pending: reminders.filter((r) => r.status === 'pending').length,
-    overdue: reminders.filter((r) => r.status === 'overdue').length,
-    upcoming: reminders.filter((r) => {
+    pending: reminders.filter(r => r.status === 'pending').length,
+    overdue: reminders.filter(r => r.status === 'overdue').length,
+    upcoming: reminders.filter(r => {
       const dueDate = new Date(r.dueDate);
       const now = new Date();
       const next30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-      return (
-        r.status === 'pending' && dueDate >= now && dueDate <= next30Days
-      );
+      return r.status === 'pending' && dueDate >= now && dueDate <= next30Days;
     }).length,
   };
 
@@ -180,31 +192,38 @@ export default function RemindersScreen({ route }: any) {
   };
 
   // Memoizar la función para evitar recrearla en cada render
-  const toggleReminderStatus = useCallback(async (id: string) => {
-    const reminder = reminders.find((r) => r.id === id);
-    if (!reminder) return;
+  const toggleReminderStatus = useCallback(
+    async (id: string) => {
+      const reminder = reminders.find(r => r.id === id);
+      if (!reminder) return;
 
-    try {
-      const result = await remindersService.toggleStatus(id, reminder.status);
-      const updatedReminders = reminders.map((r) => (r.id === id ? result.reminder : r));
-      setReminders(updatedReminders);
-      
-      // Si se completó el recordatorio, cancelar sus notificaciones
-      if (result.reminder.status === 'completed') {
-        await notificationsService.cancelReminderNotifications(id);
-      } else {
-        // Si se reactivó, reprogramar notificaciones
-        await notificationsService.scheduleReminderNotification(result.reminder);
+      try {
+        const result = await remindersService.toggleStatus(id, reminder.status);
+        const updatedReminders = reminders.map(r =>
+          r.id === id ? result.reminder : r,
+        );
+        setReminders(updatedReminders);
+
+        // Si se completó el recordatorio, cancelar sus notificaciones
+        if (result.reminder.status === 'completed') {
+          await notificationsService.cancelReminderNotifications(id);
+        } else {
+          // Si se reactivó, reprogramar notificaciones
+          await notificationsService.scheduleReminderNotification(
+            result.reminder,
+          );
+        }
+      } catch (error: any) {
+        console.error('Error al actualizar recordatorio:', error);
+        setErrorMessage({
+          title: 'Error',
+          message: error.message || 'No se pudo actualizar el recordatorio',
+        });
+        setShowErrorModal(true);
       }
-    } catch (error: any) {
-      console.error('Error al actualizar recordatorio:', error);
-      setErrorMessage({
-        title: 'Error',
-        message: error.message || 'No se pudo actualizar el recordatorio',
-      });
-      setShowErrorModal(true);
-    }
-  }, [reminders]);
+    },
+    [reminders],
+  );
 
   const getStatusBadge = (status: Reminder['status']) => {
     const styles = {
@@ -222,25 +241,46 @@ export default function RemindersScreen({ route }: any) {
 
   if (loading) {
     return (
-      <SafeAreaView className={`flex-1 items-center justify-center ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`} edges={['top']}>
+      <SafeAreaView
+        className={`flex-1 items-center justify-center ${
+          isDark ? 'bg-gray-900' : 'bg-gray-50'
+        }`}
+        edges={['top']}
+      >
         <ActivityIndicator size="large" color="#2563eb" />
-        <Text className={isDark ? 'text-gray-300 mt-4' : 'text-gray-600 mt-4'}>Cargando recordatorios...</Text>
+        <Text className={isDark ? 'text-gray-300 mt-4' : 'text-gray-600 mt-4'}>
+          Cargando recordatorios...
+        </Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`} edges={['top']}>
+    <SafeAreaView
+      className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}
+      edges={['top']}
+    >
       {/* Header */}
-      <View className={`px-6 py-4 border-b ${
-        isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-      }`}>
-        <Text className={`text-2xl font-bold ${
-          isDark ? 'text-white' : 'text-gray-900'
-        }`}>
-          Recordatorios Fiscales
-        </Text>
-        <Text className={`mt-1 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+      <View
+        className={`px-6 py-4 border-b ${
+          isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+        }`}
+      >
+        <View className="flex-row items-center mb-2">
+          <Text className="text-3xl mr-2">📅</Text>
+          <Text
+            className={`text-3xl font-bold ${
+              isDark ? 'text-white' : 'text-gray-900'
+            }`}
+          >
+            Recordatorios Fiscales
+          </Text>
+        </View>
+        <Text
+          className={`mt-2 text-base ${
+            isDark ? 'text-gray-300' : 'text-gray-600'
+          }`}
+        >
           Gestiona tus obligaciones fiscales
         </Text>
       </View>
@@ -254,96 +294,140 @@ export default function RemindersScreen({ route }: any) {
       >
         {/* Estadísticas */}
         <View className="px-6 py-4">
-          <View className="flex-row flex-wrap -mx-2">
-            <View className="w-1/2 px-2 mb-2">
-              <View className={`rounded-lg p-3 border ${
-                isDark 
-                  ? 'bg-gray-800 border-gray-700' 
-                  : 'bg-white border-gray-200'
-              }`}>
-                <Text className={`text-xs mb-1 ${
-                  isDark ? 'text-gray-400' : 'text-gray-600'
-                }`}>Total</Text>
-                <Text className={`text-xl font-bold ${
-                  isDark ? 'text-white' : 'text-gray-900'
-                }`}>
-                  {stats.total}
-                </Text>
-              </View>
+          <View
+            className={`rounded-3xl p-5 border ${
+              isDark
+                ? 'bg-gray-800 border-gray-700'
+                : 'bg-white border-gray-200'
+            }`}
+          >
+            <Text
+              className={`text-sm font-semibold mb-4 ${
+                isDark ? 'text-blue-200' : 'text-blue-600'
+              }`}
+            >
+              Resumen rápido
+            </Text>
+            <Text
+              className={`text-2xl font-bold mt-1 ${
+                isDark ? 'text-white' : 'text-gray-900'
+              }`}
+            >
+              {stats.pending > 0
+                ? 'Sigue al día con tus obligaciones fiscales'
+                : 'Todo en orden'}
+            </Text>
+            <View className="flex-row flex-wrap -mx-2 mt-4">
+              {[
+                {
+                  label: 'Total',
+                  value: stats.total,
+                  bg: isDark ? 'bg-blue-500/10' : 'bg-blue-50',
+                  text: isDark ? 'text-blue-200' : 'text-blue-700',
+                },
+                {
+                  label: 'Pendientes',
+                  value: stats.pending,
+                  bg: isDark ? 'bg-yellow-500/10' : 'bg-yellow-50',
+                  text: isDark ? 'text-yellow-200' : 'text-yellow-700',
+                },
+                {
+                  label: 'Vencidos',
+                  value: stats.overdue,
+                  bg: isDark ? 'bg-red-500/10' : 'bg-red-50',
+                  text: isDark ? 'text-red-200' : 'text-red-700',
+                },
+                {
+                  label: 'Próximos 30 días',
+                  value: stats.upcoming,
+                  bg: isDark ? 'bg-indigo-500/10' : 'bg-indigo-50',
+                  text: isDark ? 'text-indigo-200' : 'text-indigo-700',
+                },
+              ].map(item => (
+                <View key={item.label} className="w-1/2 px-2 mb-4">
+                  <View className={`rounded-2xl p-4 ${item.bg}`}>
+                    <Text
+                      className={`text-xs font-medium mb-1 ${
+                        isDark ? 'text-gray-300' : 'text-gray-500'
+                      }`}
+                    >
+                      {item.label}
+                    </Text>
+                    <Text className={`text-2xl font-bold ${item.text}`}>
+                      {item.value}
+                    </Text>
+                  </View>
+                </View>
+              ))}
             </View>
-            <View className="w-1/2 px-2 mb-2">
-              <View className={`rounded-lg p-3 border ${
-                isDark 
-                  ? 'bg-yellow-900/30 border-yellow-800' 
-                  : 'bg-yellow-50 border-yellow-200'
-              }`}>
-                <Text className={`text-xs mb-1 ${
-                  isDark ? 'text-yellow-300' : 'text-yellow-700'
-                }`}>Pendientes</Text>
-                <Text className={`text-xl font-bold ${
-                  isDark ? 'text-yellow-200' : 'text-yellow-900'
-                }`}>
-                  {stats.pending}
-                </Text>
-              </View>
-            </View>
-            <View className="w-1/2 px-2 mb-2">
-              <View className={`rounded-lg p-3 border ${
-                isDark 
-                  ? 'bg-red-900/30 border-red-800' 
-                  : 'bg-red-50 border-red-200'
-              }`}>
-                <Text className={`text-xs mb-1 ${
-                  isDark ? 'text-red-300' : 'text-red-700'
-                }`}>Vencidos</Text>
-                <Text className={`text-xl font-bold ${
-                  isDark ? 'text-red-200' : 'text-red-900'
-                }`}>
-                  {stats.overdue}
-                </Text>
-              </View>
-            </View>
-            <View className="w-1/2 px-2 mb-2">
-              <View className={`rounded-lg p-3 border ${
-                isDark 
-                  ? 'bg-blue-900/30 border-blue-800' 
-                  : 'bg-blue-50 border-blue-200'
-              }`}>
-                <Text className={`text-xs mb-1 ${
-                  isDark ? 'text-blue-300' : 'text-blue-700'
-                }`}>Próximos</Text>
-                <Text className={`text-xl font-bold ${
-                  isDark ? 'text-blue-200' : 'text-blue-900'
-                }`}>
-                  {stats.upcoming}
-                </Text>
-              </View>
+            <View
+              className={`mt-2 rounded-2xl px-4 py-3 border ${
+                isDark
+                  ? 'border-blue-900/40 bg-blue-900/10'
+                  : 'border-blue-100 bg-blue-50'
+              }`}
+            >
+              <Text
+                className={`text-sm font-semibold ${
+                  isDark ? 'text-blue-100' : 'text-blue-700'
+                }`}
+              >
+                Productividad
+              </Text>
+              <Text
+                className={isDark ? 'text-gray-300 mt-1' : 'text-gray-600 mt-1'}
+              >
+                {stats.pending > 0
+                  ? `Tienes ${stats.pending} recordatorio${
+                      stats.pending === 1 ? '' : 's'
+                    } pendiente${stats.pending === 1 ? '' : 's'} listo${
+                      stats.pending === 1 ? '' : 's'
+                    } para gestionar.`
+                  : 'No hay recordatorios pendientes. ¡Perfecto momento para agregar nuevas empresas!'}
+              </Text>
             </View>
           </View>
         </View>
 
-        {/* Búsqueda */}
-        <View className="px-6 py-2">
-          <TextInput
-            className={`border rounded-lg px-4 py-3 ${
-              isDark 
-                ? 'bg-gray-800 border-gray-700 text-white' 
-                : 'bg-white border-gray-300 text-gray-900'
+        {/* Búsqueda y Filtros */}
+        <View className="px-6 py-4">
+          <View
+            className={`rounded-3xl p-4 border ${
+              isDark
+                ? 'border-gray-700 bg-gray-800/80'
+                : 'border-gray-200 bg-white'
             }`}
-            placeholder="Buscar recordatorios..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholderTextColor={isDark ? "#9ca3af" : "#9ca3af"}
-          />
+          >
+            <Text
+              className={`text-sm font-semibold mb-2 ${
+                isDark ? 'text-gray-100' : 'text-gray-800'
+              }`}
+            >
+              Búsqueda rápida
+            </Text>
+            <TextInput
+              className={`border rounded-2xl px-4 py-3 ${
+                isDark
+                  ? 'bg-gray-900 border-gray-700 text-white'
+                  : 'bg-gray-50 border-gray-200 text-gray-900'
+              }`}
+              placeholder="Buscar por descripción o empresa..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholderTextColor={isDark ? '#9ca3af' : '#9ca3af'}
+            />
+          </View>
         </View>
 
         {/* Filtros - Lista Desplegable */}
         <View className="px-6 py-2">
-          <View className={`rounded-xl border overflow-hidden ${
-            isDark 
-              ? 'bg-gray-800 border-gray-700' 
-              : 'bg-white border-gray-200'
-          }`}>
+          <View
+            className={`rounded-xl border overflow-hidden ${
+              isDark
+                ? 'bg-gray-800 border-gray-700'
+                : 'bg-white border-gray-200'
+            }`}
+          >
             <TouchableOpacity
               onPress={() => {
                 animateLayout();
@@ -354,78 +438,93 @@ export default function RemindersScreen({ route }: any) {
               }`}
             >
               <View className="flex-row items-center">
-                <Text className={`text-base font-semibold ${
-                  isDark ? 'text-white' : 'text-gray-900'
-                }`}>
+                <Text
+                  className={`text-base font-semibold ${
+                    isDark ? 'text-white' : 'text-gray-900'
+                  }`}
+                >
                   📋 Filtrar por Estado
                 </Text>
                 {filter !== 'all' && (
-                  <View className={`ml-2 px-2 py-1 rounded ${
-                    isDark ? 'bg-blue-900/50' : 'bg-blue-100'
-                  }`}>
-                    <Text className={`text-xs font-medium ${
-                      isDark ? 'text-blue-200' : 'text-blue-800'
-                    }`}>
-                      {filter === 'pending' ? 'Pendientes' : 
-                       filter === 'overdue' ? 'Vencidos' : 'Próximos'}
+                  <View
+                    className={`ml-2 px-2 py-1 rounded ${
+                      isDark ? 'bg-blue-900/50' : 'bg-blue-100'
+                    }`}
+                  >
+                    <Text
+                      className={`text-xs font-medium ${
+                        isDark ? 'text-blue-200' : 'text-blue-800'
+                      }`}
+                    >
+                      {filter === 'pending'
+                        ? 'Pendientes'
+                        : filter === 'overdue'
+                        ? 'Vencidos'
+                        : 'Próximos'}
                     </Text>
                   </View>
                 )}
               </View>
-              <Text className={`text-lg ${
-                isDark ? 'text-gray-400' : 'text-gray-600'
-              }`}>
+              <Text
+                className={`text-lg ${
+                  isDark ? 'text-gray-400' : 'text-gray-600'
+                }`}
+              >
                 {showStatusFilter ? '▲' : '▼'}
               </Text>
             </TouchableOpacity>
             {showStatusFilter && (
-              <View className={`border-t ${
-                isDark ? 'border-gray-700' : 'border-gray-200'
-              }`}>
-                {(['all', 'pending', 'overdue', 'upcoming'] as ReminderFilter[]).map(
-                  (f) => (
-                    <TouchableOpacity
-                      key={f}
-                      onPress={() => {
-                        animateLayout();
-                        setFilter(f);
-                        setShowStatusFilter(false);
-                      }}
-                      className={`px-4 py-3 border-b ${
-                        filter === f
-                          ? isDark
-                            ? 'bg-blue-900/30'
-                            : 'bg-blue-50'
-                          : isDark
-                            ? 'bg-gray-800 border-gray-700'
-                            : 'bg-white border-gray-200'
-                      }`}
-                    >
-                      <View className="flex-row items-center">
-                        <Text className={`text-sm font-medium ${
+              <View
+                className={`border-t ${
+                  isDark ? 'border-gray-700' : 'border-gray-200'
+                }`}
+              >
+                {(
+                  ['all', 'pending', 'overdue', 'upcoming'] as ReminderFilter[]
+                ).map(f => (
+                  <TouchableOpacity
+                    key={f}
+                    onPress={() => {
+                      animateLayout();
+                      setFilter(f);
+                      setShowStatusFilter(false);
+                    }}
+                    className={`px-4 py-3 border-b ${
+                      filter === f
+                        ? isDark
+                          ? 'bg-blue-900/30'
+                          : 'bg-blue-50'
+                        : isDark
+                        ? 'bg-gray-800 border-gray-700'
+                        : 'bg-white border-gray-200'
+                    }`}
+                  >
+                    <View className="flex-row items-center">
+                      <Text
+                        className={`text-sm font-medium ${
                           filter === f
                             ? isDark
                               ? 'text-blue-200'
                               : 'text-blue-700'
                             : isDark
-                              ? 'text-gray-200'
-                              : 'text-gray-700'
-                        }`}>
-                          {f === 'all'
-                            ? '✓ Todos'
-                            : f === 'pending'
-                            ? '⏳ Pendientes'
-                            : f === 'overdue'
-                            ? '⚠️ Vencidos'
-                            : '📅 Próximos'}
-                        </Text>
-                        {filter === f && (
-                          <Text className="ml-2 text-blue-600">✓</Text>
-                        )}
-                      </View>
-                    </TouchableOpacity>
-                  )
-                )}
+                            ? 'text-gray-200'
+                            : 'text-gray-700'
+                        }`}
+                      >
+                        {f === 'all'
+                          ? '✓ Todos'
+                          : f === 'pending'
+                          ? '⏳ Pendientes'
+                          : f === 'overdue'
+                          ? '⚠️ Vencidos'
+                          : '📅 Próximos'}
+                      </Text>
+                      {filter === f && (
+                        <Text className="ml-2 text-blue-600">✓</Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                ))}
               </View>
             )}
           </View>
@@ -433,11 +532,13 @@ export default function RemindersScreen({ route }: any) {
 
         {/* Selector de empresa - Lista Desplegable */}
         <View className="px-6 py-2">
-          <View className={`rounded-xl border overflow-hidden ${
-            isDark 
-              ? 'bg-gray-800 border-gray-700' 
-              : 'bg-white border-gray-200'
-          }`}>
+          <View
+            className={`rounded-xl border overflow-hidden ${
+              isDark
+                ? 'bg-gray-800 border-gray-700'
+                : 'bg-white border-gray-200'
+            }`}
+          >
             <TouchableOpacity
               onPress={() => {
                 animateLayout();
@@ -448,33 +549,44 @@ export default function RemindersScreen({ route }: any) {
               }`}
             >
               <View className="flex-row items-center">
-                <Text className={`text-base font-semibold ${
-                  isDark ? 'text-white' : 'text-gray-900'
-                }`}>
+                <Text
+                  className={`text-base font-semibold ${
+                    isDark ? 'text-white' : 'text-gray-900'
+                  }`}
+                >
                   🏢 Filtrar por Empresa
                 </Text>
                 {selectedCompanyId && (
-                  <View className={`ml-2 px-2 py-1 rounded ${
-                    isDark ? 'bg-blue-900/50' : 'bg-blue-100'
-                  }`}>
-                    <Text className={`text-xs font-medium ${
-                      isDark ? 'text-blue-200' : 'text-blue-800'
-                    }`}>
-                      {companies.find(c => c.id === selectedCompanyId)?.name || ''}
+                  <View
+                    className={`ml-2 px-2 py-1 rounded ${
+                      isDark ? 'bg-blue-900/50' : 'bg-blue-100'
+                    }`}
+                  >
+                    <Text
+                      className={`text-xs font-medium ${
+                        isDark ? 'text-blue-200' : 'text-blue-800'
+                      }`}
+                    >
+                      {companies.find(c => c.id === selectedCompanyId)?.name ||
+                        ''}
                     </Text>
                   </View>
                 )}
               </View>
-              <Text className={`text-lg ${
-                isDark ? 'text-gray-400' : 'text-gray-600'
-              }`}>
+              <Text
+                className={`text-lg ${
+                  isDark ? 'text-gray-400' : 'text-gray-600'
+                }`}
+              >
                 {showCompanyFilter ? '▲' : '▼'}
               </Text>
             </TouchableOpacity>
             {showCompanyFilter && (
-              <View className={`border-t ${
-                isDark ? 'border-gray-700' : 'border-gray-200'
-              }`}>
+              <View
+                className={`border-t ${
+                  isDark ? 'border-gray-700' : 'border-gray-200'
+                }`}
+              >
                 <TouchableOpacity
                   onPress={() => {
                     animateLayout();
@@ -487,20 +599,22 @@ export default function RemindersScreen({ route }: any) {
                         ? 'bg-blue-900/30'
                         : 'bg-blue-50'
                       : isDark
-                        ? 'bg-gray-800 border-gray-700'
-                        : 'bg-white border-gray-200'
+                      ? 'bg-gray-800 border-gray-700'
+                      : 'bg-white border-gray-200'
                   }`}
                 >
                   <View className="flex-row items-center">
-                    <Text className={`text-sm font-medium ${
-                      selectedCompanyId === null
-                        ? isDark
-                          ? 'text-blue-200'
-                          : 'text-blue-700'
-                        : isDark
+                    <Text
+                      className={`text-sm font-medium ${
+                        selectedCompanyId === null
+                          ? isDark
+                            ? 'text-blue-200'
+                            : 'text-blue-700'
+                          : isDark
                           ? 'text-gray-200'
                           : 'text-gray-700'
-                    }`}>
+                      }`}
+                    >
                       ✓ Todas las empresas
                     </Text>
                     {selectedCompanyId === null && (
@@ -508,7 +622,7 @@ export default function RemindersScreen({ route }: any) {
                     )}
                   </View>
                 </TouchableOpacity>
-                {companies.map((company) => (
+                {companies.map(company => (
                   <TouchableOpacity
                     key={company.id}
                     onPress={() => {
@@ -522,20 +636,22 @@ export default function RemindersScreen({ route }: any) {
                           ? 'bg-blue-900/30'
                           : 'bg-blue-50'
                         : isDark
-                          ? 'bg-gray-800 border-gray-700'
-                          : 'bg-white border-gray-200'
+                        ? 'bg-gray-800 border-gray-700'
+                        : 'bg-white border-gray-200'
                     }`}
                   >
                     <View className="flex-row items-center">
-                      <Text className={`text-sm font-medium ${
-                        selectedCompanyId === company.id
-                          ? isDark
-                            ? 'text-blue-200'
-                            : 'text-blue-700'
-                          : isDark
+                      <Text
+                        className={`text-sm font-medium ${
+                          selectedCompanyId === company.id
+                            ? isDark
+                              ? 'text-blue-200'
+                              : 'text-blue-700'
+                            : isDark
                             ? 'text-gray-200'
                             : 'text-gray-700'
-                      }`}>
+                        }`}
+                      >
                         {company.name}
                       </Text>
                       {selectedCompanyId === company.id && (
@@ -552,15 +668,27 @@ export default function RemindersScreen({ route }: any) {
         {/* Lista de recordatorios */}
         <View className="px-6 py-4">
           {filteredReminders.length === 0 ? (
-            <View className={`rounded-xl p-8 border ${
-              isDark 
-                ? 'bg-gray-800 border-gray-700' 
-                : 'bg-white border-gray-200'
-            }`}>
-              <Text className={`text-center ${
-                isDark ? 'text-gray-300' : 'text-gray-600'
-              }`}>
-                No hay recordatorios que coincidan con los filtros
+            <View
+              className={`rounded-3xl p-8 border items-center ${
+                isDark
+                  ? 'bg-gray-800 border-gray-700'
+                  : 'bg-white border-gray-200'
+              }`}
+            >
+              <Text className="text-4xl mb-3">🗂️</Text>
+              <Text
+                className={`text-base font-semibold text-center ${
+                  isDark ? 'text-white' : 'text-gray-900'
+                }`}
+              >
+                No hay recordatorios con estos filtros
+              </Text>
+              <Text
+                className={`text-center mt-2 ${
+                  isDark ? 'text-gray-400' : 'text-gray-500'
+                }`}
+              >
+                Ajusta la búsqueda o agrega nuevas empresas.
               </Text>
             </View>
           ) : (
@@ -574,7 +702,7 @@ export default function RemindersScreen({ route }: any) {
                 return (
                   <View
                     key={reminder.id}
-                    className={`rounded-xl p-4 border-2 ${index > 0 ? 'mt-3' : ''} ${
+                    className={`rounded-3xl p-5 border mb-4 ${
                       reminder.status === 'completed'
                         ? isDark
                           ? 'bg-gray-800/50 border-gray-700 opacity-75'
@@ -588,69 +716,95 @@ export default function RemindersScreen({ route }: any) {
                           ? 'bg-yellow-900/30 border-yellow-800'
                           : 'bg-yellow-50 border-yellow-200'
                         : isDark
-                          ? 'bg-gray-800 border-gray-700'
-                          : 'bg-white border-gray-200'
+                        ? 'bg-gray-800/80 border-gray-700'
+                        : 'bg-white border-gray-200'
                     }`}
                   >
                     <View className="flex-row justify-between items-start mb-2">
                       <View className="flex-1">
                         <View className="flex-row flex-wrap gap-2 mb-2">
-                          <View className={`px-2 py-1 rounded border ${statusBadge.style}`}>
-                            <Text className={`text-xs font-medium ${statusBadge.style.split(' ')[1]}`}>
+                          <View
+                            className={`px-2 py-1 rounded border ${statusBadge.style}`}
+                          >
+                            <Text
+                              className={`text-xs font-medium ${
+                                statusBadge.style.split(' ')[1]
+                              }`}
+                            >
                               {statusBadge.label}
                             </Text>
                           </View>
                           <View
                             className={`px-2 py-1 rounded ${
                               reminder.type === 'IVA'
-                                ? isDark ? 'bg-blue-900/50' : 'bg-blue-100'
-                                : isDark ? 'bg-purple-900/50' : 'bg-purple-100'
+                                ? isDark
+                                  ? 'bg-blue-900/50'
+                                  : 'bg-blue-100'
+                                : isDark
+                                ? 'bg-purple-900/50'
+                                : 'bg-purple-100'
                             }`}
                           >
                             <Text
                               className={`text-xs font-medium ${
                                 reminder.type === 'IVA'
-                                  ? isDark ? 'text-blue-200' : 'text-blue-800'
-                                  : isDark ? 'text-purple-200' : 'text-purple-800'
+                                  ? isDark
+                                    ? 'text-blue-200'
+                                    : 'text-blue-800'
+                                  : isDark
+                                  ? 'text-purple-200'
+                                  : 'text-purple-800'
                               }`}
                             >
                               {reminder.type}
                             </Text>
                           </View>
                         </View>
-                        <Text className={`font-semibold mb-1 ${
-                          isDark ? 'text-white' : 'text-gray-900'
-                        }`}>
+                        <Text
+                          className={`font-semibold mb-1 ${
+                            isDark ? 'text-white' : 'text-gray-900'
+                          }`}
+                        >
                           {reminder.description}
                         </Text>
-                        <Text className={`text-sm ${
-                          isDark ? 'text-gray-400' : 'text-gray-600'
-                        }`}>
+                        <Text
+                          className={`text-sm ${
+                            isDark ? 'text-gray-400' : 'text-gray-600'
+                          }`}
+                        >
                           {reminder.companyName}
                         </Text>
                       </View>
                     </View>
-                    <View className={`flex-row justify-between items-center mt-3 pt-3 border-t ${
-                      isDark ? 'border-gray-700' : 'border-gray-200'
-                    }`}>
+                    <View
+                      className={`flex-row justify-between items-center mt-3 pt-3 border-t ${
+                        isDark ? 'border-gray-700' : 'border-gray-200'
+                      }`}
+                    >
                       <View>
-                        <Text className={`text-xs ${
-                          isDark ? 'text-gray-400' : 'text-gray-600'
-                        }`}>
+                        <Text
+                          className={`text-xs ${
+                            isDark ? 'text-gray-400' : 'text-gray-600'
+                          }`}
+                        >
                           Fecha de vencimiento
                         </Text>
-                        <Text className={`text-sm font-medium ${
-                          isDark ? 'text-white' : 'text-gray-900'
-                        }`}>
+                        <Text
+                          className={`text-sm font-medium ${
+                            isDark ? 'text-white' : 'text-gray-900'
+                          }`}
+                        >
                           {formatDate(reminder.dueDate)}
                         </Text>
                       </View>
                       <View className="items-end">
                         {reminder.status !== 'completed' && (
                           <>
-                            <Text className={`text-xs ${
-                              isDark ? 'text-gray-400' : 'text-gray-600'
-                            }`}>
+                            <Text
+                              className={`text-xs ${
+                                isDark ? 'text-gray-400' : 'text-gray-600'
+                              }`}
+                            >
                               Días restantes
                             </Text>
                             <Text
@@ -660,8 +814,8 @@ export default function RemindersScreen({ route }: any) {
                                   : isUrgent
                                   ? 'text-yellow-600'
                                   : isDark
-                                    ? 'text-white'
-                                    : 'text-gray-900'
+                                  ? 'text-white'
+                                  : 'text-gray-900'
                               }`}
                             >
                               {isOverdue
@@ -681,8 +835,8 @@ export default function RemindersScreen({ route }: any) {
                             ? 'bg-gray-700'
                             : 'bg-gray-200'
                           : isDark
-                            ? 'bg-green-900/50'
-                            : 'bg-green-100'
+                          ? 'bg-green-900/50'
+                          : 'bg-green-100'
                       }`}
                     >
                       <Text
@@ -692,8 +846,8 @@ export default function RemindersScreen({ route }: any) {
                               ? 'text-gray-300'
                               : 'text-gray-700'
                             : isDark
-                              ? 'text-green-300'
-                              : 'text-green-700'
+                            ? 'text-green-300'
+                            : 'text-green-700'
                         }`}
                       >
                         {reminder.status === 'completed'
@@ -725,4 +879,3 @@ export default function RemindersScreen({ route }: any) {
     </SafeAreaView>
   );
 }
-
