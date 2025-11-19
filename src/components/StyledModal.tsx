@@ -37,7 +37,11 @@ export default function StyledModal({
   const { isDark } = useTheme();
   const responsive = useResponsive();
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
-  const slideAnim = React.useRef(new Animated.Value(responsive.scale(300))).current;
+  const modalSlideOffset = React.useMemo(
+    () => responsive.scale(300),
+    [responsive],
+  );
+  const slideAnim = React.useRef(new Animated.Value(modalSlideOffset)).current;
   const animationRef = React.useRef<Animated.CompositeAnimation | null>(null);
   const [isModalVisible, setIsModalVisible] = React.useState(false);
   const isAnimatingRef = React.useRef(false);
@@ -55,7 +59,7 @@ export default function StyledModal({
       
       // Reiniciar valores antes de animar
       fadeAnim.setValue(0);
-      slideAnim.setValue(responsive.scale(300));
+      slideAnim.setValue(modalSlideOffset);
 
       // Pequeño delay para asegurar que los valores se han establecido
       const timer = setTimeout(() => {
@@ -96,7 +100,7 @@ export default function StyledModal({
           useNativeDriver: true,
         }),
         Animated.timing(slideAnim, {
-          toValue: animationType === 'slide' ? responsive.scale(300) : 0,
+          toValue: animationType === 'slide' ? modalSlideOffset : 0,
           duration: 250,
           useNativeDriver: true,
         }),
@@ -110,7 +114,14 @@ export default function StyledModal({
         animationRef.current = null;
       });
     }
-  }, [visible]);
+  }, [
+    animationType,
+    fadeAnim,
+    isModalVisible,
+    modalSlideOffset,
+    slideAnim,
+    visible,
+  ]);
 
   // No renderizar si no está visible y no hay animación
   if (!isModalVisible && !visible) {

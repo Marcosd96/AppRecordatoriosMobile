@@ -159,7 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           const errorData = JSON.parse(responseText);
           errorMessage = errorData.error || errorMessage;
-        } catch (e) {
+        } catch {
           // Si no es JSON, podría ser HTML (página de error)
           if (responseText.includes('<html') || responseText.includes('<!DOCTYPE')) {
             errorMessage = `El servidor devolvió una página HTML. Verifica que el endpoint ${authUrl} exista.`;

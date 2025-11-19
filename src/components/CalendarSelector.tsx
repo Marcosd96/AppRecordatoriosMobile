@@ -5,6 +5,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  StyleSheet,
 } from 'react-native';
 import { Company } from '../types';
 import { CalendarType, CALENDAR_CONFIGS } from '../config/calendarTypes';
@@ -32,6 +33,34 @@ export default function CalendarSelector({
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const isSaveDisabled = loading || availableCalendars.length === 0;
+
+  const checkboxStyles = React.useMemo(
+    () => ({
+      selected: {
+        borderColor: '#2563eb',
+        backgroundColor: '#2563eb',
+      },
+      unselected: isDark
+        ? { borderColor: '#4b5563', backgroundColor: '#374151' }
+        : { borderColor: '#d1d5db', backgroundColor: '#ffffff' },
+    }),
+    [isDark]
+  );
+
+  const buttonStyles = React.useMemo(
+    () => ({
+      cancel: {
+        backgroundColor: isDark ? '#374151' : '#e5e7eb',
+        opacity: loading ? 0.5 : 1,
+      },
+      save: {
+        backgroundColor: isSaveDisabled ? '#9ca3af' : '#2563eb',
+        opacity: isSaveDisabled ? 0.5 : 1,
+      },
+    }),
+    [isDark, isSaveDisabled, loading]
+  );
 
   // Actualizar calendarios seleccionados cuando se abre el modal o cambia la empresa
   React.useEffect(() => {
@@ -43,7 +72,7 @@ export default function CalendarSelector({
       console.log('[CalendarSelector] Cantidad:', availableCalendars.length);
       console.log('[CalendarSelector] Calendarios seleccionados:', company.calendarTypes || []);
     }
-  }, [visible, company]);
+  }, [availableCalendars, company, visible]);
 
   const handleToggleCalendar = (calendarType: CalendarType) => {
     setSelectedCalendars((prev) => {
@@ -106,9 +135,9 @@ export default function CalendarSelector({
           </View>
         )}
 
-        <ScrollView 
+        <ScrollView
           showsVerticalScrollIndicator={true}
-          style={{ maxHeight: 350, marginBottom: 16 }}
+          style={styles.calendarScroll}
           nestedScrollEnabled={true}
         >
           {availableCalendars.length === 0 ? (
@@ -142,7 +171,7 @@ export default function CalendarSelector({
                        console.log('[CalendarSelector] Click en:', calendarType, 'isSelected:', isSelected);
                        handleToggleCalendar(calendarType);
                      }}
-                     style={{ marginBottom: index < availableCalendars.length - 1 ? 8 : 0 }}
+                     style={index < availableCalendars.length - 1 ? styles.calendarItemSpacing : undefined}
                      activeOpacity={0.7}
                    >
                      <View
@@ -153,23 +182,15 @@ export default function CalendarSelector({
                            ? 'border-gray-700 bg-gray-800'
                            : 'border-gray-200 bg-white'
                        }`}
-                     >
+                      >
                        <View
-                         style={{
-                           width: 20,
-                           height: 20,
-                           borderRadius: 4,
-                           borderWidth: 2,
-                           borderColor: isSelected ? '#2563eb' : (isDark ? '#4b5563' : '#d1d5db'),
-                           backgroundColor: isSelected ? '#2563eb' : (isDark ? '#374151' : '#ffffff'),
-                           marginRight: 12,
-                           marginTop: 2,
-                           alignItems: 'center',
-                           justifyContent: 'center',
-                         }}
+                          style={[
+                            styles.checkboxBase,
+                            isSelected ? checkboxStyles.selected : checkboxStyles.unselected,
+                          ]}
                        >
                          {isSelected && (
-                           <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: 'bold' }}>✓</Text>
+                            <Text style={styles.checkmarkText}>✓</Text>
                          )}
                        </View>
                        <View className="flex-1">
@@ -199,15 +220,12 @@ export default function CalendarSelector({
         <View className={`pt-4 border-t ${
           isDark ? 'border-gray-700' : 'border-gray-200'
         }`}>
-          <View className="flex-row justify-end" style={{ gap: 12 }}>
+          <View className="flex-row justify-end" style={styles.buttonRowGap}>
             <TouchableOpacity
               onPress={onClose}
               disabled={loading}
               className="px-5 py-3 rounded-lg"
-              style={{ 
-                backgroundColor: isDark ? '#374151' : '#e5e7eb',
-                opacity: loading ? 0.5 : 1,
-              }}
+              style={buttonStyles.cancel}
               activeOpacity={0.7}
             >
               <Text className={`font-semibold ${
@@ -218,19 +236,13 @@ export default function CalendarSelector({
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleSave}
-              disabled={loading || availableCalendars.length === 0}
+              disabled={isSaveDisabled}
               className="px-5 py-3 rounded-lg"
-              style={{
-                backgroundColor:
-                  loading || availableCalendars.length === 0
-                    ? '#9ca3af'
-                    : '#2563eb',
-                opacity: loading || availableCalendars.length === 0 ? 0.5 : 1,
-              }}
+              style={buttonStyles.save}
               activeOpacity={0.7}
             >
               {loading ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={styles.loadingRow}>
                   <ActivityIndicator color="#ffffff" size="small" />
                   <Text className="text-white font-semibold">Guardando...</Text>
                 </View>
@@ -246,4 +258,37 @@ export default function CalendarSelector({
     </StyledModal>
   );
 }
+
+const styles = StyleSheet.create({
+  calendarScroll: {
+    maxHeight: 350,
+    marginBottom: 16,
+  },
+  calendarItemSpacing: {
+    marginBottom: 8,
+  },
+  checkboxBase: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    marginRight: 12,
+    marginTop: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkmarkText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  buttonRowGap: {
+    gap: 12,
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+});
 

@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Animated, TouchableOpacity, TouchableOpacityProps, View } from 'react-native';
+import { Animated, TouchableOpacity, TouchableOpacityProps } from 'react-native';
 
 interface AnimatedButtonProps extends TouchableOpacityProps {
   children: React.ReactNode;

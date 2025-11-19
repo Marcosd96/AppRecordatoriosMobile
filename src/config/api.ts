@@ -72,7 +72,7 @@ async function fetchAPI<T>(
     
     // Agregar token de autenticación si existe
     if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+      headers.Authorization = `Bearer ${token}`;
     }
     
     const response = await fetch(url, {
@@ -93,7 +93,7 @@ async function fetchAPI<T>(
         if (response.status === 401) {
           errorMessage = 'No autorizado. Las APIs requieren autenticación.';
         }
-      } catch (e) {
+      } catch {
         // Si no se puede parsear el JSON, usar el mensaje por defecto
       }
       

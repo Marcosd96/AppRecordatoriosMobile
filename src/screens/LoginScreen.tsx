@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   ActivityIndicator,
   Alert,
   Image,
@@ -28,7 +27,7 @@ export default function LoginScreen() {
       friction: 7,
       useNativeDriver: true,
     }).start();
-  }, []);
+  }, [logoScale]);
 
   const handleSignIn = async () => {
     try {

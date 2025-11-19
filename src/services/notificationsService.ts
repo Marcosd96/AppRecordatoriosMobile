@@ -1,5 +1,5 @@
 import notifee, { AndroidImportance, TriggerType } from '@notifee/react-native';
-import { Platform, PermissionsAndroid } from 'react-native';
+import { Platform, PermissionsAndroid, AppState } from 'react-native';
 import { Reminder, PersonalTask } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -265,6 +265,7 @@ class NotificationsService {
             {
               type: TriggerType.TIMESTAMP,
               timestamp: notificationDate.getTime(),
+              alarmManager: true, // Usar AlarmManager de Android para precisión exacta
             }
           );
 
@@ -318,8 +319,8 @@ class NotificationsService {
       // Limpiar notificaciones inmediatas de días anteriores
       await this.cleanOldImmediateNotifications();
 
-      // Cancelar todas las notificaciones existentes
-      await this.cancelAllNotifications();
+      // CORREGIDO: Cancelar solo las notificaciones de recordatorios, no las de tareas personales
+      await this.cancelAllReminderNotifications();
 
       // Programar nuevas notificaciones solo para recordatorios pendientes
       const pendingReminders = reminders.filter((r) => r.status === 'pending');
@@ -335,14 +336,44 @@ class NotificationsService {
   }
 
   /**
-   * Cancela todas las notificaciones programadas
+   * Cancela todas las notificaciones programadas (TODOS LOS TIPOS)
+   * ⚠️ CUIDADO: Esto cancela notificaciones de recordatorios Y tareas personales
+   * Usar solo cuando sea necesario limpiar todo
    */
   async cancelAllNotifications(): Promise<void> {
     try {
       await notifee.cancelAllNotifications();
       await AsyncStorage.removeItem(NOTIFICATION_STORAGE_KEY);
+      await AsyncStorage.removeItem('@scheduled_personal_task_notifications');
     } catch (error) {
       console.error('Error al cancelar todas las notificaciones:', error);
+    }
+  }
+
+  /**
+   * Cancela solo las notificaciones de recordatorios (no toca las de tareas personales)
+   */
+  async cancelAllReminderNotifications(): Promise<void> {
+    try {
+      const stored = await AsyncStorage.getItem(NOTIFICATION_STORAGE_KEY);
+      if (!stored) return;
+
+      const notifications = JSON.parse(stored);
+      
+      // Cancelar cada notificación de recordatorio individualmente
+      for (const reminderId in notifications) {
+        const notificationIds = notifications[reminderId];
+        for (const id of notificationIds) {
+          await notifee.cancelNotification(id);
+        }
+      }
+
+      // Limpiar el storage de recordatorios
+      await AsyncStorage.removeItem(NOTIFICATION_STORAGE_KEY);
+      
+      console.log('Canceladas todas las notificaciones de recordatorios (sin afectar tareas personales)');
+    } catch (error) {
+      console.error('Error al cancelar notificaciones de recordatorios:', error);
     }
   }
 
@@ -416,6 +447,266 @@ class NotificationsService {
       });
     } catch (error) {
       console.error('Error al mostrar notificación de prueba:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Programa una notificación de prueba para una tarea personal en X minutos
+   * Útil para probar notificaciones sin esperar a la fecha real
+   * @param task La tarea personal
+   * @param minutesFromNow Minutos desde ahora para programar la notificación (default: 2)
+   */
+  async scheduleTestNotificationForTask(
+    task: PersonalTask,
+    minutesFromNow: number = 2
+  ): Promise<void> {
+    try {
+      // Verificar permisos primero
+      const hasPermission = await this.checkPermissions();
+      if (!hasPermission) {
+        console.warn(`⚠️ No hay permisos de notificación. Solicitando permisos...`);
+        const granted = await this.requestPermissions();
+        if (!granted) {
+          throw new Error('Permisos de notificación no concedidos. Por favor, activa las notificaciones en la configuración de la app.');
+        }
+        console.log('✅ Permisos de notificación concedidos');
+      }
+
+      if (!task.reminderEnabled || task.status !== 'active') {
+        console.log(
+          `No se puede programar notificación de prueba para tarea ${task.id}: ` +
+          `reminderEnabled=${task.reminderEnabled}, status=${task.status}`
+        );
+        return;
+      }
+
+      // Cancelar notificación existente antes de crear una nueva
+      await this.cancelPersonalTaskNotifications(task.id);
+
+      const now = new Date();
+      const testNotificationDate = new Date(now.getTime() + minutesFromNow * 60 * 1000);
+
+      console.log(
+        `📅 Programando notificación de prueba: ` +
+        `Ahora: ${now.toISOString()}, ` +
+        `Notificación en: ${testNotificationDate.toISOString()} ` +
+        `(${minutesFromNow} minutos)`
+      );
+
+      // Crear canal de notificaciones si es necesario
+      await this.createNotificationChannel();
+
+      // Determinar el color según la prioridad
+      const priorityColors: Record<string, string> = {
+        urgent: '#dc2626', // Rojo
+        high: '#f59e0b',   // Naranja
+        medium: '#2563eb', // Azul
+        low: '#10b981',    // Verde
+      };
+
+      const color = priorityColors[task.priority] || '#2563eb';
+
+      // Determinar el emoji según la prioridad
+      const priorityEmojis: Record<string, string> = {
+        urgent: '🚨',
+        high: '⚠️',
+        medium: '📋',
+        low: '✓',
+      };
+
+      const emoji = priorityEmojis[task.priority] || '📋';
+
+      const notificationId = `personal_task_${task.id}_test`;
+
+      // Verificar estado del canal de notificaciones (Android)
+      if (Platform.OS === 'android') {
+        try {
+          const channels = await notifee.getChannels();
+          const personalTasksChannel = channels.find(c => c.id === 'personal-tasks');
+          if (personalTasksChannel) {
+            console.log('📱 Estado del canal personal-tasks:', {
+              id: personalTasksChannel.id,
+              name: personalTasksChannel.name,
+              importance: personalTasksChannel.importance,
+              blocked: personalTasksChannel.blocked,
+              sound: personalTasksChannel.sound,
+            });
+            if (personalTasksChannel.blocked) {
+              console.warn('⚠️ El canal de notificaciones está bloqueado. El usuario debe habilitarlo en la configuración.');
+            }
+          } else {
+            console.warn('⚠️ No se encontró el canal personal-tasks');
+          }
+        } catch (error) {
+          console.error('Error al verificar canales:', error);
+        }
+      }
+
+      // Verificar estado de la app
+      const appState = AppState.currentState;
+      console.log(`📱 Estado de la app: ${appState} (active = en primer plano, background = en segundo plano)`);
+
+      // Enviar notificación inmediata para verificar que el sistema funciona
+      if (minutesFromNow <= 0.5) {
+        // Si es una prueba rápida (menos de 30 segundos), también enviar una inmediata
+        try {
+          // Mostrar notificación en primer plano si la app está activa
+          if (Platform.OS === 'android' && appState === 'active') {
+            await notifee.displayNotification({
+              id: `${notificationId}_immediate`,
+              title: `${emoji} [INMEDIATA] Tarea: ${task.title}`,
+              body: 'Esta es una notificación inmediata para verificar que el sistema funciona. La notificación programada llegará en breve.',
+              data: {
+                taskId: task.id,
+                type: 'personal-task',
+                isTest: 'true',
+                isImmediate: 'true',
+              },
+              android: {
+                channelId: 'personal-tasks',
+                importance: AndroidImportance.HIGH,
+                pressAction: {
+                  id: 'default',
+                },
+                smallIcon: 'ic_launcher',
+                color: color,
+                showTimestamp: true,
+                // Forzar mostrar en primer plano
+                visibility: 1, // VISIBILITY_PUBLIC
+                autoCancel: true,
+              },
+            });
+            console.log('✅ Notificación inmediata enviada (app en primer plano)');
+          } else {
+            await notifee.displayNotification({
+              id: `${notificationId}_immediate`,
+              title: `${emoji} [INMEDIATA] Tarea: ${task.title}`,
+              body: 'Esta es una notificación inmediata para verificar que el sistema funciona. La notificación programada llegará en breve.',
+              data: {
+                taskId: task.id,
+                type: 'personal-task',
+                isTest: 'true',
+                isImmediate: 'true',
+              },
+              android: {
+                channelId: 'personal-tasks',
+                importance: AndroidImportance.HIGH,
+                pressAction: {
+                  id: 'default',
+                },
+                smallIcon: 'ic_launcher',
+                color: color,
+                showTimestamp: true,
+              },
+              ios: {
+                sound: 'default',
+                foregroundPresentationOptions: {
+                  alert: true,
+                  badge: true,
+                  sound: true,
+                },
+              },
+            });
+            console.log('✅ Notificación inmediata enviada para verificar el sistema');
+          }
+        } catch (error) {
+          console.error('❌ Error al enviar notificación inmediata:', error);
+        }
+      }
+
+      await notifee.createTriggerNotification(
+        {
+          id: notificationId,
+          title: `${emoji} [PRUEBA] Tarea: ${task.title}`,
+          body: task.description 
+            ? `${task.description.substring(0, 80)}... (Notificación de prueba)`
+            : `Tarea programada para ${new Intl.DateTimeFormat('es-CO', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              }).format(testNotificationDate)} (Notificación de prueba)`,
+          data: {
+            taskId: task.id,
+            type: 'personal-task',
+            isTest: 'true',
+          },
+          android: {
+            channelId: 'personal-tasks',
+            importance: AndroidImportance.HIGH,
+            pressAction: {
+              id: 'default',
+            },
+            smallIcon: 'ic_launcher',
+            color: color,
+            showTimestamp: true,
+            timestamp: testNotificationDate.getTime(),
+            // Asegurar que la notificación se muestre incluso si la app está en primer plano
+            autoCancel: true,
+            ongoing: false,
+          },
+          ios: {
+            sound: 'default',
+            foregroundPresentationOptions: {
+              alert: true,
+              badge: true,
+              sound: true,
+            },
+          },
+        },
+        {
+          type: TriggerType.TIMESTAMP,
+          timestamp: testNotificationDate.getTime(),
+          alarmManager: true, // Usar AlarmManager de Android para precisión exacta
+        }
+      );
+
+      // Guardar ID de notificación programada (usando una clave temporal)
+      await this.saveScheduledPersonalTaskNotification(task.id, notificationId);
+      
+      // Verificar que la notificación se programó correctamente
+      const scheduledNotifications = await notifee.getTriggerNotifications();
+      const foundNotification = scheduledNotifications.find(
+        (n) => n.notification?.id === notificationId
+      );
+
+      if (foundNotification) {
+        const triggerTimestamp = (foundNotification.trigger as any)?.timestamp;
+        const timeUntilTrigger = Math.round((triggerTimestamp - Date.now()) / 1000);
+        console.log(
+          `✅ Notificación de PRUEBA programada correctamente para tarea personal ${task.id} ` +
+          `(${task.title}) en ${testNotificationDate.toISOString()} ` +
+          `(${minutesFromNow} minutos = ${timeUntilTrigger} segundos desde ahora)`
+        );
+        console.log(
+          `📋 Detalles: ID=${notificationId}, ` +
+          `Trigger timestamp=${triggerTimestamp}, ` +
+          `Trigger date=${new Date(triggerTimestamp).toISOString()}`
+        );
+        console.log(
+          `⏰ IMPORTANTE: Minimiza la app y espera ${timeUntilTrigger} segundos. ` +
+          `Si no llega, verifica: 1) Configuración > Batería > Desactivar optimización para esta app, ` +
+          `2) Configuración > Apps > Esta app > Notificaciones > Tareas Personales debe estar habilitado.`
+        );
+      } else {
+        console.warn(
+          `⚠️ La notificación se creó pero no aparece en las notificaciones programadas. ` +
+          `ID: ${notificationId}`
+        );
+        // Verificar todas las notificaciones programadas
+        console.log(`📋 Total de notificaciones programadas: ${scheduledNotifications.length}`);
+        scheduledNotifications.forEach((n, index) => {
+          const trigger = n.trigger as any;
+          console.log(
+            `  ${index + 1}. ID: ${n.notification?.id}, ` +
+            `Title: ${n.notification?.title}, ` +
+            `Trigger: ${trigger?.timestamp ? new Date(trigger.timestamp).toISOString() : 'N/A'}`
+          );
+        });
+      }
+    } catch (error) {
+      console.error(`❌ Error al programar notificación de prueba para tarea personal ${task.id}:`, error);
       throw error;
     }
   }
@@ -571,38 +862,33 @@ class NotificationsService {
 
   /**
    * Programa una notificación para una tarea personal
+   * Patrón simplificado siguiendo el estilo de recordatorios fiscales
    * @param task La tarea personal a programar
    */
   async schedulePersonalTaskNotification(task: PersonalTask): Promise<void> {
     try {
-      // Solo programar notificaciones si están habilitadas y la tarea está activa
+      // Solo programar notificaciones para tareas activas con recordatorio
       if (!task.reminderEnabled || task.status !== 'active') {
         return;
       }
 
-      // Determinar la fecha objetivo para la notificación
-      let targetDate: Date;
+      // Determinar fecha objetivo (nextOccurrence tiene prioridad)
+      const targetDate = new Date(task.nextOccurrence || task.startDate);
       
-      if (task.nextOccurrence) {
-        // Si hay una próxima ocurrencia, usar esa fecha
-        targetDate = new Date(task.nextOccurrence);
-      } else if (task.startDate) {
-        // Si no hay próxima ocurrencia pero hay fecha de inicio, usar esa
-        targetDate = new Date(task.startDate);
-      } else {
-        // Si no hay fecha válida, no programar
+      // Validar que la fecha sea válida
+      if (!targetDate || isNaN(targetDate.getTime())) {
         return;
       }
 
       const now = new Date();
       
-      // Calcular la fecha de la notificación (targetDate - reminderMinutes)
+      // Calcular fecha de la notificación (targetDate - reminderMinutes)
       const notificationDate = new Date(targetDate);
       notificationDate.setMinutes(
         notificationDate.getMinutes() - (task.reminderMinutes || 60)
       );
 
-      // No programar notificaciones para fechas pasadas
+      // No programar si la fecha de notificación ya pasó (patrón simple como recordatorios)
       if (notificationDate.getTime() <= now.getTime()) {
         return;
       }
@@ -612,13 +898,11 @@ class NotificationsService {
 
       // Determinar el color según la prioridad
       const priorityColors: Record<string, string> = {
-        urgent: '#dc2626', // Rojo
-        high: '#f59e0b',   // Naranja
-        medium: '#2563eb', // Azul
-        low: '#10b981',    // Verde
+        urgent: '#dc2626',
+        high: '#f59e0b',
+        medium: '#2563eb',
+        low: '#10b981',
       };
-
-      const color = priorityColors[task.priority] || '#2563eb';
 
       // Determinar el emoji según la prioridad
       const priorityEmojis: Record<string, string> = {
@@ -628,8 +912,8 @@ class NotificationsService {
         low: '✓',
       };
 
+      const color = priorityColors[task.priority] || '#2563eb';
       const emoji = priorityEmojis[task.priority] || '📋';
-
       const notificationId = `personal_task_${task.id}`;
 
       await notifee.createTriggerNotification(
@@ -669,13 +953,17 @@ class NotificationsService {
         {
           type: TriggerType.TIMESTAMP,
           timestamp: notificationDate.getTime(),
+          alarmManager: true, // Usar AlarmManager de Android para precisión exacta
         }
       );
 
       // Guardar ID de notificación programada
       await this.saveScheduledPersonalTaskNotification(task.id, notificationId);
       
-      console.log(`Notificación programada para tarea personal ${task.id} en ${notificationDate.toISOString()}`);
+      console.log(
+        `✅ Notificación programada para tarea personal ${task.id} ` +
+        `(${task.title}) en ${notificationDate.toISOString()}`
+      );
     } catch (error) {
       console.error(`Error al programar notificación para tarea personal ${task.id}:`, error);
     }
@@ -781,6 +1069,78 @@ class NotificationsService {
       return notifications[taskId] || null;
     } catch (error) {
       console.error('Error al obtener ID de notificación de tarea personal:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Calcula la próxima ocurrencia válida para una tarea recurrente
+   * cuando la fecha de notificación ya pasó
+   */
+  private calculateNextValidOccurrence(
+    baseDate: Date,
+    recurrenceType: string,
+    recurrenceInterval: number,
+    now: Date,
+    reminderMinutes: number
+  ): Date | null {
+    try {
+      // Empezar desde la siguiente ocurrencia después de la fecha base
+      let nextDate = new Date(baseDate);
+      
+      // Avanzar a la siguiente ocurrencia inmediatamente
+      switch (recurrenceType) {
+        case 'daily':
+          nextDate.setDate(nextDate.getDate() + recurrenceInterval);
+          break;
+        case 'weekly':
+          nextDate.setDate(nextDate.getDate() + (7 * recurrenceInterval));
+          break;
+        case 'monthly':
+          nextDate.setMonth(nextDate.getMonth() + recurrenceInterval);
+          break;
+        default:
+          // Para 'once' o tipos desconocidos, no hay próxima ocurrencia
+          return null;
+      }
+
+      const maxIterations = 365; // Límite de seguridad para evitar bucles infinitos
+      let iterations = 0;
+
+      while (iterations < maxIterations) {
+        // Calcular la fecha de notificación para esta ocurrencia
+        const notificationDate = new Date(nextDate);
+        notificationDate.setMinutes(
+          notificationDate.getMinutes() - reminderMinutes
+        );
+
+        // Si la fecha de notificación es futura, esta es válida
+        if (notificationDate.getTime() > now.getTime()) {
+          return nextDate;
+        }
+
+        // Calcular la siguiente ocurrencia según el tipo de recurrencia
+        switch (recurrenceType) {
+          case 'daily':
+            nextDate.setDate(nextDate.getDate() + recurrenceInterval);
+            break;
+          case 'weekly':
+            nextDate.setDate(nextDate.getDate() + (7 * recurrenceInterval));
+            break;
+          case 'monthly':
+            nextDate.setMonth(nextDate.getMonth() + recurrenceInterval);
+            break;
+          default:
+            return null;
+        }
+
+        iterations++;
+      }
+
+      // Si llegamos aquí, no se encontró una fecha válida en el rango
+      return null;
+    } catch (error) {
+      console.error('Error al calcular próxima ocurrencia válida:', error);
       return null;
     }
   }

@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   TextInput,
-  Alert,
   ActivityIndicator,
   Modal,
   KeyboardAvoidingView,
@@ -485,7 +484,7 @@ export default function CompaniesScreen({ navigation }: any) {
             </View>
           ) : (
             <View>
-              {companies.map((company, index) => {
+              {companies.map((company) => {
                 const stats = getCompanyStats(company.id);
                 return (
                   <View

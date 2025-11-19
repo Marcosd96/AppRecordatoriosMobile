@@ -91,7 +91,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
     scrollAnimationRef.current.start(() => {
       scrollAnimationRef.current = null;
     });
-  }, [currentPage]);
+  }, [currentPage, skipButtonHeight, skipButtonMarginTop, skipButtonOpacity]);
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offsetX = event.nativeEvent.contentOffset.x;

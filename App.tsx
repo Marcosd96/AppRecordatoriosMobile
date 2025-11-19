@@ -19,6 +19,7 @@ function AppContent() {
   useEffect(() => {
     // Manejar eventos de notificaciones cuando la app está en primer plano
     return notifee.onForegroundEvent(({ type, detail }) => {
+      console.log('🔔 Evento de notificación (foreground):', { type, detail });
       switch (type) {
         case EventType.DISMISSED:
           console.log('Usuario descartó la notificación');
@@ -28,6 +29,12 @@ function AppContent() {
           // Aquí podrías navegar a la pantalla de recordatorios
           // navigationRef.current?.navigate('Reminders');
           break;
+        case EventType.DELIVERED:
+          console.log('✅ Notificación entregada:', detail.notification?.title);
+          break;
+        case EventType.TRIGGER_NOTIFICATION_CREATED:
+          console.log('📅 Notificación programada creada:', detail.notification?.id);
+          break;
       }
     });
   }, []);
@@ -35,9 +42,12 @@ function AppContent() {
   useEffect(() => {
     // Manejar eventos de notificaciones cuando la app está en segundo plano o cerrada
     return notifee.onBackgroundEvent(async ({ type, detail }) => {
+      console.log('🔔 Evento de notificación (background):', { type, detail });
       if (type === EventType.PRESS) {
         console.log('Usuario presionó la notificación desde segundo plano', detail.notification);
         // Aquí podrías manejar la navegación cuando la app se abre desde una notificación
+      } else if (type === EventType.DELIVERED) {
+        console.log('✅ Notificación entregada (background):', detail.notification?.title);
       }
     });
   }, []);

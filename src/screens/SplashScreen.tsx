@@ -114,7 +114,17 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
     ]).start(() => {
       onFinish();
     });
-  }, []);
+  }, [
+    backgroundScale,
+    logoOpacity,
+    logoRotate,
+    logoScale,
+    onFinish,
+    subtitleOpacity,
+    subtitleTranslateY,
+    titleOpacity,
+    titleTranslateY,
+  ]);
 
   const logoRotation = logoRotate.interpolate({
     inputRange: [0, 1],

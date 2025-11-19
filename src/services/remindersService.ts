@@ -12,10 +12,7 @@ export const remindersService = {
   /**
    * Cambiar el estado de un recordatorio (completado/pendiente)
    */
-  async toggleStatus(
-    id: string,
-    currentStatus: 'pending' | 'completed' | 'overdue'
-  ): Promise<{ success: boolean; reminder: Reminder }> {
+  async toggleStatus(id: string): Promise<{ success: boolean; reminder: Reminder }> {
     return fetchAPI<{ success: boolean; reminder: Reminder }>(
       API_ENDPOINTS.reminderToggle(id),
       {

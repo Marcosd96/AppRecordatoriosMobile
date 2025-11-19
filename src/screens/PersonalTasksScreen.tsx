@@ -13,6 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import AnimatedButton from '../components/AnimatedButton';
 import AnimatedView from '../components/AnimatedView';
 import StyledModal from '../components/StyledModal';
@@ -42,7 +43,21 @@ interface TaskFormState {
   isRecurring: boolean;
   recurrenceType: RecurrenceType;
   recurrenceInterval: string;
+  startDate: Date;
+  showDatePicker: boolean;
+  showTimePicker: boolean;
 }
+
+// Función auxiliar para obtener la próxima hora redondeada (ej: si son las 2:34 PM, devuelve 3:00 PM)
+const getNextRoundedHour = () => {
+  const now = new Date();
+  const nextHour = new Date(now);
+  nextHour.setHours(now.getHours() + 1);
+  nextHour.setMinutes(0);
+  nextHour.setSeconds(0);
+  nextHour.setMilliseconds(0);
+  return nextHour;
+};
 
 const initialFormState: TaskFormState = {
   title: '',
@@ -53,6 +68,9 @@ const initialFormState: TaskFormState = {
   isRecurring: false,
   recurrenceType: 'once',
   recurrenceInterval: '1',
+  startDate: getNextRoundedHour(),
+  showDatePicker: false,
+  showTimePicker: false,
 };
 
 const priorityLabels: Record<TaskPriority, string> = {
@@ -230,36 +248,6 @@ export default function PersonalTasksScreen() {
     }
   };
 
-  const priorityStyles: Record<
-    TaskPriority,
-    { container: string; text: string }
-  > = {
-    low: {
-      container: isDark
-        ? 'bg-emerald-900/30 border-emerald-800'
-        : 'bg-emerald-50 border-emerald-200',
-      text: isDark ? 'text-emerald-200' : 'text-emerald-900',
-    },
-    medium: {
-      container: isDark
-        ? 'bg-blue-900/30 border-blue-800'
-        : 'bg-blue-50 border-blue-200',
-      text: isDark ? 'text-blue-200' : 'text-blue-900',
-    },
-    high: {
-      container: isDark
-        ? 'bg-orange-900/30 border-orange-800'
-        : 'bg-orange-50 border-orange-200',
-      text: isDark ? 'text-orange-200' : 'text-orange-900',
-    },
-    urgent: {
-      container: isDark
-        ? 'bg-red-900/30 border-red-800'
-        : 'bg-red-50 border-red-200',
-      text: isDark ? 'text-red-200' : 'text-red-900',
-    },
-  };
-
   const statusStyles: Record<TaskStatus, { container: string; text: string }> =
     {
       active: {
@@ -322,6 +310,7 @@ export default function PersonalTasksScreen() {
 
   const openEditModal = (task: PersonalTask) => {
     setEditingTask(task);
+    const taskStartDate = task.nextOccurrence || task.startDate;
     setFormState({
       title: task.title,
       description: task.description || '',
@@ -331,6 +320,9 @@ export default function PersonalTasksScreen() {
       isRecurring: task.isRecurring,
       recurrenceType: task.recurrenceType || 'once',
       recurrenceInterval: String(task.recurrenceInterval ?? 1),
+      startDate: taskStartDate ? new Date(taskStartDate) : getNextRoundedHour(),
+      showDatePicker: false,
+      showTimePicker: false,
     });
     setShowFormModal(true);
   };
@@ -351,7 +343,7 @@ export default function PersonalTasksScreen() {
       description: formState.description.trim()
         ? formState.description.trim()
         : undefined,
-      startDate: editingTask?.startDate || new Date().toISOString(),
+      startDate: formState.startDate.toISOString(),
       priority: formState.priority,
       reminderEnabled: formState.reminderEnabled,
       reminderMinutes: reminderMinutesNumber,
@@ -378,6 +370,26 @@ export default function PersonalTasksScreen() {
       return;
     }
 
+    // Validar que la fecha no sea demasiado lejana (probablemente un error)
+    const now = new Date();
+    const oneYearFromNow = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+    
+    if (formState.startDate > oneYearFromNow) {
+      setErrorMessage({
+        title: '⚠️ Fecha muy lejana',
+        message: `La fecha seleccionada es: ${formState.startDate.toLocaleString('es-CO', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })}\n\n¿Estás seguro? Esta fecha es más de 1 año en el futuro.\n\nVerifica que el año sea correcto.`,
+      });
+      setShowErrorModal(true);
+      setSubmitting(false);
+      return;
+    }
+
     try {
       setSubmitting(true);
       const payload = serializeForm();
@@ -388,15 +400,31 @@ export default function PersonalTasksScreen() {
           editingTask.id,
         );
 
-        await personalTasksService.update(
+        const updatedTask = await personalTasksService.update(
           editingTask.id,
           payload as UpdatePersonalTaskPayload,
         );
+        
+        // Reprogramar notificación con los datos actualizados
+        // Esto asegura que se use la próxima ocurrencia más reciente del backend
+        try {
+          await notificationsService.schedulePersonalTaskNotification(updatedTask);
+        } catch (error) {
+          console.error('Error al reprogramar notificación después de actualizar:', error);
+          // Continuar aunque falle la reprogramación
+        }
       } else {
-        await personalTasksService.create(payload);
+        const newTask = await personalTasksService.create(payload);
+        // Programar notificación para la nueva tarea
+        try {
+          await notificationsService.schedulePersonalTaskNotification(newTask);
+        } catch (error) {
+          console.error('Error al programar notificación para nueva tarea:', error);
+          // Continuar aunque falle la programación
+        }
       }
 
-      // Recargar tareas y reprogramar notificaciones
+      // Recargar tareas y reprogramar notificaciones (esto asegura consistencia)
       await loadTasks();
       closeFormModal();
     } catch (error: any) {
@@ -421,6 +449,24 @@ export default function PersonalTasksScreen() {
         await personalTasksService.complete(id);
         // Cancelar notificaciones al completar
         await notificationsService.cancelPersonalTaskNotifications(id);
+        
+        // Si la tarea es recurrente, recargar la tarea actualizada y reprogramar notificación
+        // para la próxima ocurrencia
+        const currentTask = tasks.find(t => t.id === id);
+        if (currentTask?.isRecurring) {
+          try {
+            const updatedTask = await personalTasksService.getOne(id);
+            // Si la tarea sigue activa (recurrente) y tiene próxima ocurrencia, reprogramar
+            if (updatedTask.status === 'active' && updatedTask.nextOccurrence) {
+              await notificationsService.schedulePersonalTaskNotification(
+                updatedTask,
+              );
+            }
+          } catch (error) {
+            console.error('Error al reprogramar notificación de tarea recurrente:', error);
+            // Continuar aunque falle la reprogramación
+          }
+        }
       } else if (action === 'pause') {
         await personalTasksService.pause(id);
         // Cancelar notificaciones al pausar
@@ -820,6 +866,252 @@ export default function PersonalTasksScreen() {
                   onPress: () => updateTaskStatus(task.id, 'cancel'),
                   container: isDark ? 'bg-red-900/40' : 'bg-red-100',
                   text: isDark ? 'text-red-100' : 'text-red-700',
+                });
+              }
+
+              // Botón de diagnóstico de notificaciones
+              if (task.status === 'active' && task.reminderEnabled) {
+                actionButtons.push({
+                  key: 'diagnose',
+                  label: '🔍 Diagnosticar',
+                  onPress: async () => {
+                    try {
+                      // Obtener estado de notificaciones
+                      const status = await notificationsService.getNotificationStatus();
+                      const scheduledNotifications = await notificationsService.getScheduledNotifications();
+                      const nextNotification = await notificationsService.getNextNotification();
+                      
+                      // Calcular fecha de notificación esperada
+                      const taskDate = task.nextOccurrence || task.startDate;
+                      const expectedNotificationDate = new Date(taskDate);
+                      expectedNotificationDate.setMinutes(
+                        expectedNotificationDate.getMinutes() - (task.reminderMinutes || 60)
+                      );
+                      const now = new Date();
+                      const isInPast = expectedNotificationDate < now;
+                      
+                      // Buscar si esta tarea tiene notificación programada
+                      const taskNotification = scheduledNotifications.find(
+                        n => n.notification?.data?.taskId === task.id
+                      );
+                      
+                      let message = `📊 DIAGNÓSTICO DE NOTIFICACIONES\n\n`;
+                      message += `🔔 Estado general:\n`;
+                      message += `• Permisos: ${status.hasPermission ? '✅' : '❌'}\n`;
+                      message += `• Total programadas: ${status.scheduledCount}\n\n`;
+                      
+                      message += `📋 Tarea: "${task.title}"\n`;
+                      message += `• Fecha tarea: ${new Date(taskDate).toLocaleString('es-CO')}\n`;
+                      message += `• Recordatorio: ${task.reminderMinutes} min antes\n`;
+                      message += `• Fecha notificación esperada:\n  ${expectedNotificationDate.toLocaleString('es-CO')}\n`;
+                      message += `• Estado: ${isInPast ? '❌ YA PASÓ' : '✅ Futura'}\n\n`;
+                      
+                      if (taskNotification) {
+                        const trigger = taskNotification.trigger as any;
+                        const triggerDate = new Date(trigger.timestamp);
+                        const minutesUntil = Math.round((triggerDate.getTime() - now.getTime()) / 1000 / 60);
+                        const daysUntil = Math.round(minutesUntil / 60 / 24);
+                        
+                        message += `✅ Notificación programada:\n`;
+                        message += `• ID: ${taskNotification.notification?.id}\n`;
+                        message += `• Fecha: ${triggerDate.toLocaleString('es-CO')}\n`;
+                        
+                        if (daysUntil > 30) {
+                          message += `• ⚠️ En ${daysUntil} días (${Math.floor(daysUntil / 365)} años)\n`;
+                          message += `\n❌ PROBLEMA DETECTADO:\n`;
+                          message += `La notificación está programada para más de 30 días.\n`;
+                          message += `Probablemente el AÑO está incorrecto.\n\n`;
+                          message += `💡 Solución:\n`;
+                          message += `1. Edita la tarea\n`;
+                          message += `2. Verifica que el AÑO sea ${now.getFullYear()}\n`;
+                          message += `3. Guarda\n\n`;
+                        } else if (minutesUntil > 0) {
+                          message += `• En: ${minutesUntil} minutos`;
+                          if (daysUntil > 0) {
+                            message += ` (${daysUntil} días)`;
+                          }
+                          message += `\n\n`;
+                        } else {
+                          message += `• ❌ En el pasado (hace ${Math.abs(minutesUntil)} minutos)\n\n`;
+                        }
+                      } else {
+                        message += `❌ NO HAY NOTIFICACIÓN PROGRAMADA\n\n`;
+                        message += `Posibles causas:\n`;
+                        if (isInPast) {
+                          message += `• La fecha de notificación ya pasó\n`;
+                        }
+                        if (!status.hasPermission) {
+                          message += `• No hay permisos de notificación\n`;
+                        }
+                        message += `• La tarea se creó antes de tener permisos\n`;
+                        message += `\n💡 Solución: Edita la tarea y cambia la fecha a una futura\n`;
+                      }
+                      
+                      if (nextNotification.exists) {
+                        message += `\n⏰ Próxima notificación global:\n`;
+                        message += `• ${nextNotification.title}\n`;
+                        message += `• ${nextNotification.date?.toLocaleString('es-CO')}\n`;
+                      }
+                      
+                      setErrorMessage({
+                        title: '🔍 Diagnóstico de Notificaciones',
+                        message: message,
+                      });
+                      setShowErrorModal(true);
+                    } catch (error: any) {
+                      console.error('Error en diagnóstico:', error);
+                      setErrorMessage({
+                        title: '❌ Error',
+                        message: `No se pudo completar el diagnóstico: ${error?.message}`,
+                      });
+                      setShowErrorModal(true);
+                    }
+                  },
+                  container: isDark ? 'bg-indigo-900/40' : 'bg-indigo-100',
+                  text: isDark ? 'text-indigo-100' : 'text-indigo-800',
+                });
+              }
+
+              // Botón de prueba de notificación (solo para tareas activas con recordatorios)
+              if (task.status === 'active' && task.reminderEnabled) {
+                actionButtons.push({
+                  key: 'test-notification',
+                  label: '🔔 Probar Notif.',
+                  onPress: async () => {
+                    try {
+                      // Verificar estado de notificaciones antes de programar
+                      const status = await notificationsService.getNotificationStatus();
+                      console.log('📊 Estado de notificaciones:', {
+                        hasPermission: status.hasPermission,
+                        scheduledCount: status.scheduledCount,
+                        authorizationStatus: status.authorizationStatus,
+                      });
+
+                      // Programar notificación de prueba (2 minutos)
+                      await notificationsService.scheduleTestNotificationForTask(task, 2);
+                      
+                      // Verificar que se programó
+                      const nextNotification = await notificationsService.getNextNotification();
+                      const notificationDetails = nextNotification.exists
+                        ? `\n\nPróxima notificación: ${nextNotification.title}\nFecha: ${nextNotification.date?.toLocaleString('es-CO')}`
+                        : '\n\n⚠️ No se encontró la notificación programada. Revisa los logs.';
+
+                      setErrorMessage({
+                        title: '✅ Notificación de prueba programada',
+                        message: `Recibirás una notificación en 2 minutos.${notificationDetails}\n\nRevisa la consola para más detalles.`,
+                      });
+                      setShowErrorModal(true);
+                    } catch (error: any) {
+                      console.error('❌ Error al programar notificación de prueba:', error);
+                      setErrorMessage({
+                        title: '❌ Error',
+                        message: error?.message || 'No se pudo programar la notificación de prueba. Revisa los logs en la consola.',
+                      });
+                      setShowErrorModal(true);
+                    }
+                  },
+                  container: isDark ? 'bg-purple-900/40' : 'bg-purple-100',
+                  text: isDark ? 'text-purple-100' : 'text-purple-800',
+                });
+
+                // Botón de prueba inmediata (10 segundos) para pruebas rápidas
+                actionButtons.push({
+                  key: 'test-notification-immediate',
+                  label: '⚡ Prueba Rápida',
+                  onPress: async () => {
+                    try {
+                      const status = await notificationsService.getNotificationStatus();
+                      if (!status.hasPermission) {
+                        setErrorMessage({
+                          title: '⚠️ Permisos requeridos',
+                          message: 'Necesitas conceder permisos de notificación. Se solicitarán automáticamente.',
+                        });
+                        setShowErrorModal(true);
+                      }
+
+                      // Programar notificación en 10 segundos
+                      await notificationsService.scheduleTestNotificationForTask(task, 10 / 60); // 10 segundos = 10/60 minutos
+                      
+                      setErrorMessage({
+                        title: '⚡ Notificación rápida programada',
+                        message: 'IMPORTANTE: Deberías ver una notificación INMEDIATA ahora. Si no la ves, minimiza la app (presiona el botón Home) y espera 10 segundos. La notificación programada llegará entonces.\n\nSi aún no ves notificaciones, verifica:\n1. Permisos de notificación en Configuración\n2. El canal "Tareas Personales" no está bloqueado\n3. Modo de ahorro de energía desactivado para esta app',
+                      });
+                      setShowErrorModal(true);
+                    } catch (error: any) {
+                      console.error('❌ Error al programar notificación rápida:', error);
+                      setErrorMessage({
+                        title: '❌ Error',
+                        message: error?.message || 'No se pudo programar la notificación rápida.',
+                      });
+                      setShowErrorModal(true);
+                    }
+                  },
+                  container: isDark ? 'bg-orange-900/40' : 'bg-orange-100',
+                  text: isDark ? 'text-orange-100' : 'text-orange-800',
+                });
+                
+                // Botón para reprogramar notificación
+                actionButtons.push({
+                  key: 'reschedule-notification',
+                  label: '🔄 Reprogramar',
+                  onPress: async () => {
+                    try {
+                      const status = await notificationsService.getNotificationStatus();
+                      if (!status.hasPermission) {
+                        setErrorMessage({
+                          title: '⚠️ Sin permisos',
+                          message: 'Necesitas conceder permisos de notificación primero.',
+                        });
+                        setShowErrorModal(true);
+                        return;
+                      }
+                      
+                      // Cancelar notificación existente
+                      await notificationsService.cancelPersonalTaskNotifications(task.id);
+                      
+                      // Reprogramar
+                      await notificationsService.schedulePersonalTaskNotification(task);
+                      
+                      // Verificar que se programó
+                      const scheduledNotifications = await notificationsService.getScheduledNotifications();
+                      const taskNotification = scheduledNotifications.find(
+                        n => n.notification?.data?.taskId === task.id
+                      );
+                      
+                      if (taskNotification) {
+                        const trigger = taskNotification.trigger as any;
+                        const triggerDate = new Date(trigger.timestamp);
+                        const minutesUntil = Math.round((triggerDate.getTime() - Date.now()) / 1000 / 60);
+                        
+                        setErrorMessage({
+                          title: '✅ Notificación Reprogramada',
+                          message: `La notificación se ha reprogramado exitosamente.\n\n` +
+                            `📅 Tarea: ${new Date(task.nextOccurrence || task.startDate).toLocaleString('es-CO')}\n\n` +
+                            `🔔 Notificación programada para:\n${triggerDate.toLocaleString('es-CO')}\n\n` +
+                            `⏰ Llegará en ${minutesUntil} minutos.\n\n` +
+                            `💡 Minimiza la app para recibir la notificación.`,
+                        });
+                      } else {
+                        setErrorMessage({
+                          title: '⚠️ Advertencia',
+                          message: 'No se pudo verificar la notificación programada. ' +
+                            'Es posible que la fecha de la tarea ya haya pasado o que la fecha de ' +
+                            'notificación (tarea - recordatorio) esté en el pasado.\n\n' +
+                            'Edita la tarea y cambia la fecha a una futura.',
+                        });
+                      }
+                      setShowErrorModal(true);
+                    } catch (error: any) {
+                      console.error('Error al reprogramar:', error);
+                      setErrorMessage({
+                        title: '❌ Error',
+                        message: error?.message || 'No se pudo reprogramar la notificación.',
+                      });
+                      setShowErrorModal(true);
+                    }
+                  },
+                  container: isDark ? 'bg-cyan-900/40' : 'bg-cyan-100',
+                  text: isDark ? 'text-cyan-100' : 'text-cyan-800',
                 });
               }
 
@@ -1279,6 +1571,90 @@ export default function PersonalTasksScreen() {
                       </View>
                     </View>
 
+                    {/* Fecha y Hora */}
+                    <View
+                      className={`rounded-2xl p-4 mb-4 ${
+                        isDark ? 'bg-gray-900/60' : 'bg-white'
+                      }`}
+                    >
+                      <View className="flex-row items-center mb-3">
+                        <Text className="text-lg mr-2">📅</Text>
+                        <Text
+                          className={`text-sm font-semibold ${
+                            isDark ? 'text-white' : 'text-gray-900'
+                          }`}
+                        >
+                          Fecha y Hora de la tarea
+                        </Text>
+                      </View>
+                      
+                      <View
+                        className={`rounded-2xl p-4 border-2 ${
+                          isDark
+                            ? 'bg-gray-800 border-gray-600'
+                            : 'bg-gray-50 border-gray-300'
+                        }`}
+                      >
+                        <Text
+                          className={`text-center text-lg font-bold mb-3 ${
+                            isDark ? 'text-white' : 'text-gray-900'
+                          }`}
+                        >
+                          {new Intl.DateTimeFormat('es-CO', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          }).format(formState.startDate)}
+                        </Text>
+                        
+                        <View className="flex-row justify-center space-x-2">
+                          <TouchableOpacity
+                            onPress={() =>
+                              setFormState(prev => ({
+                                ...prev,
+                                showDatePicker: true,
+                              }))
+                            }
+                            className={`flex-1 py-3 rounded-xl mr-2 ${
+                              isDark ? 'bg-blue-600' : 'bg-blue-500'
+                            }`}
+                          >
+                            <Text className="text-white text-center font-semibold">
+                              📅 Cambiar Fecha
+                            </Text>
+                          </TouchableOpacity>
+                          
+                          <TouchableOpacity
+                            onPress={() =>
+                              setFormState(prev => ({
+                                ...prev,
+                                showTimePicker: true,
+                              }))
+                            }
+                            className={`flex-1 py-3 rounded-xl ${
+                              isDark ? 'bg-blue-600' : 'bg-blue-500'
+                            }`}
+                          >
+                            <Text className="text-white text-center font-semibold">
+                              🕐 Cambiar Hora
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                      
+                      <Text
+                        className={`text-xs mt-2 ml-7 ${
+                          isDark ? 'text-gray-400' : 'text-gray-500'
+                        }`}
+                      >
+                        La notificación se enviará antes de esta fecha/hora según
+                        la configuración del recordatorio
+                      </Text>
+                    </View>
+
                     {/* Recordatorio */}
                     <View
                       className={`rounded-2xl p-4 mb-4 ${
@@ -1617,6 +1993,91 @@ export default function PersonalTasksScreen() {
           },
         ]}
       />
+
+      {/* Date Picker */}
+      {formState.showDatePicker && (
+        <DateTimePicker
+          value={formState.startDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={(event, selectedDate) => {
+            if (event.type === 'dismissed') {
+              setFormState(prev => ({
+                ...prev,
+                showDatePicker: false,
+              }));
+              return;
+            }
+
+            if (selectedDate) {
+              // Mantener la hora actual pero cambiar la fecha
+              const newDate = new Date(formState.startDate);
+              newDate.setFullYear(selectedDate.getFullYear());
+              newDate.setMonth(selectedDate.getMonth());
+              newDate.setDate(selectedDate.getDate());
+              
+              setFormState(prev => ({
+                ...prev,
+                startDate: newDate,
+                showDatePicker: Platform.OS === 'ios',
+              }));
+            }
+            
+            // En Android, el picker se cierra automáticamente
+            if (Platform.OS === 'android') {
+              setFormState(prev => ({
+                ...prev,
+                showDatePicker: false,
+              }));
+            }
+          }}
+          minimumDate={new Date()} // No permitir fechas pasadas
+          textColor={isDark ? '#ffffff' : '#000000'}
+        />
+      )}
+
+      {/* Time Picker */}
+      {formState.showTimePicker && (
+        <DateTimePicker
+          value={formState.startDate}
+          mode="time"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          is24Hour={false}
+          onChange={(event, selectedDate) => {
+            if (event.type === 'dismissed') {
+              setFormState(prev => ({
+                ...prev,
+                showTimePicker: false,
+              }));
+              return;
+            }
+
+            if (selectedDate) {
+              // Mantener la fecha actual pero cambiar la hora
+              const newDate = new Date(formState.startDate);
+              newDate.setHours(selectedDate.getHours());
+              newDate.setMinutes(selectedDate.getMinutes());
+              newDate.setSeconds(0);
+              newDate.setMilliseconds(0);
+              
+              setFormState(prev => ({
+                ...prev,
+                startDate: newDate,
+                showTimePicker: Platform.OS === 'ios',
+              }));
+            }
+            
+            // En Android, el picker se cierra automáticamente
+            if (Platform.OS === 'android') {
+              setFormState(prev => ({
+                ...prev,
+                showTimePicker: false,
+              }));
+            }
+          }}
+          textColor={isDark ? '#ffffff' : '#000000'}
+        />
+      )}
     </SafeAreaView>
   );
 }

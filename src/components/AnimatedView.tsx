@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, View, ViewProps } from 'react-native';
+import { Animated, ViewProps } from 'react-native';
 
 interface AnimatedViewProps extends ViewProps {
   delay?: number;
@@ -25,7 +25,7 @@ export default function AnimatedView({
       delay,
       useNativeDriver: true,
     }).start();
-  }, []);
+  }, [animatedValue, delay, duration]);
 
   const getAnimationStyle = () => {
     switch (animationType) {

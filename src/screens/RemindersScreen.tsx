@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   TextInput,
-  Alert,
   ActivityIndicator,
   LayoutAnimation,
   Platform,
@@ -39,7 +38,7 @@ export default function RemindersScreen({ route }: any) {
     null,
   );
   const [filter, setFilter] = useState<ReminderFilter>('all');
-  const [sortBy, setSortBy] = useState<SortBy>('date');
+  const [sortBy] = useState<SortBy>('date');
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -210,7 +209,7 @@ export default function RemindersScreen({ route }: any) {
       if (!reminder) return;
 
       try {
-        const result = await remindersService.toggleStatus(id, reminder.status);
+        const result = await remindersService.toggleStatus(id);
         const updatedReminders = reminders.map(r =>
           r.id === id ? result.reminder : r,
         );
@@ -750,7 +749,7 @@ export default function RemindersScreen({ route }: any) {
             </View>
           ) : (
             <View>
-              {filteredReminders.map((reminder, index) => {
+              {filteredReminders.map((reminder) => {
                 const daysUntil = getDaysUntil(reminder.dueDate);
                 const isOverdue = daysUntil < 0;
                 const isUrgent = daysUntil >= 0 && daysUntil <= 7;

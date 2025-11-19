@@ -3,24 +3,20 @@ import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
   RefreshControl,
   Alert,
   ActivityIndicator,
-  StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Reminder } from '../types';
 import { dashboardService } from '../services/dashboardService';
-import { companiesService } from '../services/companiesService';
 import { healthService } from '../services/healthService';
 import { remindersService } from '../services/remindersService';
 import { notificationsService } from '../services/notificationsService';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useResponsive } from '../hooks/useResponsive';
-import AnimatedView from '../components/AnimatedView';
 import AnimatedButton from '../components/AnimatedButton';
 import StyledModal from '../components/StyledModal';
 
@@ -636,7 +632,7 @@ export default function DashboardScreen({ navigation }: any) {
               </View>
             ) : (
               <View>
-                {upcomingReminders.map((reminder, index) => {
+                {upcomingReminders.map((reminder) => {
                   const daysUntil = getDaysUntil(reminder.dueDate);
                   const isUrgent = daysUntil <= 7;
                   return (
