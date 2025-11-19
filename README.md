@@ -1,97 +1,89 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Gesaccol
 
-# Getting Started
+Aplicación móvil en **React Native + TypeScript** para la gestión integral de compañías, tareas personales y recordatorios fiscales. Gesaccol centraliza la información crítica, sincroniza notificaciones locales y ofrece herramientas visuales para priorizar vencimientos y compromisos.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## 🚀 Características principales
+- Paneles de compañías con métricas clave (pendientes, vencidas, próximas) y filtros avanzados.
+- Gestión de recordatorios con integración a canales de notificaciones locales usando `@notifee/react-native`.
+- Calendarios empresariales configurables y sincronización automática de eventos.
+- Módulo de tareas personales con recurrencias, prioridades, estados y alertas minuto a minuto.
+- Experiencia adaptativa gracias al hook `useResponsive` y soporte total para modo claro/oscuro.
+- Flujo de autenticación listo para Google Sign-In mediante `GOOGLE_WEB_CLIENT_ID`.
 
-## Step 1: Start Metro
+## 🧱 Stack y arquitectura
+- **React Native 0.82 · React 19** usando componentes funcionales y hooks.
+- **TypeScript** con tipados compartidos en `src/types`.
+- **React Navigation (stack + bottom tabs)** para flujos multi-módulo.
+- **NativeWind/TailwindCSS** para estilos responsivos declarativos.
+- **Context API** (`AuthContext`, `ThemeContext`) para estado global.
+- **Servicios HTTP organizados** en `src/services` para empresas, recordatorios, tareas y paneles.
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+## ✅ Requisitos previos
+- Node.js >= 20 y npm (o pnpm/yarn) actualizados.
+- JDK 17, Android Studio + Android SDK Platform 34.
+- Xcode 15.4+ y CocoaPods (solo macOS/iOS).
+- Dispositivo o emulador configurado, así como Watchman y Ruby Bundler opcionalmente.
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+## 🛠️ Configuración rápida
+1. **Instala dependencias**
+   ```bash
+   npm install
+   # ó
+   pnpm install
+   ```
+2. **Configura variables de entorno**
+   - Duplica `.env.example` (si aplica) o crea `.env`.
+   - Define `GOOGLE_WEB_CLIENT_ID` (se usa en `src/config/env.ts`).
+3. **Inicia Metro**
+   ```bash
+   npm start
+   ```
+4. **Ejecuta la app**
+   ```bash
+   npm run android
+   npm run ios   # recuerda `bundle install && bundle exec pod install` la primera vez
+   ```
 
-```sh
-# Using npm
-npm start
+## 📦 Scripts disponibles
+- `npm start` · Inicia Metro.
+- `npm run android` / `npm run ios` · Compila y despliega en el emulador/dispositivo.
+- `npm run lint` · Ejecuta ESLint.
+- `npm test` · Corre Jest.
+- `npm run generate-icons` · Genera íconos adaptativos desde `scripts/generate-icons.js`.
+- `npm run build:apk` · Empaqueta y copia un `Gesaccol-debug.apk` dentro de `releases/`.
 
-# OR using Yarn
-yarn start
+## 🗂️ Estructura relevante
+```
+src/
+ ├─ components/        # Animaciones, botones y modales reutilizables
+ ├─ config/            # Env vars, tipos de calendario
+ ├─ context/           # Tema y autenticación
+ ├─ hooks/             # Hook de diseño responsivo
+ ├─ navigation/        # Stack + tabs
+ ├─ screens/           # Companies, Reminders, PersonalTasks, Dashboard…
+ ├─ services/          # Llamadas HTTP y lógica de sincronización
+ └─ types/             # Tipados compartidos
 ```
 
-## Step 2: Build and run your app
+## 🔔 Notificaciones y recordatorios
+- `notificationsService` crea canales en Android, solicita permisos y agenda recordatorios/tareas.
+- `CompaniesScreen` y `PersonalTasksScreen` programan alertas al refrescar datos para mantener sincronía incluso fuera de la app.
+- Ajusta los tiempos y textos de las notificaciones directamente en `src/services/notificationsService.ts`.
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
+## 🧪 Pruebas
+```bash
+npm test
 ```
+Las pruebas actuales utilizan Jest y `@testing-library/react-native`. Agrega specs en `__tests__/` o co-localizados según el módulo.
 
-### iOS
+## 📲 Construir APK / IPA
+- **Android**: `npm run build:apk` produce `releases/Gesaccol-debug.apk`.
+- **iOS**: abre `ios/AppRecordatoriosMobile.xcworkspace` y genera el esquema `AppRecordatoriosMobile` desde Xcode (usar el mismo `GOOGLE_WEB_CLIENT_ID` en los entitlements correspondientes).
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+## 📌 Roadmap sugerido
+- Integrar sincronización push con backend para compartir estado entre dispositivos.
+- Añadir búsqueda global y guardado de filtros.
+- Exponer métricas en widgets/resúmenes para iOS/Android.
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
-```
-
-Then, and every time you update your native dependencies, run:
-
-```sh
-bundle exec pod install
-```
-
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
-```
-
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
-
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+---
+¿Preguntas o nuevas ideas? Abre un issue o empieza un PR. 👋
