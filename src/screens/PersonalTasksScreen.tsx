@@ -89,6 +89,30 @@ export default function PersonalTasksScreen() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
 
+  const modalLayout = useMemo(() => {
+    const modalMaxHeight =
+      responsive.height *
+      (responsive.isTablet ? 0.85 : responsive.isSmallDevice ? 0.95 : 0.9);
+    const modalMaxWidth = responsive.isTablet
+      ? Math.min(responsive.width * 0.8, 720)
+      : responsive.width;
+    const reservedHeaderSpace = responsive.isSmallDevice
+      ? responsive.spacing['2xl']
+      : responsive.spacing['3xl'];
+
+    return {
+      maxHeight: modalMaxHeight,
+      maxWidth: modalMaxWidth,
+      contentMaxHeight: Math.max(
+        modalMaxHeight - reservedHeaderSpace,
+        responsive.verticalScale(320),
+      ),
+      horizontalPadding: responsive.isTablet ? responsive.spacing.xl : responsive.spacing.sm,
+      justifyContent: responsive.isTablet ? 'center' : 'flex-end',
+      borderRadiusClass: responsive.isTablet ? 'rounded-3xl' : 'rounded-t-3xl',
+    };
+  }, [responsive]);
+
   useEffect(() => {
     // Inicializar canal de notificaciones
     const initializeNotifications = async () => {
@@ -1008,9 +1032,24 @@ export default function PersonalTasksScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}
         >
-          <View className="flex-1 bg-black/60 justify-end">
+          <View
+            className="flex-1 bg-black/60"
+            style={{
+              justifyContent: modalLayout.justifyContent as 'center' | 'flex-end',
+              paddingHorizontal: modalLayout.horizontalPadding,
+              paddingBottom: responsive.isTablet ? responsive.spacing.xl : 0,
+            }}
+          >
             <View
-              className={`rounded-t-3xl ${isDark ? 'bg-gray-900' : 'bg-white'}`}
+              className={`${modalLayout.borderRadiusClass} ${
+                isDark ? 'bg-gray-900' : 'bg-white'
+              }`}
+              style={{
+                maxHeight: modalLayout.maxHeight,
+                width: '100%',
+                maxWidth: modalLayout.maxWidth,
+                alignSelf: 'center',
+              }}
             >
               {/* Header mejorado */}
               <AnimatedView animationType="slideDown" delay={0} duration={400}>
@@ -1061,11 +1100,15 @@ export default function PersonalTasksScreen() {
               </AnimatedView>
 
               <ScrollView
-                style={{ maxHeight: Platform.OS === 'android' ? 550 : 500 }}
+                style={{ maxHeight: modalLayout.contentMaxHeight }}
+                keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: 20 }}
+                contentContainerStyle={{ paddingBottom: responsive.spacing.lg }}
               >
-                <View className="px-6 space-y-6">
+                <View
+                  className="space-y-6"
+                  style={{ paddingHorizontal: responsive.spacing.lg }}
+                >
                   {/* Sección: Información básica */}
                   <AnimatedView
                     animationType="fadeIn"
@@ -1389,7 +1432,14 @@ export default function PersonalTasksScreen() {
                         >
                           Tipo de recurrencia
                         </Text>
-                        <View className="flex-row flex-wrap gap-2">
+                        <View
+                          className="flex-row gap-3"
+                          style={{
+                            flexWrap: responsive.isSmallDevice
+                              ? 'wrap'
+                              : 'nowrap',
+                          }}
+                        >
                           {(['daily', 'weekly', 'monthly'] as const).map(
                             (type, index) => {
                               const typeLabels: Record<
@@ -1406,6 +1456,19 @@ export default function PersonalTasksScreen() {
                                   animationType="scale"
                                   delay={100 + index * 50}
                                   duration={300}
+                                  style={{
+                                    flexGrow: responsive.isSmallDevice ? 0 : 1,
+                                    flexShrink: 1,
+                                    flexBasis: responsive.isSmallDevice
+                                      ? '100%'
+                                      : undefined,
+                                    minWidth: responsive.isSmallDevice
+                                      ? '100%'
+                                      : 0,
+                                    maxWidth: responsive.isSmallDevice
+                                      ? '100%'
+                                      : undefined,
+                                  }}
                                 >
                                   <TouchableOpacity
                                     onPress={() =>
@@ -1414,22 +1477,33 @@ export default function PersonalTasksScreen() {
                                         recurrenceType: type as RecurrenceType,
                                       }))
                                     }
-                                    className={`px-4 py-2.5 rounded-2xl border-2 flex-1 min-w-[100px] ${
+                                    className={`px-5 py-3.5 rounded-2xl border-2 ${
                                       formState.recurrenceType === type
                                         ? 'bg-purple-500 border-purple-500'
                                         : isDark
                                         ? 'bg-gray-700 border-gray-600'
                                         : 'bg-white border-gray-300'
                                     }`}
+                                    style={{
+                                      width: '100%',
+                                      marginBottom: responsive.spacing.sm,
+                                    }}
                                   >
                                     <Text
-                                      className={`text-sm font-semibold text-center ${
+                                      className={`font-semibold text-center ${
                                         formState.recurrenceType === type
                                           ? 'text-white'
                                           : isDark
-                                          ? 'text-white'
+                                          ? 'text-gray-100'
                                           : 'text-gray-900'
                                       }`}
+                                      style={{
+                                        fontSize: responsive.isSmallDevice
+                                          ? responsive.fontSize.lg
+                                          : responsive.fontSize.xl,
+                                      }}
+                                      numberOfLines={1}
+                                      adjustsFontSizeToFit
                                     >
                                       {typeLabels[type]}
                                     </Text>
