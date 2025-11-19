@@ -10,10 +10,6 @@ env:
   NODE_VERSION: '20.x'
   ANDROID_API_LEVEL: 34
   ANDROID_BUILD_TOOLS: 34.0.0
-  ANDROID_SDK_COMPONENTS: |
-    platform-tools
-    platforms;android-34
-    build-tools;34.0.0
 
 jobs:
   quality-checks:
@@ -65,7 +61,9 @@ jobs:
         uses: android-actions/setup-android@v3
         with:
           packages: |
-            ${{ env.ANDROID_SDK_COMPONENTS }}
+            platform-tools
+            platforms;android-34
+            build-tools;34.0.0
 
       - name: Make Gradle executable
         run: chmod +x android/gradlew
