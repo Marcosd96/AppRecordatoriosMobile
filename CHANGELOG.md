@@ -2,6 +2,12 @@
 
 Todas las actualizaciones relevantes de Gesaccol se documentan aquí siguiendo el formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/) y versionado semántico.
 
+## [1.1.4] - 2025-01-XX
+### Corregido
+- **Configuración de Android SDK en workflow**: Corregido formato de paquetes en `setup-android@v3`.
+- Especificados paquetes directamente en lugar de usar variable multilínea que causaba errores de parsing.
+- Workflow de CI ahora puede instalar correctamente `platform-tools`, `platforms;android-34` y `build-tools;34.0.0`.
+
 ## [1.1.3] - 2025-01-XX
 ### Corregido
 - **Configuración de ESLint para Jest**: Resueltos errores de linting en archivos de Jest.
@@ -69,6 +75,7 @@ Todas las actualizaciones relevantes de Gesaccol se documentan aquí siguiendo e
 - Automatizar builds y releases con GitHub Actions.
 - Añadir notas de cada módulo (Companies, Reminders, PersonalTasks) cuando reciban mejoras importantes.
 
+[1.1.4]: https://github.com/Marcosd96/AppRecordatoriosMobile/releases/tag/v1.1.4
 [1.1.3]: https://github.com/Marcosd96/AppRecordatoriosMobile/releases/tag/v1.1.3
 [1.1.2]: https://github.com/Marcosd96/AppRecordatoriosMobile/releases/tag/v1.1.2
 [1.1.1]: https://github.com/Marcosd96/AppRecordatoriosMobile/releases/tag/v1.1.1
