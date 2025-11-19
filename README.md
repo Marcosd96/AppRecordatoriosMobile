@@ -79,11 +79,5 @@ Las pruebas actuales utilizan Jest y `@testing-library/react-native`. Agrega spe
 ## 📲 Construir APK / IPA
 - **Android**: `npm run build:apk` produce `releases/Gesaccol-debug.apk`.
 - **iOS**: abre `ios/AppRecordatoriosMobile.xcworkspace` y genera el esquema `AppRecordatoriosMobile` desde Xcode (usar el mismo `GOOGLE_WEB_CLIENT_ID` en los entitlements correspondientes).
-
-## 📌 Roadmap sugerido
-- Integrar sincronización push con backend para compartir estado entre dispositivos.
-- Añadir búsqueda global y guardado de filtros.
-- Exponer métricas en widgets/resúmenes para iOS/Android.
-
 ---
 ¿Preguntas o nuevas ideas? Abre un issue o empieza un PR. 👋
