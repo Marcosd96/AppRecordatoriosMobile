@@ -79,5 +79,18 @@ Las pruebas actuales utilizan Jest y `@testing-library/react-native`. Agrega spe
 ## 📲 Construir APK / IPA
 - **Android**: `npm run build:apk` produce `releases/Gesaccol-debug.apk`.
 - **iOS**: abre `ios/AppRecordatoriosMobile.xcworkspace` y genera el esquema `AppRecordatoriosMobile` desde Xcode (usar el mismo `GOOGLE_WEB_CLIENT_ID` en los entitlements correspondientes).
+
+## 🧭 Versionado y releases
+Seguimos [SemVer](https://semver.org/lang/es/) (`MAJOR.MINOR.PATCH`):
+- `VERSION` y `package.json` marcan la versión vigente (actualmente `1.0.0`).
+- Documenta cambios en `CHANGELOG.md` bajo el bloque `Unreleased` y muévelos al crear una etiqueta.
+- Flujo sugerido:
+  1. Actualiza código y documentación.
+  2. Edita `CHANGELOG.md` y `VERSION`/`package.json`.
+  3. Commit `release: vX.Y.Z` y crea el tag `git tag vX.Y.Z`.
+  4. Ejecuta los scripts de build (`npm run build:apk`, archivado iOS) y adjunta binarios en GitHub Releases.
+- Reserva incrementos `MAJOR` para cambios incompatibles, `MINOR` para features visibles y `PATCH` para fixes sin breaking changes.
+- El workflow `Mobile Release` en `.github/workflows/release.yml` se ejecuta al crear tags `v*.*.*`: corre lint/tests, genera el APK debug, el build iOS para simulador y adjunta ambos como artefactos en GitHub Releases automáticamente.
+
 ---
 ¿Preguntas o nuevas ideas? Abre un issue o empieza un PR. 👋
