@@ -2,6 +2,13 @@
 
 Todas las actualizaciones relevantes de Gesaccol se documentan aquí siguiendo el formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/) y versionado semántico.
 
+## [1.1.3] - 2025-01-XX
+### Corregido
+- **Configuración de ESLint para Jest**: Resueltos errores de linting en archivos de Jest.
+- Agregado entorno Jest en ESLint para reconocer globals (`jest`, `describe`, `it`, etc.).
+- Override de reglas para archivos de Jest que deshabilita warnings de deep imports.
+- Linting ahora pasa sin errores (solo warnings de inline styles que son aceptables en React Native).
+
 ## [1.1.2] - 2025-01-XX
 ### Corregido
 - **Configuración de Jest para CI**: Tests ahora pasan correctamente en GitHub Actions.
@@ -62,6 +69,7 @@ Todas las actualizaciones relevantes de Gesaccol se documentan aquí siguiendo e
 - Automatizar builds y releases con GitHub Actions.
 - Añadir notas de cada módulo (Companies, Reminders, PersonalTasks) cuando reciban mejoras importantes.
 
+[1.1.3]: https://github.com/Marcosd96/AppRecordatoriosMobile/releases/tag/v1.1.3
 [1.1.2]: https://github.com/Marcosd96/AppRecordatoriosMobile/releases/tag/v1.1.2
 [1.1.1]: https://github.com/Marcosd96/AppRecordatoriosMobile/releases/tag/v1.1.1
 [1.1.0]: https://github.com/Marcosd96/AppRecordatoriosMobile/releases/tag/v1.1.0
