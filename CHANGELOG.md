@@ -2,6 +2,14 @@
 
 Todas las actualizaciones relevantes de Gesaccol se documentan aquí siguiendo el formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/) y versionado semántico.
 
+## [1.1.2] - 2025-01-XX
+### Corregido
+- **Configuración de Jest para CI**: Tests ahora pasan correctamente en GitHub Actions.
+- Agregados mocks para módulos nativos: `@notifee/react-native`, `react-native-gesture-handler`, `@react-native-google-signin/google-signin`, `@react-native-community/datetimepicker`.
+- Mock de archivos CSS (Tailwind) para evitar errores de parsing en Jest.
+- Configuración de `transformIgnorePatterns` para transformar módulos ESM correctamente.
+- Setup de Jest con mocks globales para AsyncStorage y gesture-handler.
+
 ## [1.1.1] - 2025-11-19
 ### Corregido
 - **⏰ Implementadas Alarmas Exactas**: Las notificaciones ahora llegan **exactamente** a la hora programada (0 segundos de retraso).
@@ -54,6 +62,7 @@ Todas las actualizaciones relevantes de Gesaccol se documentan aquí siguiendo e
 - Automatizar builds y releases con GitHub Actions.
 - Añadir notas de cada módulo (Companies, Reminders, PersonalTasks) cuando reciban mejoras importantes.
 
+[1.1.2]: https://github.com/Marcosd96/AppRecordatoriosMobile/releases/tag/v1.1.2
 [1.1.1]: https://github.com/Marcosd96/AppRecordatoriosMobile/releases/tag/v1.1.1
 [1.1.0]: https://github.com/Marcosd96/AppRecordatoriosMobile/releases/tag/v1.1.0
 [1.0.0]: https://github.com/Marcosd96/AppRecordatoriosMobile/releases/tag/v1.0.0
