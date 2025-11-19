@@ -2,6 +2,12 @@
 
 Todas las actualizaciones relevantes de Gesaccol se documentan aquí siguiendo el formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/) y versionado semántico.
 
+## [1.1.5] - 2025-01-XX
+### Corregido
+- **Formato de paquetes Android SDK**: Cambiado formato multilínea a formato de una sola línea separado por comas.
+- Los paquetes ahora se especifican como `'platform-tools,platforms;android-34,build-tools;34.0.0'` para evitar errores de concatenación.
+- Workflow de CI ahora puede instalar correctamente los paquetes del Android SDK sin errores de parsing.
+
 ## [1.1.4] - 2025-01-XX
 ### Corregido
 - **Configuración de Android SDK en workflow**: Corregido formato de paquetes en `setup-android@v3`.
@@ -75,6 +81,7 @@ Todas las actualizaciones relevantes de Gesaccol se documentan aquí siguiendo e
 - Automatizar builds y releases con GitHub Actions.
 - Añadir notas de cada módulo (Companies, Reminders, PersonalTasks) cuando reciban mejoras importantes.
 
+[1.1.5]: https://github.com/Marcosd96/AppRecordatoriosMobile/releases/tag/v1.1.5
 [1.1.4]: https://github.com/Marcosd96/AppRecordatoriosMobile/releases/tag/v1.1.4
 [1.1.3]: https://github.com/Marcosd96/AppRecordatoriosMobile/releases/tag/v1.1.3
 [1.1.2]: https://github.com/Marcosd96/AppRecordatoriosMobile/releases/tag/v1.1.2
