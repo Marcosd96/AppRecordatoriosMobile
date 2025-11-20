@@ -76,7 +76,7 @@ jobs:
 
   ios-build:
     name: iOS Archive (simulator)
-    runs-on: macos-14
+    runs-on: macos-15
     needs: quality-checks
     steps:
       - name: Checkout
