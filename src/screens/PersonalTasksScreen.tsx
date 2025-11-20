@@ -1337,7 +1337,7 @@ export default function PersonalTasksScreen() {
                 isDark ? 'bg-gray-900' : 'bg-white'
               }`}
               style={{
-                maxHeight: modalLayout.maxHeight,
+                maxHeight: '90%',
                 width: '100%',
                 maxWidth: modalLayout.maxWidth,
                 alignSelf: 'center',
@@ -1392,7 +1392,6 @@ export default function PersonalTasksScreen() {
               </AnimatedView>
 
               <ScrollView
-                style={{ maxHeight: modalLayout.contentMaxHeight }}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingBottom: responsive.spacing.lg }}

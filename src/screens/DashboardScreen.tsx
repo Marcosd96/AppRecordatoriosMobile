@@ -886,6 +886,25 @@ export default function DashboardScreen({ navigation }: any) {
                     Activa los permisos para recibir recordatorios automáticos
                   </Text>
                 )}
+                <AnimatedButton
+                  onPress={() => navigation.navigate('NotificationTroubleshooting')}
+                  style={{ marginTop: responsive.spacing.sm }}
+                >
+                  <View
+                    className={`px-4 py-3 rounded-xl flex-row items-center justify-center ${
+                      isDark ? 'bg-blue-500/20' : 'bg-blue-50'
+                    }`}
+                  >
+                    <Text className="mr-2">🔧</Text>
+                    <Text
+                      className={`text-sm font-semibold ${
+                        isDark ? 'text-blue-300' : 'text-blue-700'
+                      }`}
+                    >
+                      Solucionar problemas de notificaciones
+                    </Text>
+                  </View>
+                </AnimatedButton>
               </>
             ) : (
               <Text

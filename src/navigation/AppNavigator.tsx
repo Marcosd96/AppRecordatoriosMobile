@@ -18,6 +18,7 @@ import DashboardScreen from '../screens/DashboardScreen';
 import PersonalTasksScreen from '../screens/PersonalTasksScreen';
 import RemindersScreen from '../screens/RemindersScreen';
 import CompaniesScreen from '../screens/CompaniesScreen';
+import NotificationTroubleshootingScreen from '../screens/NotificationTroubleshootingScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -244,7 +245,17 @@ function AppNavigatorContent() {
           </Stack.Screen>
         ) : (
           // Pantalla principal
-          <Stack.Screen name="Main" component={MainTabs} />
+          <>
+            <Stack.Screen name="Main" component={MainTabs} />
+            <Stack.Screen 
+              name="NotificationTroubleshooting" 
+              component={NotificationTroubleshootingScreen}
+              options={{
+                headerShown: false,
+                presentation: 'modal',
+              }}
+            />
+          </>
         )}
       </Stack.Navigator>
     </NavigationContainer>
