@@ -2,6 +2,12 @@
 
 Todas las actualizaciones relevantes de Gesaccol se documentan aquí siguiendo el formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/) y versionado semántico.
 
+## [1.1.7] - 2025-01-XX
+### Corregido
+- **Formato de paquetes Android SDK**: Cambiado separador de comas a espacios según documentación de `setup-android@v3`.
+- Los paquetes ahora se especifican como `'platform-tools platforms;android-34 build-tools;34.0.0'` (separados por espacios).
+- Workflow de CI ahora puede instalar correctamente los paquetes del Android SDK sin errores de "Failed to find package".
+
 ## [1.1.6] - 2025-01-XX
 ### Corregido
 - **Runner de macOS para iOS build**: Actualizado de `macos-14` a `macos-15` para cumplir con el requisito de Xcode >= 16.1 de React Native.
@@ -86,6 +92,7 @@ Todas las actualizaciones relevantes de Gesaccol se documentan aquí siguiendo e
 - Automatizar builds y releases con GitHub Actions.
 - Añadir notas de cada módulo (Companies, Reminders, PersonalTasks) cuando reciban mejoras importantes.
 
+[1.1.7]: https://github.com/Marcosd96/AppRecordatoriosMobile/releases/tag/v1.1.7
 [1.1.6]: https://github.com/Marcosd96/AppRecordatoriosMobile/releases/tag/v1.1.6
 [1.1.5]: https://github.com/Marcosd96/AppRecordatoriosMobile/releases/tag/v1.1.5
 [1.1.4]: https://github.com/Marcosd96/AppRecordatoriosMobile/releases/tag/v1.1.4
