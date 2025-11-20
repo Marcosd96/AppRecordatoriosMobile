@@ -2,6 +2,10 @@
 
 Todas las actualizaciones relevantes de Gesaccol se documentan aquí siguiendo el formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/) y versionado semántico.
 
+## [1.1.9] - 2025-01-XX
+### Cambiado
+- Sin cambios funcionales. Release para probar workflow de CI con mejoras de memoria y configuración.
+
 ## [1.1.8] - 2025-01-XX
 ### Corregido
 - **Memoria Java para Gradle**: Aumentado heap de 2GB a 4GB para evitar errores de "Java heap space" durante JetifyTransform.
@@ -99,6 +103,7 @@ Todas las actualizaciones relevantes de Gesaccol se documentan aquí siguiendo e
 - Automatizar builds y releases con GitHub Actions.
 - Añadir notas de cada módulo (Companies, Reminders, PersonalTasks) cuando reciban mejoras importantes.
 
+[1.1.9]: https://github.com/Marcosd96/AppRecordatoriosMobile/releases/tag/v1.1.9
 [1.1.8]: https://github.com/Marcosd96/AppRecordatoriosMobile/releases/tag/v1.1.8
 [1.1.7]: https://github.com/Marcosd96/AppRecordatoriosMobile/releases/tag/v1.1.7
 [1.1.6]: https://github.com/Marcosd96/AppRecordatoriosMobile/releases/tag/v1.1.6
