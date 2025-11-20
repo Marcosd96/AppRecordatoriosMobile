@@ -66,6 +66,9 @@ jobs:
         run: chmod +x android/gradlew
 
       - name: Build debug APK
+        env:
+          GRADLE_OPTS: '-Xmx4096m -XX:MaxMetaspaceSize=1024m'
+          ORG_GRADLE_DAEMON_XMX: '4096m'
         run: npm run build:apk
 
       - name: Upload APK artifact
