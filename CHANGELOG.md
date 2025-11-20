@@ -2,6 +2,13 @@
 
 Todas las actualizaciones relevantes de Gesaccol se documentan aquí siguiendo el formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/) y versionado semántico.
 
+## [1.1.8] - 2025-01-XX
+### Corregido
+- **Memoria Java para Gradle**: Aumentado heap de 2GB a 4GB para evitar errores de "Java heap space" durante JetifyTransform.
+- Actualizado `gradle.properties` con `-Xmx4096m` y `MaxMetaspaceSize=1024m`.
+- Agregadas variables de entorno `GRADLE_OPTS` y `ORG_GRADLE_DAEMON_XMX` en el workflow de CI.
+- Build de Android ahora puede completarse sin errores de memoria durante la transformación de dependencias.
+
 ## [1.1.7] - 2025-01-XX
 ### Corregido
 - **Formato de paquetes Android SDK**: Cambiado separador de comas a espacios según documentación de `setup-android@v3`.
@@ -92,6 +99,7 @@ Todas las actualizaciones relevantes de Gesaccol se documentan aquí siguiendo e
 - Automatizar builds y releases con GitHub Actions.
 - Añadir notas de cada módulo (Companies, Reminders, PersonalTasks) cuando reciban mejoras importantes.
 
+[1.1.8]: https://github.com/Marcosd96/AppRecordatoriosMobile/releases/tag/v1.1.8
 [1.1.7]: https://github.com/Marcosd96/AppRecordatoriosMobile/releases/tag/v1.1.7
 [1.1.6]: https://github.com/Marcosd96/AppRecordatoriosMobile/releases/tag/v1.1.6
 [1.1.5]: https://github.com/Marcosd96/AppRecordatoriosMobile/releases/tag/v1.1.5
