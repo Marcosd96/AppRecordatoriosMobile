@@ -1,5 +1,5 @@
 import notifee, { AndroidImportance, TriggerType } from '@notifee/react-native';
-import { Platform, PermissionsAndroid, AppState } from 'react-native';
+import { Platform, PermissionsAndroid, AppState, Linking } from 'react-native';
 import { Reminder, PersonalTask } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -718,15 +718,18 @@ class NotificationsService {
     hasPermission: boolean;
     authorizationStatus: number;
     scheduledCount: number;
+    batteryOptimization: boolean;
   }> {
     try {
       const settings = await notifee.getNotificationSettings();
       const scheduledNotifications = await notifee.getTriggerNotifications();
+      const batteryOptimization = await notifee.isBatteryOptimizationEnabled();
       
       return {
         hasPermission: settings.authorizationStatus >= 1,
         authorizationStatus: settings.authorizationStatus,
         scheduledCount: scheduledNotifications.length,
+        batteryOptimization,
       };
     } catch (error) {
       console.error('Error al obtener estado de notificaciones:', error);
@@ -734,7 +737,35 @@ class NotificationsService {
         hasPermission: false,
         authorizationStatus: 0,
         scheduledCount: 0,
+        batteryOptimization: false,
       };
+    }
+  }
+
+  /**
+   * Abre la configuración de notificaciones de la app
+   */
+  async openNotificationSettings(): Promise<void> {
+    try {
+      await notifee.openNotificationSettings();
+    } catch (error) {
+      console.error('Error al abrir configuración de notificaciones:', error);
+      // Fallback a configuración general de la app
+      Linking.openSettings();
+    }
+  }
+
+  /**
+   * Solicita desactivar la optimización de batería
+   * Esto es crucial para que las notificaciones lleguen a tiempo en algunos dispositivos
+   */
+  async requestBatteryOptimization(): Promise<void> {
+    try {
+      if (Platform.OS === 'android') {
+        await notifee.openBatteryOptimizationSettings();
+      }
+    } catch (error) {
+      console.error('Error al solicitar optimización de batería:', error);
     }
   }
 
@@ -873,7 +904,7 @@ class NotificationsService {
       }
 
       // Determinar fecha objetivo (nextOccurrence tiene prioridad)
-      const targetDate = new Date(task.nextOccurrence || task.startDate);
+      let targetDate = new Date(task.nextOccurrence || task.startDate);
       
       // Validar que la fecha sea válida
       if (!targetDate || isNaN(targetDate.getTime())) {
@@ -881,16 +912,48 @@ class NotificationsService {
       }
 
       const now = new Date();
+      const reminderMinutes = task.reminderMinutes || 60;
       
       // Calcular fecha de la notificación (targetDate - reminderMinutes)
-      const notificationDate = new Date(targetDate);
-      notificationDate.setMinutes(
-        notificationDate.getMinutes() - (task.reminderMinutes || 60)
-      );
+      let notificationDate = new Date(targetDate);
+      notificationDate.setMinutes(notificationDate.getMinutes() - reminderMinutes);
 
-      // No programar si la fecha de notificación ya pasó (patrón simple como recordatorios)
+      // Si la fecha de notificación ya pasó
       if (notificationDate.getTime() <= now.getTime()) {
-        return;
+        // Caso 1: La tarea es recurrente -> Buscar la siguiente ocurrencia válida
+        if (task.isRecurring && task.recurrenceType && task.recurrenceType !== 'once') {
+          console.log(`⚠️ Notificación pasada para tarea recurrente ${task.id}. Calculando siguiente ocurrencia...`);
+          
+          const nextValidDate = this.calculateNextValidOccurrence(
+            targetDate,
+            task.recurrenceType,
+            task.recurrenceInterval || 1,
+            now,
+            reminderMinutes
+          );
+
+          if (nextValidDate) {
+            targetDate = nextValidDate;
+            notificationDate = new Date(targetDate);
+            notificationDate.setMinutes(notificationDate.getMinutes() - reminderMinutes);
+            console.log(`🔄 Reprogramada para: ${notificationDate.toISOString()} (Fecha tarea: ${targetDate.toISOString()})`);
+          } else {
+            console.warn(`⚠️ No se encontró una ocurrencia futura válida para la tarea ${task.id}`);
+            return;
+          }
+        } 
+        // Caso 2: La tarea no es recurrente pero la fecha de la tarea es futura
+        // Ejemplo: Tarea para mañana a las 8am, recordatorio 24h antes (hoy 8am), pero son las 9am
+        else if (targetDate.getTime() > now.getTime()) {
+          console.log(`⚠️ Recordatorio pasado para tarea futura ${task.id}. Enviando inmediata.`);
+          // Enviar notificación inmediata advirtiendo que el recordatorio se pasó
+          await this.sendImmediatePersonalTaskNotification(task);
+          return;
+        }
+        // Caso 3: La tarea ya pasó y no es recurrente -> No hacer nada
+        else {
+          return;
+        }
       }
 
       // Crear canal de notificaciones si es necesario
@@ -966,6 +1029,44 @@ class NotificationsService {
       );
     } catch (error) {
       console.error(`Error al programar notificación para tarea personal ${task.id}:`, error);
+    }
+  }
+
+  /**
+   * Envía una notificación inmediata para una tarea personal
+   * Se usa cuando el tiempo de recordatorio ya pasó pero la tarea es futura
+   */
+  private async sendImmediatePersonalTaskNotification(task: PersonalTask): Promise<void> {
+    try {
+      const priorityColors: Record<string, string> = {
+        urgent: '#dc2626',
+        high: '#f59e0b',
+        medium: '#2563eb',
+        low: '#10b981',
+      };
+
+      const color = priorityColors[task.priority] || '#2563eb';
+      
+      await notifee.displayNotification({
+        title: `⚠️ Recordatorio: ${task.title}`,
+        body: `Este recordatorio estaba pendiente. ${task.description || ''}`,
+        data: {
+          taskId: task.id,
+          type: 'personal-task',
+          isImmediate: 'true',
+        },
+        android: {
+          channelId: 'personal-tasks',
+          importance: AndroidImportance.HIGH,
+          pressAction: {
+            id: 'default',
+          },
+          smallIcon: 'ic_launcher',
+          color: color,
+        },
+      });
+    } catch (error) {
+      console.error('Error al enviar notificación inmediata de tarea personal:', error);
     }
   }
 
