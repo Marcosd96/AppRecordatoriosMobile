@@ -465,6 +465,7 @@ export default function DashboardScreen({ navigation }: any) {
                   bg: isDark ? 'bg-blue-500/10' : 'bg-blue-50',
                   text: isDark ? 'text-blue-200' : 'text-blue-700',
                   border: isDark ? 'border-blue-500/20' : 'border-blue-200',
+                  filter: 'all',
                 },
                 {
                   label: 'Pendientes',
@@ -473,6 +474,7 @@ export default function DashboardScreen({ navigation }: any) {
                   bg: isDark ? 'bg-yellow-500/10' : 'bg-yellow-50',
                   text: isDark ? 'text-yellow-200' : 'text-yellow-700',
                   border: isDark ? 'border-yellow-500/20' : 'border-yellow-200',
+                  filter: 'pending',
                 },
                 {
                   label: 'Vencidos',
@@ -481,6 +483,7 @@ export default function DashboardScreen({ navigation }: any) {
                   bg: isDark ? 'bg-red-500/10' : 'bg-red-50',
                   text: isDark ? 'text-red-200' : 'text-red-700',
                   border: isDark ? 'border-red-500/20' : 'border-red-200',
+                  filter: 'overdue',
                 },
                 {
                   label: 'Próximos 30 días',
@@ -489,6 +492,7 @@ export default function DashboardScreen({ navigation }: any) {
                   bg: isDark ? 'bg-indigo-500/10' : 'bg-indigo-50',
                   text: isDark ? 'text-indigo-200' : 'text-indigo-700',
                   border: isDark ? 'border-indigo-500/20' : 'border-indigo-200',
+                  filter: 'upcoming',
                 },
               ].map(item => (
                 <View 
@@ -499,25 +503,29 @@ export default function DashboardScreen({ navigation }: any) {
                     marginBottom: responsive.spacing.md,
                   }}
                 >
-                  <View
-                    className={`rounded-2xl border ${item.bg} ${item.border}`}
-                    style={{ padding: responsive.spacing.md }}
+                  <AnimatedButton 
+                    onPress={() => navigation.navigate('Reminders', { filter: item.filter })}
                   >
-                    <View className="flex-row items-center justify-between" style={{ marginBottom: responsive.spacing.sm }}>
-                      <Text style={{ fontSize: responsive.fontSize.lg }}>{item.icon}</Text>
-                      <Text
-                        className={`font-medium ${
-                          isDark ? 'text-gray-300' : 'text-gray-500'
-                        }`}
-                        style={{ fontSize: responsive.fontSize.xs }}
-                      >
-                        {item.label}
+                    <View
+                      className={`rounded-2xl border ${item.bg} ${item.border}`}
+                      style={{ padding: responsive.spacing.md }}
+                    >
+                      <View className="flex-row items-center justify-between" style={{ marginBottom: responsive.spacing.sm }}>
+                        <Text style={{ fontSize: responsive.fontSize.lg }}>{item.icon}</Text>
+                        <Text
+                          className={`font-medium ${
+                            isDark ? 'text-gray-300' : 'text-gray-500'
+                          }`}
+                          style={{ fontSize: responsive.fontSize.xs }}
+                        >
+                          {item.label}
+                        </Text>
+                      </View>
+                      <Text className={`font-bold ${item.text}`} style={{ fontSize: responsive.fontSize['3xl'] }}>
+                        {item.value}
                       </Text>
                     </View>
-                    <Text className={`font-bold ${item.text}`} style={{ fontSize: responsive.fontSize['3xl'] }}>
-                      {item.value}
-                    </Text>
-                  </View>
+                  </AnimatedButton>
                 </View>
               ))}
             </View>

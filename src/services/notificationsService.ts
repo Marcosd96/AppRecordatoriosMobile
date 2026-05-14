@@ -68,22 +68,22 @@ class NotificationsService {
   async createNotificationChannel() {
     if (Platform.OS === 'android') {
       await notifee.createChannel({
-        id: 'reminders',
+        id: 'reminders_v2',
         name: 'Recordatorios Fiscales',
         description: 'Notificaciones para recordatorios fiscales',
         importance: AndroidImportance.HIGH,
-        sound: 'default',
+        sound: 'alarma_fiscal',
         vibration: true,
         vibrationPattern: [300, 500],
       });
       
       // Canal para tareas personales
       await notifee.createChannel({
-        id: 'personal-tasks',
+        id: 'personal-tasks_v2',
         name: 'Tareas Personales',
         description: 'Notificaciones para tareas personales',
         importance: AndroidImportance.HIGH,
-        sound: 'default',
+        sound: 'alarma_fiscal',
         vibration: true,
         vibrationPattern: [300, 500],
       });
@@ -168,7 +168,7 @@ class NotificationsService {
             daysUntilDue: daysUntilDue,
           },
           android: {
-            channelId: 'reminders',
+            channelId: 'reminders_v2',
             importance: AndroidImportance.HIGH,
             pressAction: {
               id: 'default',
@@ -177,7 +177,7 @@ class NotificationsService {
             color: immediateColor,
           },
           ios: {
-            sound: 'default',
+            sound: 'alarma_fiscal.wav',
             foregroundPresentationOptions: {
               alert: true,
               badge: true,
@@ -245,7 +245,7 @@ class NotificationsService {
                 daysBefore: daysBefore,
               },
               android: {
-                channelId: 'reminders',
+                channelId: 'reminders_v2',
                 importance: AndroidImportance.HIGH,
                 pressAction: {
                   id: 'default',
@@ -254,7 +254,7 @@ class NotificationsService {
                 color: color,
               },
               ios: {
-                sound: 'default',
+                sound: 'alarma_fiscal.wav',
                 foregroundPresentationOptions: {
                   alert: true,
                   badge: true,
@@ -435,14 +435,14 @@ class NotificationsService {
         title: '🔔 Notificación de Prueba',
         body: 'El sistema de notificaciones está funcionando correctamente',
         android: {
-          channelId: 'reminders',
+          channelId: 'reminders_v2',
           importance: AndroidImportance.HIGH,
           pressAction: {
             id: 'default',
           },
         },
         ios: {
-          sound: 'default',
+          sound: 'alarma_fiscal.wav',
         },
       });
     } catch (error) {
@@ -523,7 +523,7 @@ class NotificationsService {
       if (Platform.OS === 'android') {
         try {
           const channels = await notifee.getChannels();
-          const personalTasksChannel = channels.find(c => c.id === 'personal-tasks');
+          const personalTasksChannel = channels.find(c => c.id === 'personal-tasks_v2');
           if (personalTasksChannel) {
             console.log('📱 Estado del canal personal-tasks:', {
               id: personalTasksChannel.id,
@@ -564,7 +564,7 @@ class NotificationsService {
                 isImmediate: 'true',
               },
               android: {
-                channelId: 'personal-tasks',
+                channelId: 'personal-tasks_v2',
                 importance: AndroidImportance.HIGH,
                 pressAction: {
                   id: 'default',
@@ -590,7 +590,7 @@ class NotificationsService {
                 isImmediate: 'true',
               },
               android: {
-                channelId: 'personal-tasks',
+                channelId: 'personal-tasks_v2',
                 importance: AndroidImportance.HIGH,
                 pressAction: {
                   id: 'default',
@@ -600,7 +600,7 @@ class NotificationsService {
                 showTimestamp: true,
               },
               ios: {
-                sound: 'default',
+                sound: 'alarma_fiscal.wav',
                 foregroundPresentationOptions: {
                   alert: true,
                   badge: true,
@@ -633,7 +633,7 @@ class NotificationsService {
             isTest: 'true',
           },
           android: {
-            channelId: 'personal-tasks',
+            channelId: 'personal-tasks_v2',
             importance: AndroidImportance.HIGH,
             pressAction: {
               id: 'default',
@@ -647,7 +647,7 @@ class NotificationsService {
             ongoing: false,
           },
           ios: {
-            sound: 'default',
+            sound: 'alarma_fiscal.wav',
             foregroundPresentationOptions: {
               alert: true,
               badge: true,

@@ -20,6 +20,7 @@ import { notificationsService } from '../services/notificationsService';
 import { useTheme } from '../context/ThemeContext';
 import { useResponsive } from '../hooks/useResponsive';
 import StyledModal from '../components/StyledModal';
+import AnimatedButton from '../components/AnimatedButton';
 
 // Habilitar animaciones de layout en Android
 if (
@@ -102,12 +103,15 @@ export default function RemindersScreen({ route }: any) {
     initialize();
   }, []);
 
-  // Actualizar selectedCompanyId cuando cambian los parámetros de ruta
+  // Actualizar selectedCompanyId y filter cuando cambian los parámetros de ruta
   useEffect(() => {
     if (route?.params?.companyId) {
       setSelectedCompanyId(route.params.companyId);
     }
-  }, [route?.params?.companyId]);
+    if (route?.params?.filter) {
+      setFilter(route.params.filter);
+    }
+  }, [route?.params?.companyId, route?.params?.filter]);
 
   // Recargar datos cuando la pantalla recibe el foco
   useFocusEffect(
@@ -116,11 +120,14 @@ export default function RemindersScreen({ route }: any) {
       if (route?.params?.companyId) {
         setSelectedCompanyId(route.params.companyId);
       }
+      if (route?.params?.filter) {
+        setFilter(route.params.filter);
+      }
       // Recargar datos cuando la pantalla recibe el foco (evitar doble carga al inicio)
       if (!isInitialMount.current) {
         loadData();
       }
-    }, [route?.params?.companyId]),
+    }, [route?.params?.companyId, route?.params?.filter]),
   );
 
   const onRefresh = async () => {
@@ -359,24 +366,28 @@ export default function RemindersScreen({ route }: any) {
                   value: stats.total,
                   bg: isDark ? 'bg-blue-500/10' : 'bg-blue-50',
                   text: isDark ? 'text-blue-200' : 'text-blue-700',
+                  filter: 'all',
                 },
                 {
                   label: 'Pendientes',
                   value: stats.pending,
                   bg: isDark ? 'bg-yellow-500/10' : 'bg-yellow-50',
                   text: isDark ? 'text-yellow-200' : 'text-yellow-700',
+                  filter: 'pending',
                 },
                 {
                   label: 'Vencidos',
                   value: stats.overdue,
                   bg: isDark ? 'bg-red-500/10' : 'bg-red-50',
                   text: isDark ? 'text-red-200' : 'text-red-700',
+                  filter: 'overdue',
                 },
                 {
                   label: 'Próximos 30 días',
                   value: stats.upcoming,
                   bg: isDark ? 'bg-indigo-500/10' : 'bg-indigo-50',
                   text: isDark ? 'text-indigo-200' : 'text-indigo-700',
+                  filter: 'upcoming',
                 },
               ].map(item => (
                 <View 
@@ -387,22 +398,29 @@ export default function RemindersScreen({ route }: any) {
                     marginBottom: responsive.spacing.md,
                   }}
                 >
-                  <View className={`rounded-2xl ${item.bg}`} style={{ padding: responsive.spacing.md }}>
-                    <Text
-                      className={`font-medium ${
-                        isDark ? 'text-gray-300' : 'text-gray-500'
-                      }`}
-                      style={{
-                        fontSize: responsive.fontSize.xs,
-                        marginBottom: responsive.spacing.xs,
-                      }}
-                    >
-                      {item.label}
-                    </Text>
-                    <Text className={`font-bold ${item.text}`} style={{ fontSize: responsive.fontSize['2xl'] }}>
-                      {item.value}
-                    </Text>
-                  </View>
+                  <AnimatedButton 
+                    onPress={() => {
+                      animateLayout();
+                      setFilter(item.filter as ReminderFilter);
+                    }}
+                  >
+                    <View className={`rounded-2xl ${item.bg}`} style={{ padding: responsive.spacing.md }}>
+                      <Text
+                        className={`font-medium ${
+                          isDark ? 'text-gray-300' : 'text-gray-500'
+                        }`}
+                        style={{
+                          fontSize: responsive.fontSize.xs,
+                          marginBottom: responsive.spacing.xs,
+                        }}
+                      >
+                        {item.label}
+                      </Text>
+                      <Text className={`font-bold ${item.text}`} style={{ fontSize: responsive.fontSize['2xl'] }}>
+                        {item.value}
+                      </Text>
+                    </View>
+                  </AnimatedButton>
                 </View>
               ))}
             </View>
