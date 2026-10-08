@@ -160,3 +160,10 @@ dependencies {
         implementation jscFlavor
     }
 }
+
+// La carpeta de compilación está en ../.build (raíz del repo, ver `buildDir`). El empaquetado JS
+// vigila toda la raíz como entrada y solo excluye las carpetas "build", así que hay que excluir
+// ".build": si no, Gradle ve que lee archivos generados por otras tareas y aborta las releases.
+tasks.withType(com.facebook.react.tasks.BundleHermesCTask).configureEach {
+    sources.exclude("**/.build/**/*")
+}

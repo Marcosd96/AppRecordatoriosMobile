@@ -41,6 +41,9 @@ jobs:
     name: Android APK
     runs-on: ubuntu-latest
     needs: quality-checks
+    env:
+      # El AAB firmado solo se genera si están configurados los secrets de la clave de subida
+      HAS_UPLOAD_KEYSTORE: ${{ secrets.GESACCOL_UPLOAD_KEYSTORE_BASE64 != '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -79,6 +82,33 @@ jobs:
         with:
           name: Gesaccol-android-${{ github.ref_name }}
           path: releases/Gesaccol-debug.apk
+
+      - name: Build signed release AAB
+        if: env.HAS_UPLOAD_KEYSTORE == 'true'
+        env:
+          GRADLE_OPTS: '-Xmx4096m -XX:MaxMetaspaceSize=1024m'
+          KEYSTORE_BASE64: ${{ secrets.GESACCOL_UPLOAD_KEYSTORE_BASE64 }}
+          GESACCOL_UPLOAD_STORE_FILE: ${{ runner.temp }}/upload.keystore
+          GESACCOL_UPLOAD_STORE_PASSWORD: ${{ secrets.GESACCOL_UPLOAD_STORE_PASSWORD }}
+          GESACCOL_UPLOAD_KEY_ALIAS: ${{ secrets.GESACCOL_UPLOAD_KEY_ALIAS }}
+          GESACCOL_UPLOAD_KEY_PASSWORD: ${{ secrets.GESACCOL_UPLOAD_KEY_PASSWORD }}
+        run: |
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$GESACCOL_UPLOAD_STORE_FILE"
+          (cd android && ./gradlew bundleRelease)
+          mkdir -p releases
+          cp .build/app/outputs/bundle/release/app-release.aab "releases/Gesaccol-${{ github.ref_name }}.aab"
+
+      - name: Remove keystore
+        if: always() && env.HAS_UPLOAD_KEYSTORE == 'true'
+        run: rm -f "${{ runner.temp }}/upload.keystore"
+
+      # Para subir a Play Console: se publica solo como artefacto del workflow, no en la Release
+      - name: Upload AAB artifact
+        if: env.HAS_UPLOAD_KEYSTORE == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Gesaccol-android-aab-${{ github.ref_name }}
+          path: releases/Gesaccol-${{ github.ref_name }}.aab
 
   ios-build:
     name: iOS Archive (simulator)
