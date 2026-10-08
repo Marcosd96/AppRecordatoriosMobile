@@ -22,11 +22,13 @@ import { highlightStyle, useHighlightItem } from '../hooks/useHighlightItem';
 import { useTheme } from '../context/ThemeContext';
 import { useResponsive } from '../hooks/useResponsive';
 import StyledModal from '../components/StyledModal';
-import AnimatedButton from '../components/AnimatedButton';
 import FilterChips, { FilterChipOption } from '../components/FilterChips';
 import LoadingScreen from '../components/LoadingScreen';
 import ScreenHeader from '../components/ScreenHeader';
 import ReminderCard from '../components/reminders/ReminderCard';
+import EmptyState from '../components/EmptyState';
+import { SearchIcon } from '../components/icons/ActionIcons';
+import { CalendarIcon } from '../components/icons/TabIcons';
 
 // Clave del chip "Todas las empresas" (en el estado se guarda como null)
 const ALL_COMPANIES = '__all__';
@@ -364,42 +366,24 @@ export default function RemindersScreen({ route }: any) {
           }}
         >
           {filteredReminders.length === 0 ? (
-            <View
-              className={`rounded-2xl p-8 border items-center ${
-                isDark
-                  ? 'bg-gray-800 border-gray-700'
-                  : 'bg-white border-gray-200'
-              }`}
-            >
-              <Text className="text-4xl mb-3">🗂️</Text>
-              <Text
-                className={`text-base font-semibold text-center ${
-                  isDark ? 'text-white' : 'text-gray-900'
-                }`}
-              >
-                {reminders.length === 0
+            <EmptyState
+              isDark={isDark}
+              renderIcon={color =>
+                reminders.length === 0 ? <CalendarIcon color={color} size={28} /> : <SearchIcon color={color} size={28} />
+              }
+              title={
+                reminders.length === 0
                   ? 'Aún no hay recordatorios'
-                  : 'No hay recordatorios con estos filtros'}
-              </Text>
-              <Text
-                className={`text-center mt-2 ${
-                  isDark ? 'text-gray-400' : 'text-gray-500'
-                }`}
-              >
-                {reminders.length === 0
+                  : 'No hay recordatorios con estos filtros'
+              }
+              message={
+                reminders.length === 0
                   ? 'Agrega empresas para generar sus recordatorios fiscales.'
-                  : 'Prueba con otra búsqueda o quita los filtros.'}
-              </Text>
-              {hasActiveFilters && (
-                <AnimatedButton onPress={clearFilters}>
-                  <View className="mt-4 px-6 py-3 rounded-xl bg-blue-600">
-                    <Text className="text-white font-semibold text-center">
-                      Limpiar filtros
-                    </Text>
-                  </View>
-                </AnimatedButton>
-              )}
-            </View>
+                  : 'Prueba con otra búsqueda o quita los filtros.'
+              }
+              actionLabel={hasActiveFilters ? 'Limpiar filtros' : undefined}
+              onAction={clearFilters}
+            />
           ) : (
             filteredReminders.map(reminder => (
               <View

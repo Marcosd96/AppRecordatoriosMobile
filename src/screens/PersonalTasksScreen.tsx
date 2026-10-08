@@ -8,6 +8,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AnimatedButton from '../components/AnimatedButton';
 import { FilterChipOption } from '../components/FilterChips';
+import EmptyState from '../components/EmptyState';
+import { SearchIcon } from '../components/icons/ActionIcons';
+import { TasksIcon } from '../components/icons/TabIcons';
 import StyledModal from '../components/StyledModal';
 import LoadingScreen from '../components/LoadingScreen';
 import ScreenHeader from '../components/ScreenHeader';
@@ -203,38 +206,20 @@ export default function PersonalTasksScreen({ route }: any) {
 
         <View style={{ paddingHorizontal: responsive.spacing.lg }}>
           {filteredTasks.length === 0 ? (
-            <View
-              className={`rounded-2xl p-8 border items-center ${
-                isDark
-                  ? 'bg-gray-800 border-gray-700'
-                  : 'bg-white border-gray-200'
-              }`}
-            >
-              <Text className="text-4xl mb-3">🗂️</Text>
-              <Text
-                className={`text-base font-semibold text-center ${
-                  isDark ? 'text-white' : 'text-gray-900'
-                }`}
-              >
-                {tasks.length === 0 ? 'Aún no tienes tareas' : 'No hay tareas con estos filtros'}
-              </Text>
-              <Text
-                className={`text-center mt-2 ${
-                  isDark ? 'text-gray-400' : 'text-gray-500'
-                }`}
-              >
-                {tasks.length === 0
+            <EmptyState
+              isDark={isDark}
+              renderIcon={color =>
+                tasks.length === 0 ? <TasksIcon color={color} size={28} /> : <SearchIcon color={color} size={28} />
+              }
+              title={tasks.length === 0 ? 'Aún no tienes tareas' : 'No hay tareas con estos filtros'}
+              message={
+                tasks.length === 0
                   ? 'Crea una tarea y te recordaremos cuando toque.'
-                  : 'Prueba con otra búsqueda o cambia el filtro.'}
-              </Text>
-              <AnimatedButton onPress={openCreateModal}>
-                <View className="mt-4 px-6 py-3 rounded-xl bg-blue-600">
-                  <Text className="text-white font-semibold text-center">
-                    {tasks.length === 0 ? 'Crear mi primera tarea' : 'Nueva tarea'}
-                  </Text>
-                </View>
-              </AnimatedButton>
-            </View>
+                  : 'Prueba con otra búsqueda o cambia el filtro.'
+              }
+              actionLabel={tasks.length === 0 ? 'Crear mi primera tarea' : 'Nueva tarea'}
+              onAction={openCreateModal}
+            />
           ) : (
             filteredTasks.map(task => (
               <View key={task.id} ref={registerItem(task.id)} collapsable={false}>

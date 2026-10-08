@@ -147,7 +147,7 @@ function getActionButtons(
       {
         key: 'diagnose',
         tool: true,
-        label: '🔍 Diagnosticar',
+        label: 'Diagnosticar',
         onPress: showResult(diagnoseTaskNotification),
         container: isDark ? 'bg-indigo-900/40' : 'bg-indigo-100',
         text: isDark ? 'text-indigo-100' : 'text-indigo-800',
@@ -155,7 +155,7 @@ function getActionButtons(
       {
         key: 'test-notification',
         tool: true,
-        label: '🔔 Probar Notif.',
+        label: 'Probar aviso',
         onPress: showResult(scheduleTaskTestNotification),
         container: isDark ? 'bg-purple-900/40' : 'bg-purple-100',
         text: isDark ? 'text-purple-100' : 'text-purple-800',
@@ -163,7 +163,7 @@ function getActionButtons(
       {
         key: 'test-notification-immediate',
         tool: true,
-        label: '⚡ Prueba Rápida',
+        label: 'Prueba rápida',
         onPress: showResult(scheduleTaskQuickTestNotification),
         container: isDark ? 'bg-orange-900/40' : 'bg-orange-100',
         text: isDark ? 'text-orange-100' : 'text-orange-800',
@@ -171,7 +171,7 @@ function getActionButtons(
       {
         key: 'reschedule-notification',
         tool: true,
-        label: '🔄 Reprogramar',
+        label: 'Reprogramar',
         onPress: showResult(rescheduleTaskNotification),
         container: isDark ? 'bg-cyan-900/40' : 'bg-cyan-100',
         text: isDark ? 'text-cyan-100' : 'text-cyan-800',

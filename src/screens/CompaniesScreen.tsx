@@ -14,6 +14,8 @@ import StyledModal from '../components/StyledModal';
 import AnimatedButton from '../components/AnimatedButton';
 import LoadingScreen from '../components/LoadingScreen';
 import ScreenHeader from '../components/ScreenHeader';
+import EmptyState from '../components/EmptyState';
+import { CompaniesIcon } from '../components/icons/TabIcons';
 import CalendarSelector from '../components/CalendarSelector';
 import AddCompanyModal from '../components/companies/AddCompanyModal';
 import CompanyCard from '../components/companies/CompanyCard';
@@ -140,54 +142,14 @@ export default function CompaniesScreen({ navigation }: any) {
           }}
         >
           {companies.length === 0 ? (
-            <View
-              className={`rounded-2xl border items-center ${
-                isDark
-                  ? 'bg-gray-800 border-gray-700'
-                  : 'bg-white border-gray-200'
-              }`}
-              style={{ padding: responsive.spacing.xl }}
-            >
-              <Text
-                className={`font-semibold text-center ${
-                  isDark ? 'text-white' : 'text-gray-900'
-                }`}
-                style={{
-                  fontSize: responsive.fontSize.lg,
-                  marginBottom: responsive.spacing.sm,
-                }}
-              >
-                Aún no hay empresas
-              </Text>
-              <Text
-                className={`text-center ${
-                  isDark ? 'text-gray-400' : 'text-gray-500'
-                }`}
-                style={{
-                  marginBottom: responsive.spacing.lg,
-                  fontSize: responsive.fontSize.sm,
-                }}
-              >
-                Agrega tu primera empresa y generaremos sus recordatorios
-                fiscales según los calendarios de la DIAN.
-              </Text>
-              <AnimatedButton onPress={() => setShowAddForm(true)}>
-                <View
-                  className="bg-blue-600 rounded-xl"
-                  style={{
-                    paddingVertical: responsive.spacing.sm + 4,
-                    paddingHorizontal: responsive.spacing.lg,
-                  }}
-                >
-                  <Text
-                    className="text-white text-center font-semibold"
-                    style={{ fontSize: responsive.fontSize.base }}
-                  >
-                    Agregar primera empresa
-                  </Text>
-                </View>
-              </AnimatedButton>
-            </View>
+            <EmptyState
+              isDark={isDark}
+              renderIcon={color => <CompaniesIcon color={color} size={28} />}
+              title="Aún no hay empresas"
+              message="Agrega tu primera empresa y generaremos sus recordatorios fiscales según los calendarios de la DIAN."
+              actionLabel="Agregar primera empresa"
+              onAction={() => setShowAddForm(true)}
+            />
           ) : (
             <View>
               {companies.map(company => (
