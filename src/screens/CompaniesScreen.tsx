@@ -3,7 +3,6 @@ import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -142,62 +141,52 @@ export default function CompaniesScreen({ navigation }: any) {
         >
           {companies.length === 0 ? (
             <View
-              className={`rounded-3xl border items-center ${
+              className={`rounded-2xl border items-center ${
                 isDark
                   ? 'bg-gray-800 border-gray-700'
                   : 'bg-white border-gray-200'
               }`}
-              style={{ padding: responsive.spacing['2xl'] }}
+              style={{ padding: responsive.spacing.xl }}
             >
-              <Text
-                style={{
-                  fontSize: responsive.fontSize['4xl'],
-                  marginBottom: responsive.spacing.md,
-                }}
-              >
-                🏢
-              </Text>
               <Text
                 className={`font-semibold text-center ${
                   isDark ? 'text-white' : 'text-gray-900'
                 }`}
                 style={{
-                  fontSize: responsive.fontSize.base,
+                  fontSize: responsive.fontSize.lg,
                   marginBottom: responsive.spacing.sm,
                 }}
               >
-                No hay empresas registradas
+                Aún no hay empresas
               </Text>
               <Text
                 className={`text-center ${
                   isDark ? 'text-gray-400' : 'text-gray-500'
                 }`}
                 style={{
-                  marginBottom: responsive.spacing.md,
+                  marginBottom: responsive.spacing.lg,
                   fontSize: responsive.fontSize.sm,
                 }}
               >
-                Agrega tu primera empresa para comenzar a gestionar
-                recordatorios fiscales.
+                Agrega tu primera empresa y generaremos sus recordatorios
+                fiscales según los calendarios de la DIAN.
               </Text>
-              <TouchableOpacity
-                onPress={() => setShowAddForm(true)}
-                className="bg-blue-600 rounded-2xl"
-                style={{
-                  paddingVertical: responsive.spacing.md,
-                  paddingHorizontal: responsive.spacing.lg,
-                }}
-              >
-              <Text
-                className="text-white text-center font-semibold"
-                style={{
-                  fontSize: responsive.fontSize.base,
-                  color: '#ffffff',
-                }}
-              >
-                  Agregar Primera Empresa
-                </Text>
-              </TouchableOpacity>
+              <AnimatedButton onPress={() => setShowAddForm(true)}>
+                <View
+                  className="bg-blue-600 rounded-xl"
+                  style={{
+                    paddingVertical: responsive.spacing.sm + 4,
+                    paddingHorizontal: responsive.spacing.lg,
+                  }}
+                >
+                  <Text
+                    className="text-white text-center font-semibold"
+                    style={{ fontSize: responsive.fontSize.base }}
+                  >
+                    Agregar primera empresa
+                  </Text>
+                </View>
+              </AnimatedButton>
             </View>
           ) : (
             <View>
@@ -218,42 +207,21 @@ export default function CompaniesScreen({ navigation }: any) {
           )}
         </View>
 
-        {/* Información */}
-        <View
-          className={`rounded-xl border ${
-            isDark
-              ? 'bg-blue-900/30 border-blue-800'
-              : 'bg-blue-50 border-blue-200'
-          }`}
-          style={{
-            marginHorizontal: responsive.spacing.lg,
-            marginBottom: responsive.spacing.md,
-            padding: responsive.spacing.md,
-          }}
-        >
+        {/* Información (en el estado vacío ya se explica) */}
+        {companies.length > 0 && (
           <Text
-            className={`font-semibold ${
-              isDark ? 'text-blue-200' : 'text-blue-900'
-            }`}
+            className={`text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}
             style={{
-              fontSize: responsive.fontSize.sm,
-              marginBottom: responsive.spacing.sm,
-            }}
-          >
-            💡 Información
-          </Text>
-          <Text
-            className={`${isDark ? 'text-blue-300' : 'text-blue-800'}`}
-            style={{
+              marginHorizontal: responsive.spacing.xl,
+              marginBottom: responsive.spacing.md,
               fontSize: responsive.fontSize.xs,
               lineHeight: responsive.fontSize.xs * 1.5,
             }}
           >
-            Al agregar una empresa, el sistema generará automáticamente los
-            recordatorios fiscales según los calendarios de la DIAN. Puedes
-            gestionar los calendarios desde la configuración de cada empresa.
+            Los recordatorios se generan automáticamente según los calendarios
+            de la DIAN. Ajusta los de cada empresa con «Calendarios».
           </Text>
-        </View>
+        )}
       </ScrollView>
 
       <AddCompanyModal

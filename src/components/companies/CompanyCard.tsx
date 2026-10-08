@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { Company } from '../../types';
 import { useResponsive } from '../../hooks/useResponsive';
 import { CompanyStats } from './companyStats';
+import { TrashIcon } from '../icons/ActionIcons';
 
 interface CompanyCardProps {
   company: Company;
@@ -22,247 +23,126 @@ export default function CompanyCard({
   onOpenReminders,
 }: CompanyCardProps) {
   const responsive = useResponsive();
+  const initial = company.name.trim().charAt(0).toUpperCase() || '?';
+
+  const statItems = [
+    {
+      key: 'overdue',
+      label: 'Vencidos',
+      value: stats.overdue,
+      dot: 'bg-red-500',
+      highlight: stats.overdue > 0 ? (isDark ? 'text-red-300' : 'text-red-600') : undefined,
+    },
+    { key: 'pending', label: 'Pendientes', value: stats.pending, dot: 'bg-amber-500' },
+    { key: 'total', label: 'Total', value: stats.total, dot: 'bg-blue-500' },
+  ];
 
   return (
     <View
-      className={`rounded-3xl border ${
-        isDark
-          ? 'bg-gray-800/80 border-gray-700'
-          : 'bg-white border-gray-200'
+      className={`rounded-2xl border ${
+        isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
       }`}
-      style={{
-        padding: responsive.spacing.lg,
-        marginBottom: responsive.spacing.md,
-      }}
+      style={{ padding: responsive.spacing.md, marginBottom: responsive.spacing.sm + 4 }}
     >
-      <View
-        className="flex-row justify-between items-start"
-        style={{ marginBottom: responsive.spacing.md }}
-      >
-        <View className="flex-1">
+      {/* Encabezado: inicial, nombre y NIT */}
+      <View className="flex-row items-center">
+        <View
+          className={`h-11 w-11 rounded-xl items-center justify-center ${
+            isDark ? 'bg-blue-500/15' : 'bg-blue-50'
+          }`}
+        >
+          <Text className={`text-lg font-bold ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
+            {initial}
+          </Text>
+        </View>
+        <View className="flex-1 ml-3">
           <Text
-            className={`font-semibold ${
-              isDark ? 'text-white' : 'text-gray-900'
-            }`}
-            style={{
-              fontSize: responsive.fontSize.lg,
-              marginBottom: responsive.spacing.xs,
-            }}
+            className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}
+            style={{ fontSize: responsive.fontSize.lg }}
+            numberOfLines={1}
           >
             {company.name}
           </Text>
           <Text
-            className={`${
-              isDark ? 'text-gray-400' : 'text-gray-600'
-            }`}
+            className={isDark ? 'text-gray-400' : 'text-gray-500'}
             style={{ fontSize: responsive.fontSize.sm }}
           >
-            NIT: {company.nit}
+            NIT {company.nit}
           </Text>
         </View>
         <TouchableOpacity
           onPress={() => onDelete(company.id)}
-          style={{ marginLeft: responsive.spacing.sm }}
           accessibilityRole="button"
           accessibilityLabel={`Eliminar empresa ${company.name}`}
           hitSlop={8}
+          className={`h-9 w-9 rounded-lg items-center justify-center ${
+            isDark ? 'bg-red-500/10' : 'bg-red-50'
+          }`}
         >
-          <Text
-            className="text-red-600"
-            style={{ fontSize: responsive.fontSize.lg }}
-          >
-            🗑️
-          </Text>
+          <TrashIcon color={isDark ? '#fca5a5' : '#dc2626'} />
         </TouchableOpacity>
       </View>
 
-      {/* Estadísticas */}
+      {/* Estadísticas en una sola fila */}
       <View
-        className={`rounded-2xl ${
-          isDark ? 'bg-gray-900/60' : 'bg-gray-50'
-        }`}
-        style={{
-          padding: responsive.spacing.md,
-          marginBottom: responsive.spacing.md,
-        }}
+        className={`flex-row rounded-xl ${isDark ? 'bg-gray-900/60' : 'bg-gray-50'}`}
+        style={{ marginTop: responsive.spacing.md, paddingVertical: responsive.spacing.sm + 2 }}
       >
-        <Text
-          className={`font-semibold ${
-            isDark ? 'text-gray-300' : 'text-gray-600'
-          }`}
-          style={{
-            fontSize: responsive.fontSize.xs,
-            marginBottom: responsive.spacing.md,
-          }}
-        >
-          Estadísticas
-        </Text>
-        <View
-          className="flex-row flex-wrap"
-          style={{ marginHorizontal: -responsive.spacing.xs }}
-        >
+        {statItems.map((item, index) => (
           <View
-            style={{
-              width: responsive.isTablet ? '33.33%' : '33.33%',
-              paddingHorizontal: responsive.spacing.xs,
-            }}
+            key={item.key}
+            className={`flex-1 items-center ${
+              index > 0 ? (isDark ? 'border-l border-gray-700' : 'border-l border-gray-200') : ''
+            }`}
           >
-            <View
-              className={`rounded-xl ${
-                isDark ? 'bg-blue-500/10' : 'bg-blue-50'
-              }`}
-              style={{ padding: responsive.spacing.md }}
+            <Text
+              className={`font-bold ${item.highlight ?? (isDark ? 'text-white' : 'text-gray-900')}`}
+              style={{ fontSize: responsive.fontSize.xl }}
             >
+              {item.value}
+            </Text>
+            <View className="flex-row items-center mt-0.5">
+              <View className={`w-1.5 h-1.5 rounded-full mr-1.5 ${item.dot}`} />
               <Text
-                className={`${
-                  isDark ? 'text-gray-400' : 'text-gray-600'
-                }`}
-                style={{
-                  fontSize: responsive.fontSize.xs,
-                  marginBottom: responsive.spacing.xs,
-                }}
+                className={isDark ? 'text-gray-400' : 'text-gray-500'}
+                style={{ fontSize: responsive.fontSize.xs }}
               >
-                Total
-              </Text>
-              <Text
-                className={`font-bold ${
-                  isDark ? 'text-blue-200' : 'text-blue-700'
-                }`}
-                style={{ fontSize: responsive.fontSize.xl }}
-              >
-                {stats.total}
+                {item.label}
               </Text>
             </View>
           </View>
-          <View
-            style={{
-              width: responsive.isTablet ? '33.33%' : '33.33%',
-              paddingHorizontal: responsive.spacing.xs,
-            }}
-          >
-            <View
-              className={`rounded-xl ${
-                isDark ? 'bg-yellow-500/10' : 'bg-yellow-50'
-              }`}
-              style={{ padding: responsive.spacing.md }}
-            >
-              <Text
-                className={`${
-                  isDark ? 'text-yellow-300' : 'text-yellow-700'
-                }`}
-                style={{
-                  fontSize: responsive.fontSize.xs,
-                  marginBottom: responsive.spacing.xs,
-                }}
-              >
-                Pendientes
-              </Text>
-              <Text
-                className={`font-bold ${
-                  isDark ? 'text-yellow-200' : 'text-yellow-900'
-                }`}
-                style={{ fontSize: responsive.fontSize.xl }}
-              >
-                {stats.pending}
-              </Text>
-            </View>
-          </View>
-          <View
-            style={{
-              width: responsive.isTablet ? '33.33%' : '33.33%',
-              paddingHorizontal: responsive.spacing.xs,
-            }}
-          >
-            <View
-              className={`rounded-xl ${
-                isDark ? 'bg-red-500/10' : 'bg-red-50'
-              }`}
-              style={{ padding: responsive.spacing.md }}
-            >
-              <Text
-                className={`${
-                  isDark ? 'text-red-300' : 'text-red-700'
-                }`}
-                style={{
-                  fontSize: responsive.fontSize.xs,
-                  marginBottom: responsive.spacing.xs,
-                }}
-              >
-                Vencidos
-              </Text>
-              <Text
-                className={`font-bold ${
-                  isDark ? 'text-red-200' : 'text-red-900'
-                }`}
-                style={{ fontSize: responsive.fontSize.xl }}
-              >
-                {stats.overdue}
-              </Text>
-            </View>
-          </View>
-        </View>
+        ))}
       </View>
 
-      {/* Botones de acción */}
-      <View
-        className="flex-row flex-wrap"
-        style={{ marginHorizontal: -responsive.spacing.xs }}
-      >
-        <View
-          style={{
-            width: responsive.isSmallDevice ? '100%' : '50%',
-            paddingHorizontal: responsive.spacing.xs,
-            marginBottom: responsive.spacing.sm,
-          }}
+      {/* Acciones */}
+      <View className="flex-row" style={{ marginTop: responsive.spacing.md, gap: responsive.spacing.sm }}>
+        <TouchableOpacity
+          onPress={() => onOpenCalendars(company)}
+          accessibilityRole="button"
+          accessibilityLabel={`Calendarios de ${company.name}`}
+          className={`flex-1 rounded-xl items-center justify-center ${
+            isDark ? 'bg-gray-700' : 'bg-gray-100'
+          }`}
+          style={{ paddingVertical: responsive.spacing.sm + 2 }}
         >
-          <TouchableOpacity
-            onPress={() => onOpenCalendars(company)}
-            className={`rounded-2xl items-center justify-center ${
-              isDark ? 'bg-green-900/40' : 'bg-green-100'
-            }`}
-            style={{ paddingVertical: responsive.spacing.sm }}
+          <Text
+            className={`font-semibold ${isDark ? 'text-gray-100' : 'text-gray-800'}`}
+            style={{ fontSize: responsive.fontSize.sm }}
           >
-            <Text
-              className={`font-semibold ${
-                isDark ? 'text-green-100' : 'text-green-800'
-              }`}
-              style={{
-                fontSize: responsive.fontSize.sm,
-                color: isDark ? '#d1fae5' : '#065f46',
-              }}
-            >
-              📅 Calendarios
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <View
-          style={{
-            width: responsive.isSmallDevice ? '100%' : '50%',
-            paddingHorizontal: responsive.spacing.xs,
-            marginBottom: responsive.spacing.sm,
-          }}
+            Calendarios
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => onOpenReminders(company.id)}
+          accessibilityRole="button"
+          accessibilityLabel={`Ver recordatorios de ${company.name}`}
+          className="flex-1 rounded-xl items-center justify-center bg-blue-600"
+          style={{ paddingVertical: responsive.spacing.sm + 2 }}
         >
-          <TouchableOpacity
-            onPress={() => onOpenReminders(company.id)}
-            className={`rounded-2xl items-center justify-center ${
-              isDark ? 'bg-blue-900/40' : 'bg-blue-100'
-            }`}
-            style={{ paddingVertical: responsive.spacing.sm }}
-          >
-            <Text
-              className={`font-semibold ${
-                isDark ? 'text-blue-100' : 'text-blue-800'
-              }`}
-              style={{
-                fontSize: responsive.fontSize.sm,
-                color: isDark ? '#bfdbfe' : '#1e40af',
-              }}
-            >
-              Ver Recordatorios
-            </Text>
-          </TouchableOpacity>
-        </View>
+          <Text className="font-semibold text-white" style={{ fontSize: responsive.fontSize.sm }}>
+            Ver recordatorios
+          </Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
