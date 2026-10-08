@@ -61,9 +61,24 @@ const EventType = {
   TRIGGER_NOTIFICATION_CREATED: 8,
 };
 
+const AndroidImportance = {
+  DEFAULT: 3,
+  HIGH: 4,
+  LOW: 2,
+  MIN: 1,
+  NONE: 0,
+};
+
+const TriggerType = {
+  TIMESTAMP: 0,
+  INTERVAL: 1,
+};
+
 module.exports = {
   __esModule: true,
   default: mockNotifee,
   EventType,
+  AndroidImportance,
+  TriggerType,
 };
 

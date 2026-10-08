@@ -7,9 +7,193 @@ const NOTIFICATION_STORAGE_KEY = '@scheduled_notifications';
 const IMMEDIATE_NOTIFICATIONS_TODAY_KEY = '@immediate_notifications_today';
 
 /**
+ * Máximo de notificaciones programadas por tipo.
+ * iOS solo conserva 64 pendientes por app y descarta el resto sin avisar; Android admite
+ * unas 500 alarmas por app. Se dejan huecos libres para las de prueba. Como la app
+ * reprograma todo al abrirse, las que quedan fuera se programarán más adelante.
+ */
+export const MAX_REMINDER_TRIGGERS = Platform.OS === 'ios' ? 48 : 400;
+export const MAX_PERSONAL_TASK_TRIGGERS = Platform.OS === 'ios' ? 12 : 50;
+
+// Una sincronización se considera vigente durante una hora y dentro del mismo día,
+// porque qué avisos quedan en el futuro depende de la hora actual
+const SYNC_MAX_AGE_MS = 60 * 60 * 1000;
+
+interface SyncRecord {
+  fingerprint: string;
+  at: number;
+}
+
+export function isSyncFresh(
+  last: SyncRecord | null,
+  fingerprint: string,
+  now: number = Date.now(),
+): boolean {
+  return (
+    last !== null &&
+    last.fingerprint === fingerprint &&
+    now - last.at < SYNC_MAX_AGE_MS &&
+    new Date(now).toDateString() === new Date(last.at).toDateString()
+  );
+}
+
+// Solo cuentan los datos que afectan a qué notificaciones se programan y cuándo
+export function reminderFingerprint(reminders: Reminder[]): string {
+  return reminders
+    .map(r => `${r.id}|${r.status}|${new Date(r.dueDate).getTime()}|${r.description}|${r.companyName}`)
+    .sort()
+    .join('\n');
+}
+
+export function personalTaskFingerprint(tasks: PersonalTask[]): string {
+  return tasks
+    .map(t =>
+      [
+        t.id,
+        t.status,
+        t.reminderEnabled,
+        t.reminderMinutes,
+        new Date(t.nextOccurrence || t.startDate).getTime(),
+        t.recurrenceType,
+        t.recurrenceInterval,
+        t.title,
+        t.description,
+        t.priority,
+      ].join('|'),
+    )
+    .sort()
+    .join('\n');
+}
+
+const isReminderTriggerId = (id: string) => id.startsWith('reminder_');
+
+// Las notificaciones de prueba ("..._test") no se tocan al sincronizar
+const isPersonalTaskTriggerId = (id: string) =>
+  id.startsWith('personal_task_') && !id.includes('_test');
+
+/**
  * Servicio para manejar notificaciones locales de recordatorios
  */
 class NotificationsService {
+  // Las sincronizaciones se encadenan para que dos pantallas no cancelen y reprogramen a la vez
+  private syncQueue: Promise<unknown> = Promise.resolve();
+  private lastReminderSync: SyncRecord | null = null;
+  private lastPersonalTaskSync: SyncRecord | null = null;
+
+  private runExclusive<T>(task: () => Promise<T>): Promise<T> {
+    const result = this.syncQueue.then(task, task);
+    this.syncQueue = result.catch(() => undefined);
+    return result;
+  }
+
+  /**
+   * Punto de entrada único para mantener programadas las notificaciones de recordatorios.
+   * Si los datos no cambiaron desde la última sincronización reciente, no hace nada.
+   * @param options.sendImmediate Envía avisos inmediatos (fuerza la sincronización)
+   * @param options.force Reprograma aunque los datos no hayan cambiado
+   */
+  syncReminders(
+    reminders: Reminder[],
+    { sendImmediate = false, force = false }: { sendImmediate?: boolean; force?: boolean } = {},
+  ): Promise<void> {
+    return this.runExclusive(async () => {
+      const fingerprint = reminderFingerprint(reminders);
+      if (!sendImmediate && !force && isSyncFresh(this.lastReminderSync, fingerprint)) {
+        console.log('[Notificaciones] Recordatorios sin cambios: no se reprograman');
+        return;
+      }
+      await this.scheduleAllReminders(reminders, sendImmediate);
+      this.lastReminderSync = { fingerprint, at: Date.now() };
+    });
+  }
+
+  /**
+   * Punto de entrada único para mantener programadas las notificaciones de tareas personales.
+   * Si los datos no cambiaron desde la última sincronización reciente, no hace nada.
+   */
+  syncPersonalTasks(
+    tasks: PersonalTask[],
+    { force = false }: { force?: boolean } = {},
+  ): Promise<void> {
+    return this.runExclusive(async () => {
+      const fingerprint = personalTaskFingerprint(tasks);
+      if (!force && isSyncFresh(this.lastPersonalTaskSync, fingerprint)) {
+        console.log('[Notificaciones] Tareas sin cambios: no se reprograman');
+        return;
+      }
+      await this.scheduleAllPersonalTasks(tasks);
+      this.lastPersonalTaskSync = { fingerprint, at: Date.now() };
+    });
+  }
+
+  /*
+   * Acciones sobre un solo elemento. Pasan por la misma cola que las sincronizaciones para no
+   * intercalarse con ellas, y olvidan la última sincronización para que la siguiente compare
+   * de nuevo con lo que hay realmente programado.
+   */
+
+  /**
+   * Programa las notificaciones de un recordatorio (desde 3 días antes hasta el vencimiento)
+   * @returns Cantidad de notificaciones programadas creadas
+   */
+  scheduleReminderNotification(
+    reminder: Reminder,
+    sendImmediate: boolean = false,
+    maxTriggers: number = Infinity
+  ): Promise<number> {
+    return this.runExclusive(async () => {
+      this.lastReminderSync = null;
+      return this.scheduleReminderNotificationNow(reminder, sendImmediate, maxTriggers);
+    });
+  }
+
+  /**
+   * Cancela todas las notificaciones de un recordatorio
+   */
+  cancelReminderNotifications(reminderId: string): Promise<void> {
+    return this.runExclusive(async () => {
+      this.lastReminderSync = null;
+      await this.cancelReminderNotificationsNow(reminderId);
+    });
+  }
+
+  /**
+   * Programa la notificación de una tarea personal
+   * @returns true si se creó una notificación programada
+   */
+  schedulePersonalTaskNotification(task: PersonalTask): Promise<boolean> {
+    return this.runExclusive(async () => {
+      this.lastPersonalTaskSync = null;
+      return this.schedulePersonalTaskNotificationNow(task);
+    });
+  }
+
+  /**
+   * Cancela las notificaciones de una tarea personal
+   */
+  cancelPersonalTaskNotifications(taskId: string): Promise<void> {
+    return this.runExclusive(async () => {
+      this.lastPersonalTaskSync = null;
+      await this.cancelPersonalTaskNotificationsNow(taskId);
+    });
+  }
+
+  /**
+   * Une los IDs indicados con los que notifee tiene programados y cumplen el filtro
+   */
+  private async withTriggerIdsMatching(
+    ids: string[],
+    matches: (id: string) => boolean,
+  ): Promise<string[]> {
+    try {
+      const triggerIds = await notifee.getTriggerNotificationIds();
+      return [...new Set([...ids, ...triggerIds.filter(matches)])];
+    } catch (error) {
+      console.error('Error al consultar notificaciones programadas:', error);
+      return ids;
+    }
+  }
+
   /**
    * Solicita permisos para mostrar notificaciones
    * Esto mostrará el diálogo nativo del sistema operativo
@@ -94,12 +278,18 @@ class NotificationsService {
    * Programa notificaciones diarias para un recordatorio desde 3 días antes hasta el día de vencimiento
    * @param reminder El recordatorio a programar
    * @param sendImmediate Si es true, envía notificación inmediata si aplica. Si es false, solo programa notificaciones futuras.
+   * @param maxTriggers Máximo de notificaciones programadas a crear para este recordatorio
+   * @returns Cantidad de notificaciones programadas creadas
    */
-  async scheduleReminderNotification(reminder: Reminder, sendImmediate: boolean = false): Promise<void> {
+  private async scheduleReminderNotificationNow(
+    reminder: Reminder,
+    sendImmediate: boolean = false,
+    maxTriggers: number = Infinity
+  ): Promise<number> {
     try {
       // Solo programar notificaciones para recordatorios pendientes
       if (reminder.status !== 'pending') {
-        return;
+        return 0;
       }
 
       const dueDate = new Date(reminder.dueDate);
@@ -113,7 +303,7 @@ class NotificationsService {
 
       // No programar notificaciones para fechas pasadas
       if (dueDateMidnight < nowMidnight) {
-        return;
+        return 0;
       }
 
       // Crear canal de notificaciones si es necesario
@@ -196,6 +386,10 @@ class NotificationsService {
       const startDaysBefore = Math.min(3, daysUntilDue); // Máximo 3 días antes, o menos si faltan menos días
 
       for (let daysBefore = startDaysBefore; daysBefore >= 0; daysBefore--) {
+        if (notificationIds.length >= maxTriggers) {
+          break;
+        }
+
         const notificationDate = new Date(dueDate);
         notificationDate.setDate(notificationDate.getDate() - daysBefore);
         notificationDate.setHours(9, 0, 0, 0);
@@ -277,15 +471,17 @@ class NotificationsService {
       if (notificationIds.length > 0) {
         await this.saveScheduledNotification(reminder.id, notificationIds);
       }
+      return notificationIds.length;
     } catch (error) {
       console.error(`Error al programar notificación para recordatorio ${reminder.id}:`, error);
+      return 0;
     }
   }
 
   /**
    * Cancela todas las notificaciones de un recordatorio
    */
-  async cancelReminderNotifications(reminderId: string): Promise<void> {
+  private async cancelReminderNotificationsNow(reminderId: string): Promise<void> {
     try {
       const notificationIds = await this.getScheduledNotificationIds(reminderId);
       
@@ -322,14 +518,25 @@ class NotificationsService {
       // CORREGIDO: Cancelar solo las notificaciones de recordatorios, no las de tareas personales
       await this.cancelAllReminderNotifications();
 
-      // Programar nuevas notificaciones solo para recordatorios pendientes
-      const pendingReminders = reminders.filter((r) => r.status === 'pending');
+      // Programar nuevas notificaciones solo para recordatorios pendientes,
+      // empezando por los que vencen antes para que no queden fuera por el límite
+      const pendingReminders = reminders
+        .filter((r) => r.status === 'pending')
+        .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
       
+      let scheduledCount = 0;
       for (const reminder of pendingReminders) {
-        await this.scheduleReminderNotification(reminder, sendImmediate);
+        scheduledCount += await this.scheduleReminderNotificationNow(
+          reminder,
+          sendImmediate,
+          MAX_REMINDER_TRIGGERS - scheduledCount
+        );
       }
 
-      console.log(`Programadas notificaciones para ${pendingReminders.length} recordatorios (inmediatas: ${sendImmediate})`);
+      console.log(
+        `Programadas ${scheduledCount} notificaciones para ${pendingReminders.length} recordatorios ` +
+        `(límite: ${MAX_REMINDER_TRIGGERS}, inmediatas: ${sendImmediate})`
+      );
     } catch (error) {
       console.error('Error al programar notificaciones:', error);
     }
@@ -342,9 +549,14 @@ class NotificationsService {
    */
   async cancelAllNotifications(): Promise<void> {
     try {
+      // En Android las alarmas siguen apareciendo en `dumpsys alarm`, pero notifee borra su
+      // registro y, al dispararse, no muestra nada.
       await notifee.cancelAllNotifications();
+      this.lastReminderSync = null;
+      this.lastPersonalTaskSync = null;
       await AsyncStorage.removeItem(NOTIFICATION_STORAGE_KEY);
       await AsyncStorage.removeItem('@scheduled_personal_task_notifications');
+      await AsyncStorage.removeItem(IMMEDIATE_NOTIFICATIONS_TODAY_KEY);
     } catch (error) {
       console.error('Error al cancelar todas las notificaciones:', error);
     }
@@ -356,16 +568,14 @@ class NotificationsService {
   async cancelAllReminderNotifications(): Promise<void> {
     try {
       const stored = await AsyncStorage.getItem(NOTIFICATION_STORAGE_KEY);
-      if (!stored) return;
+      const notifications: Record<string, string[]> = stored ? JSON.parse(stored) : {};
+      const storedIds = Object.values(notifications).flat();
 
-      const notifications = JSON.parse(stored);
-      
-      // Cancelar cada notificación de recordatorio individualmente
-      for (const reminderId in notifications) {
-        const notificationIds = notifications[reminderId];
-        for (const id of notificationIds) {
-          await notifee.cancelNotification(id);
-        }
+      // Incluir también las que notifee tiene programadas aunque falten en el storage
+      // (p. ej. por una sincronización interrumpida), para que no queden huérfanas
+      const ids = await this.withTriggerIdsMatching(storedIds, isReminderTriggerId);
+      for (const id of ids) {
+        await notifee.cancelNotification(id);
       }
 
       // Limpiar el storage de recordatorios
@@ -896,11 +1106,11 @@ class NotificationsService {
    * Patrón simplificado siguiendo el estilo de recordatorios fiscales
    * @param task La tarea personal a programar
    */
-  async schedulePersonalTaskNotification(task: PersonalTask): Promise<void> {
+  private async schedulePersonalTaskNotificationNow(task: PersonalTask): Promise<boolean> {
     try {
       // Solo programar notificaciones para tareas activas con recordatorio
       if (!task.reminderEnabled || task.status !== 'active') {
-        return;
+        return false;
       }
 
       // Determinar fecha objetivo (nextOccurrence tiene prioridad)
@@ -908,7 +1118,7 @@ class NotificationsService {
       
       // Validar que la fecha sea válida
       if (!targetDate || isNaN(targetDate.getTime())) {
-        return;
+        return false;
       }
 
       const now = new Date();
@@ -939,7 +1149,7 @@ class NotificationsService {
             console.log(`🔄 Reprogramada para: ${notificationDate.toISOString()} (Fecha tarea: ${targetDate.toISOString()})`);
           } else {
             console.warn(`⚠️ No se encontró una ocurrencia futura válida para la tarea ${task.id}`);
-            return;
+            return false;
           }
         } 
         // Caso 2: La tarea no es recurrente pero la fecha de la tarea es futura
@@ -948,11 +1158,11 @@ class NotificationsService {
           console.log(`⚠️ Recordatorio pasado para tarea futura ${task.id}. Enviando inmediata.`);
           // Enviar notificación inmediata advirtiendo que el recordatorio se pasó
           await this.sendImmediatePersonalTaskNotification(task);
-          return;
+          return false;
         }
         // Caso 3: La tarea ya pasó y no es recurrente -> No hacer nada
         else {
-          return;
+          return false;
         }
       }
 
@@ -996,7 +1206,7 @@ class NotificationsService {
             type: 'personal-task',
           },
           android: {
-            channelId: 'personal-tasks',
+            channelId: 'personal-tasks_v2',
             importance: AndroidImportance.HIGH,
             pressAction: {
               id: 'default',
@@ -1027,8 +1237,10 @@ class NotificationsService {
         `✅ Notificación programada para tarea personal ${task.id} ` +
         `(${task.title}) en ${notificationDate.toISOString()}`
       );
+      return true;
     } catch (error) {
       console.error(`Error al programar notificación para tarea personal ${task.id}:`, error);
+      return false;
     }
   }
 
@@ -1056,7 +1268,7 @@ class NotificationsService {
           isImmediate: 'true',
         },
         android: {
-          channelId: 'personal-tasks',
+          channelId: 'personal-tasks_v2',
           importance: AndroidImportance.HIGH,
           pressAction: {
             id: 'default',
@@ -1073,7 +1285,7 @@ class NotificationsService {
   /**
    * Cancela todas las notificaciones de una tarea personal
    */
-  async cancelPersonalTaskNotifications(taskId: string): Promise<void> {
+  private async cancelPersonalTaskNotificationsNow(taskId: string): Promise<void> {
     try {
       const notificationId = await this.getScheduledPersonalTaskNotificationId(taskId);
       
@@ -1106,16 +1318,27 @@ class NotificationsService {
       // Cancelar todas las notificaciones de tareas personales existentes
       await this.cancelAllPersonalTaskNotifications();
 
-      // Programar nuevas notificaciones solo para tareas activas con recordatorios habilitados
-      const activeTasksWithReminders = tasks.filter(
-        (t) => t.status === 'active' && t.reminderEnabled
-      );
+      // Programar nuevas notificaciones solo para tareas activas con recordatorios habilitados,
+      // empezando por las más próximas para que no queden fuera por el límite
+      const taskDate = (t: PersonalTask) => new Date(t.nextOccurrence || t.startDate).getTime();
+      const activeTasksWithReminders = tasks
+        .filter((t) => t.status === 'active' && t.reminderEnabled)
+        .sort((a, b) => taskDate(a) - taskDate(b));
       
+      let scheduledCount = 0;
       for (const task of activeTasksWithReminders) {
-        await this.schedulePersonalTaskNotification(task);
+        if (scheduledCount >= MAX_PERSONAL_TASK_TRIGGERS) {
+          break;
+        }
+        if (await this.schedulePersonalTaskNotificationNow(task)) {
+          scheduledCount++;
+        }
       }
 
-      console.log(`Programadas notificaciones para ${activeTasksWithReminders.length} tareas personales`);
+      console.log(
+        `Programadas ${scheduledCount} notificaciones para ${activeTasksWithReminders.length} tareas personales ` +
+        `(límite: ${MAX_PERSONAL_TASK_TRIGGERS})`
+      );
     } catch (error) {
       console.error('Error al programar notificaciones de tareas personales:', error);
     }
@@ -1127,12 +1350,13 @@ class NotificationsService {
   async cancelAllPersonalTaskNotifications(): Promise<void> {
     try {
       const stored = await AsyncStorage.getItem('@scheduled_personal_task_notifications');
-      if (!stored) return;
+      const notifications: Record<string, string> = stored ? JSON.parse(stored) : {};
 
-      const notifications = JSON.parse(stored);
-      const notificationIds = Object.values(notifications) as string[];
-
-      for (const id of notificationIds) {
+      const ids = await this.withTriggerIdsMatching(
+        Object.values(notifications),
+        isPersonalTaskTriggerId,
+      );
+      for (const id of ids) {
         await notifee.cancelNotification(id);
       }
 
