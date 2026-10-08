@@ -42,6 +42,16 @@ async function getAuthToken(): Promise<string | null> {
   }
 }
 
+let unauthorizedHandler: (() => void) | null = null;
+
+/**
+ * Registra la acción a ejecutar cuando el backend responde 401 (token inválido o caducado).
+ * AuthContext lo usa para cerrar la sesión automáticamente.
+ */
+export function setUnauthorizedHandler(handler: (() => void) | null): void {
+  unauthorizedHandler = handler;
+}
+
 /**
  * Función helper para hacer peticiones HTTP
  */
@@ -83,20 +93,23 @@ async function fetchAPI<T>(
     console.log(`[API] Response status: ${response.status}`);
 
     if (!response.ok) {
+      // Sesión inválida o caducada: cerrar sesión para volver al login
+      if (response.status === 401) {
+        if (token) {
+          unauthorizedHandler?.();
+        }
+        throw new Error('Tu sesión ha expirado. Inicia sesión de nuevo.');
+      }
+
       let errorMessage = `Error ${response.status}: ${response.statusText}`;
-      
+
       try {
         const errorData = await response.json();
         errorMessage = errorData.error || errorMessage;
-        
-        // Manejar errores de autenticación específicamente
-        if (response.status === 401) {
-          errorMessage = 'No autorizado. Las APIs requieren autenticación.';
-        }
       } catch {
         // Si no se puede parsear el JSON, usar el mensaje por defecto
       }
-      
+
       throw new Error(errorMessage);
     }
 
