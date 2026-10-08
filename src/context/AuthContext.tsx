@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL, setUnauthorizedHandler } from '../config/api';
 import { notificationsService } from '../services/notificationsService';
+import { clearQueryCache } from '../config/queryClient';
 import { GOOGLE_WEB_CLIENT_ID } from '../config/env';
 
 // Importación usando require para evitar problemas de resolución de módulos ES6 en Metro
@@ -204,22 +205,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = useCallback(async () => {
+    // Primero cerrar la sesión local: las pantallas con datos se desmontan y ya no se pueden
+    // hacer peticiones con el token, así nada vuelve a llenar la caché ni a programar avisos
+    await AsyncStorage.multiRemove(['auth_token', 'auth_user']).catch((error) =>
+      console.error('Error borrando sesión almacenada:', error),
+    );
+    setToken(null);
+    setUser(null);
+
     try {
       // Quitar las alarmas del usuario saliente para que no le lleguen a otra cuenta en este dispositivo
       await notificationsService.cancelAllNotifications();
-      console.log('[Auth] Sesión cerrada: notificaciones canceladas');
+      // Borrar también los datos guardados para uso sin conexión: no deben verse con otra cuenta
+      await clearQueryCache();
+      console.log('[Auth] Sesión cerrada: notificaciones y datos guardados eliminados');
       if (GoogleSignin && typeof GoogleSignin.signOut === 'function') {
         await GoogleSignin.signOut();
       }
     } catch (error) {
       console.error('Error en signOut:', error);
-    } finally {
-      // Limpiar la sesión local aunque falle algún paso anterior
-      await AsyncStorage.multiRemove(['auth_token', 'auth_user']).catch((error) =>
-        console.error('Error borrando sesión almacenada:', error),
-      );
-      setToken(null);
-      setUser(null);
     }
   }, []);
 

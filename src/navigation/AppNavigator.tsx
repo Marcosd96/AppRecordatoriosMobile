@@ -19,6 +19,8 @@ import PersonalTasksScreen from '../screens/PersonalTasksScreen';
 import RemindersScreen from '../screens/RemindersScreen';
 import CompaniesScreen from '../screens/CompaniesScreen';
 import NotificationTroubleshootingScreen from '../screens/NotificationTroubleshootingScreen';
+import NotificationSync from '../components/NotificationSync';
+import OfflineBanner from '../components/OfflineBanner';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -27,70 +29,76 @@ function MainTabs() {
   const insets = useSafeAreaInsets();
   const { isDark } = useTheme();
   const responsive = useResponsive();
-  
+  const tabBarHeight =
+    responsive.scale(60) + Math.max(insets.bottom - responsive.spacing.xs, 0);
+
   return (
-    <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: '#2563eb',
-        tabBarInactiveTintColor: isDark ? '#9ca3af' : '#6b7280',
-        tabBarStyle: {
-          backgroundColor: isDark ? '#1f2937' : '#ffffff',
-          borderTopWidth: 1,
-          borderTopColor: isDark ? '#374151' : '#e5e7eb',
-          paddingBottom: Math.max(insets.bottom, responsive.spacing.xs),
-          paddingTop: responsive.spacing.xs,
-          height: responsive.scale(60) + Math.max(insets.bottom - responsive.spacing.xs, 0),
-        },
-        tabBarLabelStyle: {
-          fontSize: responsive.fontSize.xs,
-        },
-        tabBarIconStyle: {
-          marginTop: responsive.spacing.xs,
-        },
-      }}
-    >
-      <Tab.Screen
-        name="Dashboard"
-        component={DashboardScreen}
-        options={{
-          tabBarLabel: 'Inicio',
-          tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: 20, color }}>🏠</Text>
-          ),
+    <View style={{ flex: 1 }}>
+      <NotificationSync />
+      <Tab.Navigator
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: '#2563eb',
+          tabBarInactiveTintColor: isDark ? '#9ca3af' : '#6b7280',
+          tabBarStyle: {
+            backgroundColor: isDark ? '#1f2937' : '#ffffff',
+            borderTopWidth: 1,
+            borderTopColor: isDark ? '#374151' : '#e5e7eb',
+            paddingBottom: Math.max(insets.bottom, responsive.spacing.xs),
+            paddingTop: responsive.spacing.xs,
+            height: tabBarHeight,
+          },
+          tabBarLabelStyle: {
+            fontSize: responsive.fontSize.xs,
+          },
+          tabBarIconStyle: {
+            marginTop: responsive.spacing.xs,
+          },
         }}
-      />
-      <Tab.Screen
-        name="PersonalTasks"
-        component={PersonalTasksScreen}
-        options={{
-          tabBarLabel: 'Tareas',
-          tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: 20, color }}>✅</Text>
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Reminders"
-        component={RemindersScreen}
-        options={{
-          tabBarLabel: 'Recordatorios',
-          tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: 20, color }}>📅</Text>
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Companies"
-        component={CompaniesScreen}
-        options={{
-          tabBarLabel: 'Empresas',
-          tabBarIcon: ({ color }) => (
-            <Text style={{ fontSize: 20, color }}>🏢</Text>
-          ),
-        }}
-      />
-    </Tab.Navigator>
+      >
+        <Tab.Screen
+          name="Dashboard"
+          component={DashboardScreen}
+          options={{
+            tabBarLabel: 'Inicio',
+            tabBarIcon: ({ color }) => (
+              <Text style={{ fontSize: 20, color }}>🏠</Text>
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="PersonalTasks"
+          component={PersonalTasksScreen}
+          options={{
+            tabBarLabel: 'Tareas',
+            tabBarIcon: ({ color }) => (
+              <Text style={{ fontSize: 20, color }}>✅</Text>
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Reminders"
+          component={RemindersScreen}
+          options={{
+            tabBarLabel: 'Recordatorios',
+            tabBarIcon: ({ color }) => (
+              <Text style={{ fontSize: 20, color }}>📅</Text>
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Companies"
+          component={CompaniesScreen}
+          options={{
+            tabBarLabel: 'Empresas',
+            tabBarIcon: ({ color }) => (
+              <Text style={{ fontSize: 20, color }}>🏢</Text>
+            ),
+          }}
+        />
+      </Tab.Navigator>
+      <OfflineBanner bottom={tabBarHeight} />
+    </View>
   );
 }
 

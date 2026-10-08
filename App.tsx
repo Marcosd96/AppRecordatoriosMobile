@@ -10,6 +10,8 @@ import React, { useEffect } from 'react';
 import { StatusBar } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import notifee, { EventType } from '@notifee/react-native';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { PERSIST_MAX_AGE, queryClient, queryPersister } from './src/config/queryClient';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import AppNavigator from './src/navigation/AppNavigator';
 
@@ -51,9 +53,14 @@ function AppContent() {
 
 function App() {
   return (
-    <ThemeProvider>
-      <AppContent />
-    </ThemeProvider>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{ persister: queryPersister, maxAge: PERSIST_MAX_AGE }}
+    >
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
+    </PersistQueryClientProvider>
   );
 }
 
