@@ -63,6 +63,9 @@ export default function CompanyCard({
         <TouchableOpacity
           onPress={() => onDelete(company.id)}
           style={{ marginLeft: responsive.spacing.sm }}
+          accessibilityRole="button"
+          accessibilityLabel={`Eliminar empresa ${company.name}`}
+          hitSlop={8}
         >
           <Text
             className="text-red-600"

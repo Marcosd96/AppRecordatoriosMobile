@@ -279,6 +279,7 @@ export default function StyledModal({
                       return (
                         <TouchableOpacity
                           key={index}
+                          accessibilityRole="button"
                           onPress={() => {
                             if (!isAnimatingRef.current) {
                               button.onPress();

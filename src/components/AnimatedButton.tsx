@@ -36,6 +36,8 @@ export default function AnimatedButton({
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
       <TouchableOpacity
+        // Para los lectores de pantalla (TalkBack/VoiceOver); se puede sobrescribir
+        accessibilityRole="button"
         {...props}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
