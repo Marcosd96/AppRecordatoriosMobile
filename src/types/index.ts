@@ -2,12 +2,14 @@
  * Tipos para el sistema de recordatorios fiscales - React Native
  */
 
+import { CalendarType } from '../config/calendarTypes';
+
 export interface Company {
   id: string;
   name: string;
   nit: string;
   cityId?: string;
-  calendarTypes?: string[];
+    calendarTypes?: CalendarType[];
   createdAt: Date | string;
 }
 

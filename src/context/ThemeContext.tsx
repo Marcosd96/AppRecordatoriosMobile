@@ -3,6 +3,10 @@ import { useColorScheme, Appearance } from 'react-native';
 
 type ColorScheme = 'light' | 'dark';
 
+// El sistema puede devolver null o 'unspecified': en ese caso se usa el tema claro
+const toColorScheme = (scheme: string | null | undefined): ColorScheme =>
+  scheme === 'dark' ? 'dark' : 'light';
+
 interface ThemeContextType {
   colorScheme: ColorScheme;
   isDark: boolean;
@@ -15,14 +19,14 @@ const ThemeContext = createContext<ThemeContextType>({
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemColorScheme = useColorScheme();
-  const [colorScheme, setColorScheme] = useState<ColorScheme>(
-    systemColorScheme || 'light'
+    const [colorScheme, setColorScheme] = useState<ColorScheme>(
+    toColorScheme(systemColorScheme)
   );
 
   useEffect(() => {
     // Actualizar cuando cambia el tema del sistema
     const subscription = Appearance.addChangeListener(({ colorScheme: newScheme }) => {
-      setColorScheme(newScheme || 'light');
+            setColorScheme(toColorScheme(newScheme));
     });
 
     return () => subscription.remove();
@@ -31,7 +35,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Sincronizar con el tema del sistema cuando cambia
     if (systemColorScheme) {
-      setColorScheme(systemColorScheme);
+            setColorScheme(toColorScheme(systemColorScheme));
     }
   }, [systemColorScheme]);
 
