@@ -4,7 +4,7 @@ import { flushPendingNavigation, navigationRef } from './notificationNavigation'
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { View, Text, ActivityIndicator } from 'react-native';
+import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -22,6 +22,7 @@ import CompaniesScreen from '../screens/CompaniesScreen';
 import NotificationTroubleshootingScreen from '../screens/NotificationTroubleshootingScreen';
 import NotificationSync from '../components/NotificationSync';
 import OfflineBanner from '../components/OfflineBanner';
+import LoadingScreen from '../components/LoadingScreen';
 import {
   renderCalendarTabIcon,
   renderCompaniesTabIcon,
@@ -40,23 +41,26 @@ function MainTabs() {
     responsive.scale(60) + Math.max(insets.bottom - responsive.spacing.xs, 0);
 
   return (
-    <View style={{ flex: 1 }}>
+    <View className="flex-1">
       <NotificationSync />
       <Tab.Navigator
         screenOptions={{
           headerShown: false,
-          tabBarActiveTintColor: '#2563eb',
+          // Mismos colores que el encabezado de cada pantalla; en oscuro, un azul más claro
+          // para que la pestaña activa contraste
+          tabBarActiveTintColor: isDark ? '#60a5fa' : '#2563eb',
           tabBarInactiveTintColor: isDark ? '#9ca3af' : '#6b7280',
           tabBarStyle: {
-            backgroundColor: isDark ? '#1f2937' : '#ffffff',
+            backgroundColor: isDark ? '#111827' : '#ffffff',
             borderTopWidth: 1,
-            borderTopColor: isDark ? '#374151' : '#e5e7eb',
+            borderTopColor: isDark ? '#1f2937' : '#e5e7eb',
             paddingBottom: Math.max(insets.bottom, responsive.spacing.xs),
             paddingTop: responsive.spacing.xs,
             height: tabBarHeight,
           },
           tabBarLabelStyle: {
             fontSize: responsive.fontSize.xs,
+            fontWeight: '600',
           },
           tabBarIconStyle: {
             marginTop: responsive.spacing.xs,
@@ -159,12 +163,7 @@ function AppNavigatorContent() {
   const { isDark } = useTheme();
 
   if (loading || hasCompletedOnboarding === null || isFirstLaunch === null) {
-    return (
-      <View className={`flex-1 items-center justify-center ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
-        <ActivityIndicator size="large" color="#2563eb" />
-        <Text className={isDark ? 'text-gray-300 mt-4' : 'text-gray-600 mt-4'}>Cargando...</Text>
-      </View>
-    );
+    return <LoadingScreen isDark={isDark} message="Cargando..." />;
   }
 
   // Configuración de transiciones animadas

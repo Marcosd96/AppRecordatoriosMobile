@@ -1,9 +1,10 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { useIsOnline } from '../hooks/queries';
+import { WifiOffIcon } from './icons/ActionIcons';
 
 /**
- * Franja que avisa de que no hay conexión y se están mostrando los datos guardados
+ * Aviso flotante de que no hay conexión y se están mostrando los datos guardados
  */
 export default function OfflineBanner({ bottom }: { bottom: number }) {
   const isOnline = useIsOnline();
@@ -15,12 +16,16 @@ export default function OfflineBanner({ bottom }: { bottom: number }) {
   return (
     <View
       pointerEvents="none"
-      className="absolute left-0 right-0 bg-gray-800 px-4 py-2"
-      style={{ bottom }}
+      className="absolute left-0 right-0 items-center px-4"
+      style={{ bottom: bottom + 8 }}
+      accessibilityLiveRegion="polite"
     >
-      <Text className="text-center text-sm font-semibold text-white">
-        📡 Sin conexión · mostrando datos guardados
-      </Text>
+      <View className="flex-row items-center rounded-full bg-gray-900/95 px-4 py-2 border border-gray-700">
+        <WifiOffIcon color="#fcd34d" size={16} />
+        <Text className="ml-2 text-sm font-semibold text-white">
+          Sin conexión · mostrando datos guardados
+        </Text>
+      </View>
     </View>
   );
 }
