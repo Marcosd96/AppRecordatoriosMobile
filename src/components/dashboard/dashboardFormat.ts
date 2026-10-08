@@ -18,6 +18,17 @@ export const getDaysUntil = (dueDate: Date | string, today: Date = new Date()): 
 };
 
 /**
+ * Texto corto para los días que faltan, con singular/plural correcto
+ */
+export const formatDaysLabel = (days: number): string => {
+  if (days === 0) return 'Vence hoy';
+  if (days === 1) return 'Vence mañana';
+  if (days === -1) return 'Venció ayer';
+  if (days < 0) return `Venció hace ${Math.abs(days)} días`;
+  return `En ${days} días`;
+};
+
+/**
  * Tiempo restante en texto ("en 2 días", "en 3 horas", "muy pronto")
  */
 export const formatTimeUntil = (date: Date, now: Date = new Date()): string => {
