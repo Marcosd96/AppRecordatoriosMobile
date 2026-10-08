@@ -1,3 +1,5 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 /**
  * Configuración de la API
  * Cambia esta URL según tu entorno (desarrollo, producción)
@@ -35,10 +37,23 @@ export const API_ENDPOINTS = {
  */
 async function getAuthToken(): Promise<string | null> {
   try {
-    const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage');
     return await AsyncStorage.getItem('auth_token');
   } catch {
     return null;
+  }
+}
+
+/**
+ * Error de la API con el código HTTP (0 = sin conexión con el servidor)
+ */
+export class ApiError extends Error {
+  constructor(message: string, public readonly status: number) {
+    super(message);
+    this.name = 'ApiError';
+  }
+
+  get isNetworkError(): boolean {
+    return this.status === 0;
   }
 }
 
@@ -98,7 +113,7 @@ async function fetchAPI<T>(
         if (token) {
           unauthorizedHandler?.();
         }
-        throw new Error('Tu sesión ha expirado. Inicia sesión de nuevo.');
+        throw new ApiError('Tu sesión ha expirado. Inicia sesión de nuevo.', 401);
       }
 
       let errorMessage = `Error ${response.status}: ${response.statusText}`;
@@ -110,7 +125,7 @@ async function fetchAPI<T>(
         // Si no se puede parsear el JSON, usar el mensaje por defecto
       }
 
-      throw new Error(errorMessage);
+      throw new ApiError(errorMessage, response.status);
     }
 
     return response.json();
@@ -119,11 +134,12 @@ async function fetchAPI<T>(
     
     // Mejorar mensajes de error
     if (error.message?.includes('Network request failed')) {
-      throw new Error(
+      throw new ApiError(
         `No se pudo conectar al servidor. Verifica:\n` +
         `1. Que la URL sea correcta: ${API_BASE_URL}\n` +
         `2. Que tengas conexión a internet\n` +
-        `3. Si estás en desarrollo local, usa tu IP local en lugar de localhost`
+        `3. Si estás en desarrollo local, usa tu IP local en lugar de localhost`,
+        0,
       );
     }
     
