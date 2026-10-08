@@ -246,6 +246,14 @@ class NotificationsService {
     }
   }
 
+    private async warnIfNoPermission(): Promise<void> {
+    if (!(await this.checkPermissions())) {
+      console.warn(
+        '[Notificaciones] Sin permisos: se programan igualmente y se mostrarán cuando se concedan',
+      );
+    }
+  }
+
   /**
    * Crea un canal de notificaciones para Android
    */
@@ -502,15 +510,9 @@ class NotificationsService {
    */
   async scheduleAllReminders(reminders: Reminder[], sendImmediate: boolean = false): Promise<void> {
     try {
-      // Verificar permisos primero
-      const hasPermission = await this.checkPermissions();
-      if (!hasPermission) {
-        const granted = await this.requestPermissions();
-        if (!granted) {
-          console.warn('Permisos de notificación no concedidos');
-          return;
-        }
-      }
+            // Se programan aunque falten permisos: el sistema no las muestra mientras tanto, y en
+      // cuanto el usuario los conceda empiezan a llegar. Pedirlos es cosa de la interfaz.
+      await this.warnIfNoPermission();
 
       // Limpiar notificaciones inmediatas de días anteriores
       await this.cleanOldImmediateNotifications();
@@ -547,19 +549,22 @@ class NotificationsService {
    * ⚠️ CUIDADO: Esto cancela notificaciones de recordatorios Y tareas personales
    * Usar solo cuando sea necesario limpiar todo
    */
-  async cancelAllNotifications(): Promise<void> {
-    try {
-      // En Android las alarmas siguen apareciendo en `dumpsys alarm`, pero notifee borra su
-      // registro y, al dispararse, no muestra nada.
-      await notifee.cancelAllNotifications();
-      this.lastReminderSync = null;
-      this.lastPersonalTaskSync = null;
-      await AsyncStorage.removeItem(NOTIFICATION_STORAGE_KEY);
-      await AsyncStorage.removeItem('@scheduled_personal_task_notifications');
-      await AsyncStorage.removeItem(IMMEDIATE_NOTIFICATIONS_TODAY_KEY);
-    } catch (error) {
-      console.error('Error al cancelar todas las notificaciones:', error);
-    }
+  cancelAllNotifications(): Promise<void> {
+    // En la cola: una sincronización en curso no puede volver a crear avisos después de esto
+    return this.runExclusive(async () => {
+      try {
+        // En Android las alarmas siguen apareciendo en `dumpsys alarm`, pero notifee borra su
+        // registro y, al dispararse, no muestra nada.
+        await notifee.cancelAllNotifications();
+        this.lastReminderSync = null;
+        this.lastPersonalTaskSync = null;
+        await AsyncStorage.removeItem(NOTIFICATION_STORAGE_KEY);
+        await AsyncStorage.removeItem('@scheduled_personal_task_notifications');
+        await AsyncStorage.removeItem(IMMEDIATE_NOTIFICATIONS_TODAY_KEY);
+      } catch (error) {
+        console.error('Error al cancelar todas las notificaciones:', error);
+      }
+    });
   }
 
   /**
@@ -1305,15 +1310,8 @@ class NotificationsService {
    */
   async scheduleAllPersonalTasks(tasks: PersonalTask[]): Promise<void> {
     try {
-      // Verificar permisos primero
-      const hasPermission = await this.checkPermissions();
-      if (!hasPermission) {
-        const granted = await this.requestPermissions();
-        if (!granted) {
-          console.warn('Permisos de notificación no concedidos para tareas personales');
-          return;
-        }
-      }
+            // Se programan aunque falten permisos (ver scheduleAllReminders)
+      await this.warnIfNoPermission();
 
       // Cancelar todas las notificaciones de tareas personales existentes
       await this.cancelAllPersonalTaskNotifications();

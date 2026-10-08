@@ -35,6 +35,7 @@ const tick = () => new Promise<void>(resolve => setImmediate(() => resolve()));
 beforeEach(async () => {
   jest.useFakeTimers({ now: NOW, doNotFake: ['nextTick', 'setImmediate'] });
   jest.spyOn(console, 'log').mockImplementation(() => {});
+  jest.spyOn(console, 'warn').mockImplementation(() => {});
   await AsyncStorage.clear();
   await notificationsService.cancelAllNotifications(); // también olvida las sincronizaciones previas
 
@@ -111,6 +112,18 @@ describe('syncReminders', () => {
 
     expect(scheduled.has('reminder_viejo_0days')).toBe(false);
     expect(scheduled.has('personal_task_t1')).toBe(true);
+  });
+});
+
+describe('permisos', () => {
+  it('sin permisos programa igualmente y no muestra el diálogo del sistema', async () => {
+    (notifee.getNotificationSettings as jest.Mock).mockResolvedValue({ authorizationStatus: 0 });
+
+    await notificationsService.syncReminders([makeReminder('a', 10)]);
+    await notificationsService.syncPersonalTasks([]);
+
+    expect(notifee.requestPermission).not.toHaveBeenCalled();
+    expect(scheduled.size).toBe(4);
   });
 });
 

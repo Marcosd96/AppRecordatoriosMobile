@@ -54,6 +54,7 @@ beforeEach(async () => {
   jest.useFakeTimers({ now: NOW, doNotFake: ['nextTick', 'setImmediate'] });
   jest.clearAllMocks();
   jest.spyOn(console, 'log').mockImplementation(() => {});
+  jest.spyOn(console, 'warn').mockImplementation(() => {});
   await AsyncStorage.clear();
 });
 
