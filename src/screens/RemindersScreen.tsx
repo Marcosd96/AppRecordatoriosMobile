@@ -70,7 +70,7 @@ export default function RemindersScreen({ route }: any) {
       setCompanies(companiesData);
 
       // Programar notificaciones para los recordatorios pendientes
-      await notificationsService.scheduleAllReminders(remindersData);
+      await notificationsService.syncReminders(remindersData);
     } catch (error: any) {
       console.error('Error al cargar datos:', error);
       setErrorMessage({
