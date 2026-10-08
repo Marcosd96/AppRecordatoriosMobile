@@ -39,10 +39,7 @@ function configureGoogleSignIn() {
     return false;
   }
 
-  if (!GOOGLE_WEB_CLIENT_ID || GOOGLE_WEB_CLIENT_ID === 'TU_GOOGLE_WEB_CLIENT_ID_AQUI.apps.googleusercontent.com') {
-    console.warn('Google Sign-In no configurado: falta GOOGLE_WEB_CLIENT_ID. Edita src/config/env.ts');
-    return false;
-  }
+  
 
   try {
     GoogleSignin.configure({
@@ -101,8 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Iniciar sesión con Google
       const result = await GoogleSignin.signIn();
       
-      // Log completo para debugging
-      console.log('Google Sign-In response completo:', JSON.stringify(result, null, 2));
+      
       
       // Manejar diferentes estructuras de respuesta
       // La respuesta puede venir como { data: { idToken, user }, type } o directamente { idToken, user }
@@ -116,17 +112,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Obtener el idToken de diferentes posibles ubicaciones
       const idToken = userInfo?.idToken || result?.idToken || userInfo?.data?.idToken;
       
-      // Log para debugging
-      console.log('Token extraído:', {
-        hasIdToken: !!idToken,
-        idTokenLength: idToken?.length,
-        hasUser: !!userInfo?.user,
-        userEmail: userInfo?.user?.email,
-      });
+      
       
       // Verificar que tengamos el token
       if (!idToken) {
-        console.error('Google Sign-In response sin idToken. Estructura completa:', result);
+                // Sin registrar la respuesta: puede contener datos de la cuenta
+        console.error('Google Sign-In response sin idToken. Claves recibidas:', Object.keys(userInfo ?? {}));
         throw new Error('No se recibió token de Google. Por favor, intenta de nuevo.');
       }
 
@@ -144,16 +135,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }),
       });
 
-      console.log('Respuesta del backend:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        headers: Object.fromEntries(response.headers.entries()),
-      });
-
-      // Leer el contenido de la respuesta para debugging
+            // No registrar el cuerpo: contiene el token de sesión
+      console.log('Respuesta del backend:', response.status);
       const responseText = await response.text();
-      console.log('Contenido de la respuesta (primeros 500 caracteres):', responseText.substring(0, 500));
+
 
       if (!response.ok) {
         // Intentar parsear como JSON, si falla usar el texto
