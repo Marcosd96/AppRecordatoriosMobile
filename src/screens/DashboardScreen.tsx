@@ -13,6 +13,7 @@ import CompaniesSummaryCard from '../components/dashboard/CompaniesSummaryCard';
 import DashboardStatsCard from '../components/dashboard/DashboardStatsCard';
 import NotificationStatusCard from '../components/dashboard/NotificationStatusCard';
 import UpcomingRemindersCard from '../components/dashboard/UpcomingRemindersCard';
+import AppearanceCard from '../components/dashboard/AppearanceCard';
 
 export default function DashboardScreen({ navigation }: any) {
   const { user, signOut } = useAuth();
@@ -121,6 +122,8 @@ export default function DashboardScreen({ navigation }: any) {
           companiesCount={companiesCount}
           onOpenCompanies={() => navigation.navigate('Companies')}
         />
+
+        <AppearanceCard />
       </ScrollView>
 
       {/* Modal de confirmación de cierre de sesión */}
