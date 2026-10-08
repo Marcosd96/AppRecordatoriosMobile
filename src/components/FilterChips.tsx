@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, Text, TouchableOpacity } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
 export interface FilterChipOption<K extends string> {
   key: K;
@@ -25,7 +25,7 @@ export default function FilterChips<K extends string>({
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ paddingVertical: 4 }}
+      contentContainerStyle={styles.row}
     >
       {options.map(option => {
         const isSelected = option.key === selected;
@@ -66,3 +66,7 @@ export default function FilterChips<K extends string>({
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  row: { paddingVertical: 4 },
+});

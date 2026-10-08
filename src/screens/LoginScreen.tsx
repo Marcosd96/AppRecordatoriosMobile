@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
@@ -49,11 +50,7 @@ export default function LoginScreen() {
       <View className="flex-1 items-center justify-center px-8">
         <AnimatedView animationType="slideDown" delay={0} duration={600}>
           <Animated.View
-            style={{
-              transform: [{ scale: logoScale }],
-              marginBottom: 48,
-              alignItems: 'center',
-            }}
+            style={[styles.logoBlock, { transform: [{ scale: logoScale }] }]}
           >
             <View className="mb-6">
               <AppLogo size={88} />
@@ -119,3 +116,6 @@ export default function LoginScreen() {
   );
 }
 
+const styles = StyleSheet.create({
+  logoBlock: { marginBottom: 48, alignItems: 'center' },
+});

@@ -171,11 +171,10 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
 
         {/* Título */}
         <Animated.View
-          style={{
-            opacity: titleOpacity,
-            transform: [{ translateY: titleTranslateY }],
-            marginTop: 32,
-          }}
+          style={[
+            styles.titleBlock,
+            { opacity: titleOpacity, transform: [{ translateY: titleTranslateY }] },
+          ]}
         >
           <Text 
             className={`text-5xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}
@@ -187,12 +186,10 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
 
         {/* Subtítulo */}
         <Animated.View
-          style={{
-            opacity: subtitleOpacity,
-            transform: [{ translateY: subtitleTranslateY }],
-            marginTop: 16,
-            paddingHorizontal: 40,
-          }}
+          style={[
+            styles.subtitleBlock,
+            { opacity: subtitleOpacity, transform: [{ translateY: subtitleTranslateY }] },
+          ]}
         >
           <Text 
             className={`text-lg text-center ${isDark ? 'text-gray-300' : 'text-gray-600'}`}
@@ -205,11 +202,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
 
       {/* Footer */}
       <Animated.View
-        style={{
-          opacity: subtitleOpacity,
-          paddingBottom: 40,
-          alignItems: 'center',
-        }}
+        style={[styles.footer, { opacity: subtitleOpacity }]}
       >
         <Text className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
           Versión {appVersion}
@@ -253,6 +246,9 @@ const styles = StyleSheet.create({
     shadowRadius: 10.32,
     elevation: 16,
   },
+  titleBlock: { marginTop: 32 },
+  subtitleBlock: { marginTop: 16, paddingHorizontal: 40 },
+  footer: { paddingBottom: 40, alignItems: 'center' },
   title: {
     letterSpacing: 1,
   },

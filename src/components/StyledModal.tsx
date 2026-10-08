@@ -155,6 +155,7 @@ export default function StyledModal({
   };
 
   const stackButtons = !!buttons && buttons.length > 2;
+  const palette = isDark ? themeStyles.dark : themeStyles.light;
 
   const dynamicStyles = StyleSheet.create({
     overlay: {
@@ -235,17 +236,15 @@ export default function StyledModal({
             <Animated.View
               style={[
                 dynamicStyles.modalContainer,
-                {
-                  backgroundColor: isDark ? '#1f2937' : '#ffffff',
-                  transform: [{ translateY: slideAnim }],
-                },
+                palette.container,
+                { transform: [{ translateY: slideAnim }] },
               ]}
             >
               <View style={dynamicStyles.contentContainer}>
                 <Text
                   style={[
                     dynamicStyles.title,
-                    { color: isDark ? '#ffffff' : '#111827' },
+                    palette.title,
                   ]}
                 >
                   {title}
@@ -254,7 +253,7 @@ export default function StyledModal({
                   <Text
                     style={[
                       dynamicStyles.message,
-                      { color: isDark ? '#d1d5db' : '#4b5563' },
+                      palette.message,
                     ]}
                   >
                     {message}
@@ -309,4 +308,16 @@ export default function StyledModal({
   );
 }
 
-
+// Colores del modal según el tema
+const themeStyles = {
+  light: StyleSheet.create({
+    container: { backgroundColor: '#ffffff' },
+    title: { color: '#111827' },
+    message: { color: '#4b5563' },
+  }),
+  dark: StyleSheet.create({
+    container: { backgroundColor: '#1f2937' },
+    title: { color: '#ffffff' },
+    message: { color: '#d1d5db' },
+  }),
+};

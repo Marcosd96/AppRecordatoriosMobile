@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import AnimatedButton from '../AnimatedButton';
 import SectionCard from '../SectionCard';
 import { ReminderFilter } from '../../types';
@@ -71,11 +71,10 @@ export default function DashboardStatsCard({ isDark, stats, onSelectFilter }: Da
         {items.map(item => (
           <View
             key={item.label}
-            style={{
-              width: responsive.isTablet ? '25%' : '50%',
-              paddingHorizontal: responsive.spacing.xs,
-              marginBottom: responsive.spacing.sm,
-            }}
+            style={[
+              responsive.isTablet ? styles.quarter : styles.half,
+              { paddingHorizontal: responsive.spacing.xs, marginBottom: responsive.spacing.sm },
+            ]}
           >
             <AnimatedButton
               onPress={() => onSelectFilter(item.filter)}
@@ -116,3 +115,9 @@ export default function DashboardStatsCard({ isDark, stats, onSelectFilter }: Da
     </SectionCard>
   );
 }
+
+// En tablet caben las cuatro cifras en una fila; en teléfono, dos por fila
+const styles = StyleSheet.create({
+  half: { width: '50%' },
+  quarter: { width: '25%' },
+});
