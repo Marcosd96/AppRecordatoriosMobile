@@ -19,7 +19,7 @@ Aplicación móvil en **React Native + TypeScript** para la gestión integral de
 - **Servicios HTTP organizados** en `src/services` para empresas, recordatorios, tareas y paneles.
 
 ## ✅ Requisitos previos
-- Node.js >= 20 y npm (o pnpm/yarn) actualizados.
+- Node.js >= 20 y npm actualizados (el proyecto usa `package-lock.json`).
 - JDK 17, Android Studio + Android SDK Platform 34.
 - Xcode 15.4+ y CocoaPods (solo macOS/iOS).
 - Dispositivo o emulador configurado, así como Watchman y Ruby Bundler opcionalmente.
@@ -28,12 +28,9 @@ Aplicación móvil en **React Native + TypeScript** para la gestión integral de
 1. **Instala dependencias**
    ```bash
    npm install
-   # ó
-   pnpm install
    ```
-2. **Configura variables de entorno**
-   - Duplica `.env.example` (si aplica) o crea `.env`.
-   - Define `GOOGLE_WEB_CLIENT_ID` (se usa en `src/config/env.ts`).
+2. **Revisa la configuración**
+   - El Client ID de Google Sign-In está en `src/config/env.ts` y la URL de la API en `src/config/api.ts`.
 3. **Inicia Metro**
    ```bash
    npm start
