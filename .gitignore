@@ -81,3 +81,7 @@ releases/*.apk
 .env
 .env.local
 .env.*.local
+
+# Generados por `npm run build:apk` (react-native bundle): no se versionan
+android/app/src/main/assets/index.android.bundle
+android/app/src/main/res/drawable-*/node_modules_*
