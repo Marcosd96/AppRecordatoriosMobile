@@ -66,23 +66,14 @@ export default function CalendarSelector({
   React.useEffect(() => {
     if (visible) {
       setSelectedCalendars(company.calendarTypes || []);
-      console.log('[CalendarSelector] Modal abierto');
-      console.log('[CalendarSelector] Empresa:', company.name);
-      console.log('[CalendarSelector] Calendarios disponibles:', availableCalendars);
-      console.log('[CalendarSelector] Cantidad:', availableCalendars.length);
-      console.log('[CalendarSelector] Calendarios seleccionados:', company.calendarTypes || []);
     }
   }, [availableCalendars, company, visible]);
 
   const handleToggleCalendar = (calendarType: CalendarType) => {
     setSelectedCalendars((prev) => {
-      const newSelection = prev.includes(calendarType)
+      return prev.includes(calendarType)
         ? prev.filter((c) => c !== calendarType)
         : [...prev, calendarType];
-      
-      console.log('[CalendarSelector] Toggle:', calendarType);
-      console.log('[CalendarSelector] Nueva selección:', newSelection);
-      return newSelection;
     });
   };
 
@@ -117,21 +108,21 @@ export default function CalendarSelector({
             Los recordatorios se generarán solo para los calendarios seleccionados.
           </Text>
           {selectedCalendars.length > 0 && (
-            <View className={`mt-2 px-3 py-2 rounded-lg ${
+            <View className={`mt-3 px-3 py-2 rounded-xl ${
               isDark ? 'bg-blue-900/30' : 'bg-blue-50'
             }`}>
               <Text className={`text-sm font-medium ${
                 isDark ? 'text-blue-300' : 'text-blue-700'
               }`}>
-                ✓ {selectedCalendars.length} calendario{selectedCalendars.length !== 1 ? 's' : ''} seleccionado{selectedCalendars.length !== 1 ? 's' : ''}
+                {selectedCalendars.length} calendario{selectedCalendars.length !== 1 ? 's' : ''} seleccionado{selectedCalendars.length !== 1 ? 's' : ''}
               </Text>
             </View>
           )}
         </View>
 
         {error && (
-          <View className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <Text className="text-sm text-red-600">{error}</Text>
+          <View className={`mb-4 p-3 rounded-xl ${isDark ? 'bg-red-500/10' : 'bg-red-50'}`}>
+            <Text className={`text-sm ${isDark ? 'text-red-300' : 'text-red-600'}`}>{error}</Text>
           </View>
         )}
 
@@ -141,7 +132,7 @@ export default function CalendarSelector({
           nestedScrollEnabled={true}
         >
           {availableCalendars.length === 0 ? (
-            <View className={`p-4 rounded-lg border ${
+            <View className={`p-4 rounded-xl border ${
               isDark 
                 ? 'bg-yellow-900/30 border-yellow-800' 
                 : 'bg-yellow-50 border-yellow-200'
@@ -149,7 +140,7 @@ export default function CalendarSelector({
               <Text className={`font-semibold mb-2 ${
                 isDark ? 'text-yellow-300' : 'text-yellow-800'
               }`}>
-                ⚠️ No hay calendarios disponibles
+                No hay calendarios disponibles
               </Text>
               <Text className={`text-sm ${
                 isDark ? 'text-yellow-200' : 'text-yellow-700'
@@ -167,17 +158,18 @@ export default function CalendarSelector({
                  return (
                    <TouchableOpacity
                      key={calendarType}
-                     onPress={() => {
-                       console.log('[CalendarSelector] Click en:', calendarType, 'isSelected:', isSelected);
-                       handleToggleCalendar(calendarType);
-                     }}
+                     onPress={() => handleToggleCalendar(calendarType)}
+                     accessibilityRole="checkbox"
+                     accessibilityState={{ checked: isSelected }}
                      style={index < availableCalendars.length - 1 ? styles.calendarItemSpacing : undefined}
                      activeOpacity={0.7}
                    >
                      <View
-                       className={`flex-row items-start p-3 border-2 rounded-lg ${
+                       className={`flex-row items-start p-3 border rounded-xl ${
                          isSelected
-                           ? 'border-blue-500 bg-blue-50'
+                           ? isDark
+                             ? 'border-blue-500 bg-blue-500/15'
+                             : 'border-blue-500 bg-blue-50'
                            : isDark
                            ? 'border-gray-700 bg-gray-800'
                            : 'border-gray-200 bg-white'
@@ -220,11 +212,12 @@ export default function CalendarSelector({
         <View className={`pt-4 border-t ${
           isDark ? 'border-gray-700' : 'border-gray-200'
         }`}>
-          <View className="flex-row justify-end" style={styles.buttonRowGap}>
+          <View className="flex-row" style={styles.buttonRowGap}>
             <TouchableOpacity
               onPress={onClose}
               disabled={loading}
-              className="px-5 py-3 rounded-lg"
+              accessibilityRole="button"
+              className="flex-1 py-3 rounded-xl items-center"
               style={buttonStyles.cancel}
               activeOpacity={0.7}
             >
@@ -237,7 +230,8 @@ export default function CalendarSelector({
             <TouchableOpacity
               onPress={handleSave}
               disabled={isSaveDisabled}
-              className="px-5 py-3 rounded-lg"
+              accessibilityRole="button"
+              className="flex-1 py-3 rounded-xl items-center"
               style={buttonStyles.save}
               activeOpacity={0.7}
             >
@@ -248,7 +242,7 @@ export default function CalendarSelector({
                 </View>
               ) : (
                 <Text className="text-white font-semibold">
-                  Guardar y Regenerar
+                  Guardar
                 </Text>
               )}
             </TouchableOpacity>

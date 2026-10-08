@@ -1,14 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleProp, ViewStyle } from 'react-native';
 import { Reminder } from '../../types';
-
-interface ReminderCardProps {
-  reminder: Reminder;
-  isDark: boolean;
-  disabled?: boolean;
-  onToggleStatus: (id: string) => void;
-  style?: StyleProp<ViewStyle>;
-}
+import { formatDaysLabel, getDaysUntil } from '../dashboard/dashboardFormat';
 
 const formatDate = (date: Date | string): string =>
   new Intl.DateTimeFormat('es-CO', {
@@ -17,22 +10,13 @@ const formatDate = (date: Date | string): string =>
     day: 'numeric',
   }).format(new Date(date));
 
-export const getDaysUntil = (dueDate: Date | string, now = new Date()): number => {
-  const today = new Date(now);
-  today.setHours(0, 0, 0, 0);
-  const due = new Date(dueDate);
-  due.setHours(0, 0, 0, 0);
-  return Math.round((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-};
-
-/** Texto corto y en singular/plural correcto para los días que faltan */
-export const formatDaysLabel = (days: number): string => {
-  if (days === 0) return 'Vence hoy';
-  if (days === 1) return 'Vence mañana';
-  if (days === -1) return 'Venció ayer';
-  if (days < 0) return `Venció hace ${Math.abs(days)} días`;
-  return `En ${days} días`;
-};
+interface ReminderCardProps {
+  reminder: Reminder;
+  isDark: boolean;
+  disabled?: boolean;
+  onToggleStatus: (id: string) => void;
+  style?: StyleProp<ViewStyle>;
+}
 
 type Tone = 'done' | 'overdue' | 'urgent' | 'normal';
 

@@ -131,13 +131,13 @@ export default function StyledModal({
   const getButtonStyle = (style?: 'default' | 'destructive' | 'cancel') => {
     if (style === 'destructive') {
       return {
-        backgroundColor: isDark ? '#dc2626' : '#ef4444',
+        backgroundColor: '#dc2626',
         textColor: '#ffffff',
       };
     }
     if (style === 'cancel') {
       return {
-        backgroundColor: isDark ? '#374151' : '#e5e7eb',
+        backgroundColor: isDark ? '#374151' : '#f3f4f6',
         textColor: isDark ? '#d1d5db' : '#374151',
       };
     }
@@ -153,6 +153,8 @@ export default function StyledModal({
       onClose();
     }
   };
+
+  const stackButtons = !!buttons && buttons.length > 2;
 
   const dynamicStyles = StyleSheet.create({
     overlay: {
@@ -182,7 +184,7 @@ export default function StyledModal({
       paddingBottom: responsive.spacing.md,
     },
     title: {
-      fontSize: responsive.fontSize['2xl'],
+      fontSize: responsive.fontSize.xl,
       fontWeight: '700',
       marginBottom: responsive.spacing.sm,
     },
@@ -194,21 +196,18 @@ export default function StyledModal({
       paddingHorizontal: responsive.spacing.lg,
       paddingBottom: responsive.spacing.lg,
       paddingTop: responsive.spacing.sm,
-      borderTopWidth: 1,
     },
+    // Con 1-2 botones van en fila y con el mismo ancho; con más, apilados a lo ancho
     buttonsRow: {
-      flexDirection: responsive.isTablet ? 'row' : buttons && buttons.length > 2 ? 'column' : 'row',
-      justifyContent: 'flex-end',
-      flexWrap: 'wrap',
+      flexDirection: stackButtons ? 'column' : 'row',
       gap: responsive.spacing.sm,
     },
     button: {
       paddingHorizontal: responsive.spacing.md,
-      paddingVertical: responsive.spacing.sm,
-      borderRadius: responsive.borderRadius.md,
-      minWidth: responsive.isTablet ? 120 : 100,
+      paddingVertical: responsive.spacing.sm + 4,
+      borderRadius: responsive.borderRadius.lg,
       alignItems: 'center',
-      flex: responsive.isTablet && buttons && buttons.length <= 2 ? 0 : buttons && buttons.length > 2 ? 1 : 0,
+      flex: stackButtons ? 0 : 1,
     },
     buttonText: {
       fontSize: responsive.fontSize.base,
@@ -265,14 +264,7 @@ export default function StyledModal({
               </View>
 
               {buttons && buttons.length > 0 && (
-                <View
-                  style={[
-                    dynamicStyles.buttonsContainer,
-                    {
-                      borderTopColor: isDark ? '#374151' : '#e5e7eb',
-                    },
-                  ]}
-                >
+                <View style={dynamicStyles.buttonsContainer}>
                   <View style={dynamicStyles.buttonsRow}>
                     {buttons.map((button, index) => {
                       const buttonStyle = getButtonStyle(button.style);
@@ -290,10 +282,7 @@ export default function StyledModal({
                           }}
                           style={[
                             dynamicStyles.button,
-                            {
-                              backgroundColor: buttonStyle.backgroundColor,
-                              marginLeft: index > 0 && !responsive.isTablet && buttons.length <= 2 ? responsive.spacing.sm : 0,
-                            },
+                            { backgroundColor: buttonStyle.backgroundColor },
                           ]}
                         >
                           <Text
