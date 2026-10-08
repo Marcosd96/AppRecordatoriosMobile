@@ -4,7 +4,6 @@ import {
   Text,
   ActivityIndicator,
   Alert,
-  Image,
   Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import AnimatedView from '../components/AnimatedView';
 import AnimatedButton from '../components/AnimatedButton';
+import { AppLogo, GoogleIcon } from '../components/icons/BrandIcons';
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
@@ -55,10 +55,16 @@ export default function LoginScreen() {
               alignItems: 'center',
             }}
           >
-            <Text className={`text-4xl font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            <View className="mb-6">
+              <AppLogo size={88} />
+            </View>
+            <Text
+              accessibilityRole="header"
+              className={`text-4xl font-bold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}
+            >
               Gesaccol
             </Text>
-            <Text className={`text-lg text-center ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+            <Text className={`text-base text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
               Gestiona tus recordatorios fiscales de forma fácil y segura
             </Text>
           </Animated.View>
@@ -66,9 +72,14 @@ export default function LoginScreen() {
 
         <AnimatedView animationType="slideUp" delay={200} duration={600}>
           <View className="w-full max-w-sm">
-            <AnimatedButton onPress={handleSignIn} disabled={loading}>
+            <AnimatedButton
+              onPress={handleSignIn}
+              disabled={loading}
+              accessibilityLabel="Continuar con Google"
+              accessibilityState={{ disabled: loading, busy: loading }}
+            >
               <View
-                className={`rounded-lg py-4 px-6 flex-row items-center justify-center border-2 ${
+                className={`rounded-xl py-4 px-6 flex-row items-center justify-center border ${
                   loading ? 'opacity-50' : ''
                 } ${
                   isDark 
@@ -80,12 +91,9 @@ export default function LoginScreen() {
                   <ActivityIndicator color="#4285F4" />
                 ) : (
                   <>
-                    <Image
-                      source={{
-                        uri: 'https://www.google.com/favicon.ico',
-                      }}
-                      className="w-6 h-6 mr-3"
-                    />
+                    <View className="mr-3">
+                      <GoogleIcon size={22} />
+                    </View>
                     <Text className={`font-semibold text-base ${
                       isDark ? 'text-gray-200' : 'text-gray-700'
                     }`}>

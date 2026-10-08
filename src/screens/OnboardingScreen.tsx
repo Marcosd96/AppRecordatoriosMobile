@@ -1,169 +1,79 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  Animated,
+  useWindowDimensions,
+  StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import AnimatedView from '../components/AnimatedView';
 import AnimatedButton from '../components/AnimatedButton';
-
-const { width } = Dimensions.get('window');
+import { AppLogo } from '../components/icons/BrandIcons';
+import { BellIcon } from '../components/icons/ActionIcons';
+import { CalendarIcon, CompaniesIcon } from '../components/icons/TabIcons';
 
 interface OnboardingScreenProps {
   onComplete: () => void;
 }
 
-const onboardingData = [
+type OnboardingIcon = 'logo' | 'companies' | 'bell' | 'calendar';
+
+const onboardingData: { title: string; description: string; icon: OnboardingIcon }[] = [
   {
     title: 'Bienvenido a Gesaccol',
-    description: 'Tu asistente inteligente para gestionar recordatorios fiscales de manera fácil y eficiente',
-    icon: '📋',
+    description: 'Tu asistente para gestionar recordatorios fiscales de forma fácil y eficiente.',
+    icon: 'logo',
   },
   {
-    title: 'Gestiona tus Empresas',
-    description: 'Agrega y administra todas tus empresas con sus respectivos NITs y calendarios fiscales',
-    icon: '🏢',
+    title: 'Gestiona tus empresas',
+    description: 'Agrega y administra todas tus empresas con sus NIT y calendarios fiscales.',
+    icon: 'companies',
   },
   {
-    title: 'Recordatorios Automáticos',
-    description: 'Recibe notificaciones automáticas de tus obligaciones fiscales según los calendarios de la DIAN',
-    icon: '🔔',
+    title: 'Recordatorios automáticos',
+    description: 'Recibe avisos de tus obligaciones fiscales según los calendarios de la DIAN.',
+    icon: 'bell',
   },
   {
-    title: 'Todo en un Solo Lugar',
-    description: 'Visualiza todos tus recordatorios pendientes, vencidos y próximos en un solo lugar',
-    icon: '📊',
+    title: 'Todo en un solo lugar',
+    description: 'Consulta tus recordatorios pendientes, vencidos y próximos de un vistazo.',
+    icon: 'calendar',
   },
 ];
 
+function PageIcon({ icon, isDark }: { icon: OnboardingIcon; isDark: boolean }) {
+  if (icon === 'logo') {
+    return <AppLogo size={112} />;
+  }
+  const color = isDark ? '#93c5fd' : '#2563eb';
+  return (
+    <View
+      className={`h-28 w-28 rounded-3xl items-center justify-center ${
+        isDark ? 'bg-blue-500/15' : 'bg-blue-50'
+      }`}
+    >
+      {icon === 'companies' && <CompaniesIcon color={color} size={52} />}
+      {icon === 'bell' && <BellIcon color={color} size={52} />}
+      {icon === 'calendar' && <CalendarIcon color={color} size={52} />}
+    </View>
+  );
+}
+
 export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
   const { isDark } = useTheme();
+  const { width } = useWindowDimensions();
   const [currentPage, setCurrentPage] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
-  const skipButtonOpacity = useRef(new Animated.Value(1)).current;
-  const skipButtonHeight = useRef(new Animated.Value(1)).current;
-  const skipButtonMarginTop = useRef(new Animated.Value(16)).current; // mt-4 = 16px
-  const scrollAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
-  const opacityAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
+  const isLastPage = currentPage === onboardingData.length - 1;
 
-  useEffect(() => {
-    // Animar el botón "Saltar" cuando cambia la página
-    const isLastPage = currentPage === onboardingData.length - 1;
-    
-    // Cancelar animaciones anteriores
-    if (opacityAnimationRef.current) {
-      opacityAnimationRef.current.stop();
-    }
-    if (scrollAnimationRef.current) {
-      scrollAnimationRef.current.stop();
-    }
-    
-    // Animar propiedades que usan native driver
-    opacityAnimationRef.current = Animated.timing(skipButtonOpacity, {
-      toValue: isLastPage ? 0 : 1,
-      duration: 400,
-      useNativeDriver: true,
-    });
-    opacityAnimationRef.current.start(() => {
-      opacityAnimationRef.current = null;
-    });
-    
-    // Animar propiedades que NO usan native driver por separado
-    scrollAnimationRef.current = Animated.parallel([
-      Animated.timing(skipButtonHeight, {
-        toValue: isLastPage ? 0 : 1,
-        duration: 400,
-        useNativeDriver: false,
-      }),
-      Animated.timing(skipButtonMarginTop, {
-        toValue: isLastPage ? 0 : 16,
-        duration: 400,
-        useNativeDriver: false,
-      }),
-    ]);
-    scrollAnimationRef.current.start(() => {
-      scrollAnimationRef.current = null;
-    });
-  }, [currentPage, skipButtonHeight, skipButtonMarginTop, skipButtonOpacity]);
-
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const offsetX = event.nativeEvent.contentOffset.x;
-    const page = Math.round(offsetX / width);
-    setCurrentPage(page);
-    
-    // Animar el botón "Saltar" progresivamente cuando se acerca a la última página
-    const lastPageIndex = onboardingData.length - 1;
-    const currentPageFloat = offsetX / width;
-    const isLastPage = currentPageFloat >= lastPageIndex;
-    const isPenultimatePage = currentPageFloat >= lastPageIndex - 1 && currentPageFloat < lastPageIndex;
-    
-    // Calcular valores: empezar a desvanecer en la penúltima página
-    let targetOpacity = 1;
-    let targetHeight = 1;
-    let targetMarginTop = 16;
-    if (isLastPage) {
-      targetOpacity = 0;
-      targetHeight = 0;
-      targetMarginTop = 0;
-    } else if (isPenultimatePage) {
-      // Interpolar entre 1 y 0 mientras se desplaza de la penúltima a la última página
-      const progress = (currentPageFloat - (lastPageIndex - 1));
-      targetOpacity = Math.max(0, 1 - progress);
-      targetHeight = Math.max(0, 1 - progress);
-      targetMarginTop = Math.max(0, 16 * (1 - progress));
-    }
-    
-    // Cancelar animaciones anteriores si existen
-    if (opacityAnimationRef.current) {
-      opacityAnimationRef.current.stop();
-    }
-    if (scrollAnimationRef.current) {
-      scrollAnimationRef.current.stop();
-    }
-    
-    // Para opacidad, usar animación rápida durante el scroll
-    opacityAnimationRef.current = Animated.timing(skipButtonOpacity, {
-      toValue: targetOpacity,
-      duration: 100,
-      useNativeDriver: true,
-    });
-    opacityAnimationRef.current.start(() => {
-      opacityAnimationRef.current = null;
-    });
-    
-    // Para height y marginTop, usar animación suave pero rápida
-    scrollAnimationRef.current = Animated.parallel([
-      Animated.timing(skipButtonHeight, {
-        toValue: targetHeight,
-        duration: 150,
-        useNativeDriver: false,
-      }),
-      Animated.timing(skipButtonMarginTop, {
-        toValue: targetMarginTop,
-        duration: 150,
-        useNativeDriver: false,
-      }),
-    ]);
-    scrollAnimationRef.current.start(() => {
-      scrollAnimationRef.current = null;
-    });
-  };
-
-  const goToNext = () => {
-    if (currentPage < onboardingData.length - 1) {
-      const nextPage = currentPage + 1;
-      scrollViewRef.current?.scrollTo({ x: nextPage * width, animated: true });
-      setCurrentPage(nextPage);
-    } else {
-      onComplete();
-    }
+  // La página se fija al terminar el desplazamiento: no hace falta recalcular en cada frame
+  const handleMomentumEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    setCurrentPage(Math.round(event.nativeEvent.contentOffset.x / width));
   };
 
   const goToPage = (page: number) => {
@@ -171,120 +81,109 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
     setCurrentPage(page);
   };
 
+  const goToNext = () => {
+    if (isLastPage) {
+      onComplete();
+    } else {
+      goToPage(currentPage + 1);
+    }
+  };
+
   return (
     <SafeAreaView className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
+      {/* "Saltar" arriba: siempre en el mismo sitio y sin mover el resto */}
+      <View className="flex-row justify-end px-4 h-12 items-center">
+        {!isLastPage && (
+          <TouchableOpacity
+            onPress={onComplete}
+            accessibilityRole="button"
+            hitSlop={8}
+            className="px-3 py-2"
+          >
+            <Text className={`text-base font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+              Saltar
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
       <ScrollView
         ref={scrollViewRef}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
+        onMomentumScrollEnd={handleMomentumEnd}
         className="flex-1"
       >
         {onboardingData.map((item, index) => (
-            <View
-              key={index}
-              className="flex-1 items-center justify-center px-8"
-              style={{ width }}
+          <View
+            key={item.title}
+            className="flex-1 items-center justify-center px-8"
+            style={{ width }}
+          >
+            <AnimatedView animationType="scale" delay={index * 100} duration={500}>
+              <View className="mb-10">
+                <PageIcon icon={item.icon} isDark={isDark} />
+              </View>
+            </AnimatedView>
+            <Text
+              accessibilityRole="header"
+              className={`text-3xl font-bold text-center mb-4 ${
+                isDark ? 'text-white' : 'text-gray-900'
+              }`}
             >
-              <AnimatedView
-                animationType="scale"
-                delay={index * 100}
-                duration={500}
-              >
-                <Text className="text-6xl mb-8">{item.icon}</Text>
-              </AnimatedView>
-              <AnimatedView
-                animationType="slideUp"
-                delay={index * 100 + 150}
-                duration={500}
-              >
-                <Text className={`text-3xl font-bold text-center mb-4 ${
-                  isDark ? 'text-white' : 'text-gray-900'
-                }`}>
-                  {item.title}
-                </Text>
-              </AnimatedView>
-              <AnimatedView
-                animationType="fadeIn"
-                delay={index * 100 + 300}
-                duration={500}
-              >
-                <Text className={`text-lg text-center leading-7 ${
-                  isDark ? 'text-gray-300' : 'text-gray-600'
-                }`}>
-                  {item.description}
-                </Text>
-              </AnimatedView>
-            </View>
+              {item.title}
+            </Text>
+            <Text
+              className={`text-lg text-center leading-7 ${
+                isDark ? 'text-gray-400' : 'text-gray-600'
+              }`}
+              style={styles.description}
+            >
+              {item.description}
+            </Text>
+          </View>
         ))}
       </ScrollView>
 
       {/* Indicadores de página */}
       <View className="flex-row justify-center items-center mb-8">
-        {onboardingData.map((_, index) => (
+        {onboardingData.map((item, index) => (
           <TouchableOpacity
-            key={index}
+            key={item.title}
             onPress={() => goToPage(index)}
-            className={`h-2 rounded-full mx-1 ${
-              currentPage === index 
-                ? 'bg-blue-600 w-8' 
-                : isDark 
-                  ? 'bg-gray-600 w-2' 
+            accessibilityRole="button"
+            accessibilityLabel={`Página ${index + 1} de ${onboardingData.length}`}
+            accessibilityState={{ selected: currentPage === index }}
+            hitSlop={{ top: 12, bottom: 12, left: 4, right: 4 }}
+            className="mx-1"
+          >
+            <View
+              className={`h-2 rounded-full ${
+                currentPage === index
+                  ? 'bg-blue-600 w-8'
+                  : isDark
+                  ? 'bg-gray-700 w-2'
                   : 'bg-gray-300 w-2'
-            }`}
-          />
+              }`}
+            />
+          </TouchableOpacity>
         ))}
       </View>
 
-      {/* Botones */}
-      <View style={{ paddingHorizontal: 32, paddingBottom: 32 }}>
-        {currentPage < onboardingData.length - 1 ? (
-          <AnimatedButton onPress={goToNext}>
-            <View className="bg-blue-600 py-4 rounded-lg items-center">
-              <Text className="text-white text-lg font-semibold">Siguiente</Text>
-            </View>
-          </AnimatedButton>
-        ) : (
-          <AnimatedButton onPress={onComplete}>
-            <View className="bg-blue-600 py-4 rounded-lg items-center">
-              <Text className="text-white text-lg font-semibold">
-                Comenzar
-              </Text>
-            </View>
-          </AnimatedButton>
-        )}
-        {/* Contenedor para animaciones sin native driver (height, marginTop) */}
-        <Animated.View
-          style={{
-            height: skipButtonHeight.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 56], // altura aproximada del botón (py-4 = 16px arriba + 16px abajo + texto ~24px)
-            }),
-            marginTop: skipButtonMarginTop,
-            overflow: 'hidden',
-          }}
-        >
-          {/* Contenedor para animaciones con native driver (opacity) */}
-          <Animated.View
-            style={{
-              opacity: skipButtonOpacity,
-            }}
-          >
-            {currentPage < onboardingData.length - 1 && (
-              <AnimatedButton onPress={onComplete}>
-                <View className="py-4 rounded-lg items-center">
-                  <Text className={`text-lg ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                    Saltar
-                  </Text>
-                </View>
-              </AnimatedButton>
-            )}
-          </Animated.View>
-        </Animated.View>
+      <View className="px-8 pb-8">
+        <AnimatedButton onPress={goToNext}>
+          <View className="bg-blue-600 py-4 rounded-xl items-center">
+            <Text className="text-white text-lg font-semibold">
+              {isLastPage ? 'Comenzar' : 'Siguiente'}
+            </Text>
+          </View>
+        </AnimatedButton>
       </View>
     </SafeAreaView>
   );
 }
 
+const styles = StyleSheet.create({
+  description: { maxWidth: 420 },
+});

@@ -8,6 +8,8 @@ import {
   Dimensions,
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
+import { AppLogo } from '../components/icons/BrandIcons';
+import { version as appVersion } from '../../package.json';
 
 const { width, height } = Dimensions.get('window');
 
@@ -162,13 +164,8 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
             ],
           }}
         >
-          <View 
-            className={`w-32 h-32 rounded-3xl items-center justify-center ${
-              isDark ? 'bg-blue-600' : 'bg-blue-500'
-            }`}
-            style={styles.logoContainer}
-          >
-            <Text style={styles.logoEmoji}>📋</Text>
+          <View style={styles.logoContainer}>
+            <AppLogo size={128} />
           </View>
         </Animated.View>
 
@@ -215,7 +212,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
         }}
       >
         <Text className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-          Versión 1.0.0
+          Versión {appVersion}
         </Text>
       </Animated.View>
     </View>
@@ -246,6 +243,7 @@ const styles = StyleSheet.create({
     left: -80,
   },
   logoContainer: {
+    borderRadius: 24,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -254,9 +252,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.44,
     shadowRadius: 10.32,
     elevation: 16,
-  },
-  logoEmoji: {
-    fontSize: 64,
   },
   title: {
     letterSpacing: 1,

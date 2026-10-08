@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { notificationsService } from '../services/notificationsService';
 import AnimatedButton from '../components/AnimatedButton';
+import { BackIcon } from '../components/icons/ActionIcons';
 
 export default function NotificationTroubleshootingScreen({ navigation }: any) {
   const { isDark } = useTheme();
@@ -131,12 +132,24 @@ export default function NotificationTroubleshootingScreen({ navigation }: any) {
 
   return (
     <SafeAreaView className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
-      <View className={`flex-row items-center p-4 border-b ${isDark ? 'border-gray-800' : 'border-gray-200'}`}>
-        <TouchableOpacity onPress={() => navigation.goBack()} className="p-2 mr-2">
-          <Text className={`text-xl ${isDark ? 'text-white' : 'text-gray-900'}`}>←</Text>
+      <View
+        className={`flex-row items-center px-2 py-2 border-b ${
+          isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
+        }`}
+      >
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Volver"
+          className="h-11 w-11 items-center justify-center rounded-full mr-1"
+        >
+          <BackIcon color={isDark ? '#f9fafb' : '#111827'} />
         </TouchableOpacity>
-        <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-          Diagnóstico de Notificaciones
+        <Text
+          accessibilityRole="header"
+          className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}
+        >
+          Diagnóstico de notificaciones
         </Text>
       </View>
 
@@ -144,7 +157,7 @@ export default function NotificationTroubleshootingScreen({ navigation }: any) {
         {/* Status Cards */}
         <View className="mb-6">
           <Text className={`text-sm font-bold mb-3 uppercase ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-            Estado del Sistema
+            Estado del sistema
           </Text>
           
           {/* Permissions Status */}
@@ -156,7 +169,7 @@ export default function NotificationTroubleshootingScreen({ navigation }: any) {
             <View className="flex-row justify-between items-center">
               <View className="flex-1">
                 <Text className={`font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  Permisos de Notificación
+                  Permisos de notificación
                 </Text>
                 <Text className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
                   {status?.hasPermission ? 'Permisos concedidos correctamente.' : 'La app no tiene permiso para mostrar notificaciones.'}
@@ -170,8 +183,8 @@ export default function NotificationTroubleshootingScreen({ navigation }: any) {
             </View>
             {!status?.hasPermission && (
               <AnimatedButton onPress={handleRequestPermissions} style={{ marginTop: 12 }}>
-                <View className="bg-red-500 py-2 px-4 rounded-lg items-center">
-                  <Text className="text-white font-semibold">Solicitar Permisos</Text>
+                <View className="bg-red-600 py-2.5 px-4 rounded-xl items-center">
+                  <Text className="text-white font-semibold">Solicitar permisos</Text>
                 </View>
               </AnimatedButton>
             )}
@@ -186,7 +199,7 @@ export default function NotificationTroubleshootingScreen({ navigation }: any) {
             <View className="flex-row justify-between items-center">
               <View className="flex-1">
                 <Text className={`font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  Optimización de Batería
+                  Optimización de batería
                 </Text>
                 <Text className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
                   {!status?.batteryOptimization 
@@ -202,8 +215,8 @@ export default function NotificationTroubleshootingScreen({ navigation }: any) {
             </View>
             {status?.batteryOptimization && (
               <AnimatedButton onPress={handleBatteryOptimization} style={{ marginTop: 12 }}>
-                <View className="bg-orange-500 py-2 px-4 rounded-lg items-center">
-                  <Text className="text-white font-semibold">Ignorar Optimización</Text>
+                <View className="bg-orange-600 py-2.5 px-4 rounded-xl items-center">
+                  <Text className="text-white font-semibold">Desactivar optimización</Text>
                 </View>
               </AnimatedButton>
             )}
@@ -216,16 +229,14 @@ export default function NotificationTroubleshootingScreen({ navigation }: any) {
             Pruebas
           </Text>
           <AnimatedButton onPress={handleTestNotification} disabled={sendingTest}>
-            <View className={`p-4 rounded-xl border flex-row items-center justify-center ${
-              isDark ? 'bg-blue-900/20 border-blue-800' : 'bg-blue-50 border-blue-200'
+            <View className={`py-3.5 rounded-xl flex-row items-center justify-center bg-blue-600 ${
+              sendingTest ? 'opacity-70' : ''
             }`}>
-              {sendingTest ? (
-                <ActivityIndicator size="small" color="#2563eb" className="mr-2" />
-              ) : (
-                <Text className="text-xl mr-2">🔔</Text>
+              {sendingTest && (
+                <ActivityIndicator size="small" color="#ffffff" className="mr-2" />
               )}
-              <Text className={`font-semibold ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
-                {sendingTest ? 'Enviando...' : 'Enviar Notificación de Prueba'}
+              <Text className="font-semibold text-white">
+                {sendingTest ? 'Enviando...' : 'Enviar notificación de prueba'}
               </Text>
             </View>
           </AnimatedButton>
@@ -234,7 +245,7 @@ export default function NotificationTroubleshootingScreen({ navigation }: any) {
         {/* Manufacturer Advice */}
         <View className="mb-8">
           <Text className={`text-sm font-bold mb-3 uppercase ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-            Guía por Fabricante
+            Guía por fabricante
           </Text>
           <Text className={`text-sm mb-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
             Algunos fabricantes bloquean notificaciones agresivamente. Busca tu marca y sigue los pasos si sigues teniendo problemas.
