@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Company } from '../types';
@@ -13,6 +12,9 @@ import { useTheme } from '../context/ThemeContext';
 import { useResponsive } from '../hooks/useResponsive';
 import { CompaniesMessage, useCompanies } from '../hooks/useCompanies';
 import StyledModal from '../components/StyledModal';
+import AnimatedButton from '../components/AnimatedButton';
+import LoadingScreen from '../components/LoadingScreen';
+import ScreenHeader from '../components/ScreenHeader';
 import CalendarSelector from '../components/CalendarSelector';
 import AddCompanyModal from '../components/companies/AddCompanyModal';
 import CompanyCard from '../components/companies/CompanyCard';
@@ -81,19 +83,7 @@ export default function CompaniesScreen({ navigation }: any) {
   };
 
   if (loading) {
-    return (
-      <SafeAreaView
-        className={`flex-1 items-center justify-center ${
-          isDark ? 'bg-gray-900' : 'bg-gray-50'
-        }`}
-        edges={['top']}
-      >
-        <ActivityIndicator size="large" color="#2563eb" />
-        <Text className={isDark ? 'text-gray-300 mt-4' : 'text-gray-600 mt-4'}>
-          Cargando empresas...
-        </Text>
-      </SafeAreaView>
-    );
+    return <LoadingScreen isDark={isDark} message="Cargando empresas..." />;
   }
 
   return (
@@ -101,86 +91,40 @@ export default function CompaniesScreen({ navigation }: any) {
       className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}
       edges={['top']}
     >
-      {/* Header */}
-      <View
-        className={`border-b ${
-          isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-        }`}
-        style={{
-          paddingHorizontal: responsive.spacing.lg,
-          paddingVertical: responsive.spacing.md,
-        }}
-      >
-        <View className="flex-row justify-between items-center">
-          <View className="flex-1">
-            <View
-              className="flex-row items-center"
-              style={{ marginBottom: responsive.spacing.sm }}
-            >
-              <Text
-                style={{
-                  fontSize: responsive.fontSize['3xl'],
-                  marginRight: responsive.spacing.sm,
-                }}
-              >
-                🏢
-              </Text>
-              <Text
-                className={`font-bold ${
-                  isDark ? 'text-white' : 'text-gray-900'
-                }`}
-                style={{ fontSize: responsive.fontSize['3xl'] }}
-              >
-                Empresas
-              </Text>
-            </View>
-            <Text
-              className={`${isDark ? 'text-gray-300' : 'text-gray-600'}`}
-              style={{
-                marginTop: responsive.spacing.sm,
-                fontSize: responsive.fontSize.base,
-              }}
-            >
-              Gestiona tus clientes
-            </Text>
-          </View>
-          <TouchableOpacity
+      <ScreenHeader
+        isDark={isDark}
+        title="Empresas"
+        subtitle={
+          companies.length > 0
+            ? `${companies.length} cliente${companies.length === 1 ? '' : 's'}`
+            : 'Gestiona tus clientes'
+        }
+        right={
+          <AnimatedButton
             onPress={() => setShowAddForm(!showAddForm)}
-            className={`rounded-xl ${
-              showAddForm
-                ? isDark
-                  ? 'bg-gray-700'
-                  : 'bg-gray-200'
-                : 'bg-blue-600'
-            }`}
-            style={{
-              marginLeft: responsive.spacing.md,
-              paddingHorizontal: responsive.spacing.md,
-              paddingVertical: responsive.spacing.sm,
-            }}
+            accessibilityLabel={showAddForm ? 'Cancelar' : 'Agregar empresa'}
           >
-            <Text
-              className={`font-semibold ${
-                showAddForm
-                  ? isDark
-                    ? 'text-gray-200'
-                    : 'text-gray-700'
-                  : 'text-white'
+            <View
+              className={`rounded-xl ${
+                showAddForm ? (isDark ? 'bg-gray-700' : 'bg-gray-200') : 'bg-blue-600'
               }`}
               style={{
-                fontSize: responsive.fontSize.sm,
-                color: showAddForm
-                  ? isDark
-                    ? '#e5e7eb'
-                    : '#1f2937'
-                  : '#ffffff',
+                paddingHorizontal: responsive.spacing.md,
+                paddingVertical: responsive.spacing.sm,
               }}
             >
-              {showAddForm ? 'Cancelar' : '+ Agregar'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+              <Text
+                className={`font-semibold ${
+                  showAddForm ? (isDark ? 'text-gray-200' : 'text-gray-700') : 'text-white'
+                }`}
+                style={{ fontSize: responsive.fontSize.sm }}
+              >
+                {showAddForm ? 'Cancelar' : '+ Agregar'}
+              </Text>
+            </View>
+          </AnimatedButton>
+        }
+      />
 
       <ScrollView
         className="flex-1"

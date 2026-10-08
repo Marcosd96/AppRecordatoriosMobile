@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
+import { flushPendingNavigation, navigationRef } from './notificationNavigation';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -21,6 +22,12 @@ import CompaniesScreen from '../screens/CompaniesScreen';
 import NotificationTroubleshootingScreen from '../screens/NotificationTroubleshootingScreen';
 import NotificationSync from '../components/NotificationSync';
 import OfflineBanner from '../components/OfflineBanner';
+import {
+  renderCalendarTabIcon,
+  renderCompaniesTabIcon,
+  renderHomeTabIcon,
+  renderTasksTabIcon,
+} from '../components/icons/TabIcons';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -61,9 +68,7 @@ function MainTabs() {
           component={DashboardScreen}
           options={{
             tabBarLabel: 'Inicio',
-            tabBarIcon: ({ color }) => (
-              <Text style={{ fontSize: 20, color }}>🏠</Text>
-            ),
+            tabBarIcon: renderHomeTabIcon,
           }}
         />
         <Tab.Screen
@@ -71,9 +76,7 @@ function MainTabs() {
           component={PersonalTasksScreen}
           options={{
             tabBarLabel: 'Tareas',
-            tabBarIcon: ({ color }) => (
-              <Text style={{ fontSize: 20, color }}>✅</Text>
-            ),
+            tabBarIcon: renderTasksTabIcon,
           }}
         />
         <Tab.Screen
@@ -81,9 +84,7 @@ function MainTabs() {
           component={RemindersScreen}
           options={{
             tabBarLabel: 'Recordatorios',
-            tabBarIcon: ({ color }) => (
-              <Text style={{ fontSize: 20, color }}>📅</Text>
-            ),
+            tabBarIcon: renderCalendarTabIcon,
           }}
         />
         <Tab.Screen
@@ -91,9 +92,7 @@ function MainTabs() {
           component={CompaniesScreen}
           options={{
             tabBarLabel: 'Empresas',
-            tabBarIcon: ({ color }) => (
-              <Text style={{ fontSize: 20, color }}>🏢</Text>
-            ),
+            tabBarIcon: renderCompaniesTabIcon,
           }}
         />
       </Tab.Navigator>
@@ -216,7 +215,12 @@ function AppNavigatorContent() {
   };
 
   return (
-    <NavigationContainer>
+    <NavigationContainer
+      ref={navigationRef}
+      // Aplicar la navegación pendiente de una notificación en cuanto exista la pantalla principal
+      onReady={flushPendingNavigation}
+      onStateChange={flushPendingNavigation}
+    >
       <Stack.Navigator screenOptions={screenOptions}>
         {showSplash ? (
           // Mostrar splash screen primero

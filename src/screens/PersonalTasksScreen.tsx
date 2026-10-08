@@ -1,14 +1,16 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
   ScrollView,
   RefreshControl,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AnimatedButton from '../components/AnimatedButton';
+import { FilterChipOption } from '../components/FilterChips';
 import StyledModal from '../components/StyledModal';
+import LoadingScreen from '../components/LoadingScreen';
+import ScreenHeader from '../components/ScreenHeader';
 import TaskCard from '../components/personalTasks/TaskCard';
 import TaskFilters from '../components/personalTasks/TaskFilters';
 import TaskFormModal from '../components/personalTasks/TaskFormModal';
@@ -25,9 +27,10 @@ import {
 import { useTheme } from '../context/ThemeContext';
 import { useResponsive } from '../hooks/useResponsive';
 import { usePersonalTasks } from '../hooks/usePersonalTasks';
+import { useHighlightItem } from '../hooks/useHighlightItem';
 import { PersonalTask } from '../types';
 
-export default function PersonalTasksScreen() {
+export default function PersonalTasksScreen({ route }: any) {
   const { isDark } = useTheme();
   const responsive = useResponsive();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -57,33 +60,28 @@ export default function PersonalTasksScreen() {
     deleteTask,
   } = usePersonalTasks(showMessage);
 
-  const statusFilterOptions = useMemo(
+  // Al abrir desde una notificación: quitar filtros, ir hasta la tarea y resaltarla
+  const highlightTaskId: string | undefined = route?.params?.taskId;
+  const highlightAt: number | undefined = route?.params?.highlightAt;
+  const { scrollRef, registerItem, highlightedId } = useHighlightItem(
+    highlightTaskId,
+    highlightAt,
+    !loading,
+  );
+  useEffect(() => {
+    if (highlightTaskId && highlightAt) {
+      setStatusFilter('all');
+      setSearchQuery('');
+    }
+  }, [highlightTaskId, highlightAt]);
+
+  const statusFilterOptions = useMemo<FilterChipOption<StatusFilter>[]>(
     () => [
-      {
-        key: 'all' as StatusFilter,
-        label: 'Todas',
-        subtitle: `${stats.total} tareas`,
-      },
-      {
-        key: 'active' as StatusFilter,
-        label: 'Activas',
-        subtitle: `${stats.active} en curso`,
-      },
-      {
-        key: 'paused' as StatusFilter,
-        label: 'Pausadas',
-        subtitle: `${stats.paused} pendientes`,
-      },
-      {
-        key: 'completed' as StatusFilter,
-        label: 'Completadas',
-        subtitle: `${stats.completed} cerradas`,
-      },
-      {
-        key: 'cancelled' as StatusFilter,
-        label: 'Canceladas',
-        subtitle: `${stats.cancelled} descartadas`,
-      },
+      { key: 'all', label: 'Todas', count: stats.total },
+      { key: 'active', label: 'Activas', count: stats.active },
+      { key: 'paused', label: 'Pausadas', count: stats.paused },
+      { key: 'completed', label: 'Completadas', count: stats.completed },
+      { key: 'cancelled', label: 'Canceladas', count: stats.cancelled },
     ],
     [stats],
   );
@@ -155,19 +153,7 @@ export default function PersonalTasksScreen() {
   };
 
   if (loading) {
-    return (
-      <SafeAreaView
-        className={`flex-1 items-center justify-center ${
-          isDark ? 'bg-gray-900' : 'bg-gray-50'
-        }`}
-        edges={['top']}
-      >
-        <ActivityIndicator size="large" color="#2563eb" />
-        <Text className={isDark ? 'text-gray-300 mt-4' : 'text-gray-600 mt-4'}>
-          Cargando tareas personales...
-        </Text>
-      </SafeAreaView>
-    );
+    return <LoadingScreen isDark={isDark} message="Cargando tareas personales..." />;
   }
 
   return (
@@ -175,40 +161,29 @@ export default function PersonalTasksScreen() {
       className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}
       edges={['top']}
     >
-      <View
-        className={`border-b ${
-          isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-        }`}
-        style={{
-          paddingHorizontal: responsive.spacing.lg,
-          paddingVertical: responsive.spacing.md,
-        }}
-      >
-        <View className="flex-row items-center" style={{ marginBottom: responsive.spacing.sm }}>
-          <Text style={{ fontSize: responsive.fontSize['3xl'], marginRight: responsive.spacing.sm }}>✅</Text>
-          <Text
-            className={`font-bold ${
-              isDark ? 'text-white' : 'text-gray-900'
-            }`}
-            style={{ fontSize: responsive.fontSize['3xl'] }}
-          >
-            Tareas Personales
-          </Text>
-        </View>
-        <Text
-          className={`${
-            isDark ? 'text-gray-300' : 'text-gray-600'
-          }`}
-          style={{
-            marginTop: responsive.spacing.sm,
-            fontSize: responsive.fontSize.base,
-          }}
-        >
-          Organiza tus pendientes diarios
-        </Text>
-      </View>
+      <ScreenHeader
+        isDark={isDark}
+        title="Tareas"
+        subtitle="Organiza tus pendientes diarios"
+        right={
+          <AnimatedButton onPress={openCreateModal} accessibilityLabel="Nueva tarea">
+            <View
+              className="rounded-xl bg-blue-600"
+              style={{
+                paddingHorizontal: responsive.spacing.md,
+                paddingVertical: responsive.spacing.sm,
+              }}
+            >
+              <Text className="font-semibold text-white" style={{ fontSize: responsive.fontSize.sm }}>
+                + Nueva
+              </Text>
+            </View>
+          </AnimatedButton>
+        }
+      />
 
       <ScrollView
+        ref={scrollRef}
         className="flex-1"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -229,14 +204,13 @@ export default function PersonalTasksScreen() {
             statusFilter={statusFilter}
             statusOptions={statusFilterOptions}
             onChangeStatus={setStatusFilter}
-            onCreate={openCreateModal}
           />
         </View>
 
-        <View className="px-6 py-4">
+        <View style={{ paddingHorizontal: responsive.spacing.lg }}>
           {filteredTasks.length === 0 ? (
             <View
-              className={`rounded-3xl p-8 border items-center ${
+              className={`rounded-2xl p-8 border items-center ${
                 isDark
                   ? 'bg-gray-800 border-gray-700'
                   : 'bg-white border-gray-200'
@@ -248,34 +222,38 @@ export default function PersonalTasksScreen() {
                   isDark ? 'text-white' : 'text-gray-900'
                 }`}
               >
-                No hay tareas con estos filtros
+                {tasks.length === 0 ? 'Aún no tienes tareas' : 'No hay tareas con estos filtros'}
               </Text>
               <Text
                 className={`text-center mt-2 ${
                   isDark ? 'text-gray-400' : 'text-gray-500'
                 }`}
               >
-                Ajusta la búsqueda o crea una nueva tarea personalizada.
+                {tasks.length === 0
+                  ? 'Crea una tarea y te recordaremos cuando toque.'
+                  : 'Prueba con otra búsqueda o cambia el filtro.'}
               </Text>
               <AnimatedButton onPress={openCreateModal}>
-                <View className="mt-4 px-6 py-3 rounded-2xl bg-blue-600">
+                <View className="mt-4 px-6 py-3 rounded-xl bg-blue-600">
                   <Text className="text-white font-semibold text-center">
-                    Crear mi primera tarea
+                    {tasks.length === 0 ? 'Crear mi primera tarea' : 'Nueva tarea'}
                   </Text>
                 </View>
               </AnimatedButton>
             </View>
           ) : (
             filteredTasks.map(task => (
+              <View key={task.id} ref={registerItem(task.id)} collapsable={false}>
               <TaskCard
-                key={task.id}
                 task={task}
+                highlighted={highlightedId === task.id}
                 isDark={isDark}
                 onEdit={openEditModal}
                 onStatusChange={updateTaskStatus}
                 onDelete={setTaskToDelete}
                 onShowMessage={showMessage}
               />
+              </View>
             ))
           )}
         </View>

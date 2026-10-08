@@ -14,6 +14,9 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import { PERSIST_MAX_AGE, queryClient, queryPersister } from './src/config/queryClient';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import AppNavigator from './src/navigation/AppNavigator';
+import ErrorBoundary from './src/components/ErrorBoundary';
+import { openFromNotification } from './src/navigation/notificationNavigation';
+import { handleNotificationAction } from './src/services/notificationActions';
 
 function AppContent() {
   const { isDark } = useTheme();
@@ -21,24 +24,32 @@ function AppContent() {
   useEffect(() => {
     // Manejar eventos de notificaciones cuando la app está en primer plano
     return notifee.onForegroundEvent(({ type, detail }) => {
-      console.log('🔔 Evento de notificación (foreground):', { type, detail });
       switch (type) {
-        case EventType.DISMISSED:
-          console.log('Usuario descartó la notificación');
-          break;
         case EventType.PRESS:
-          console.log('Usuario presionó la notificación', detail.notification);
-          // Aquí podrías navegar a la pantalla de recordatorios
-          // navigationRef.current?.navigate('Reminders');
+          console.log('Usuario presionó la notificación', detail.notification?.id);
+          openFromNotification(detail.notification);
+          break;
+        case EventType.ACTION_PRESS:
+          // "Completar" / "Posponer 1 h"
+          handleNotificationAction(detail.pressAction?.id, detail.notification);
           break;
         case EventType.DELIVERED:
           console.log('✅ Notificación entregada:', detail.notification?.title);
           break;
-        case EventType.TRIGGER_NOTIFICATION_CREATED:
-          console.log('📅 Notificación programada creada:', detail.notification?.id);
-          break;
       }
     });
+  }, []);
+
+  useEffect(() => {
+    // App abierta tocando una notificación estando cerrada
+    notifee
+      .getInitialNotification()
+      .then(initial => {
+        if (initial) {
+          openFromNotification(initial.notification);
+        }
+      })
+      .catch(error => console.error('Error leyendo la notificación inicial:', error));
   }, []);
 
   // Los eventos en segundo plano se registran en index.js (requisito de notifee)
@@ -46,7 +57,9 @@ function AppContent() {
   return (
     <SafeAreaProvider>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-      <AppNavigator />
+      <ErrorBoundary>
+        <AppNavigator />
+      </ErrorBoundary>
     </SafeAreaProvider>
   );
 }

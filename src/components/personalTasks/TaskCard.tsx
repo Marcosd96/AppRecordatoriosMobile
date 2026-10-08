@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { PersonalTask, TaskPriority, TaskStatus } from '../../types';
+import { highlightStyle } from '../../hooks/useHighlightItem';
 import {
   FormMessage,
   TaskStatusAction,
@@ -22,6 +23,8 @@ interface TaskCardProps {
   onStatusChange: (id: string, action: TaskStatusAction) => void;
   onDelete: (id: string) => void;
   onShowMessage: (message: FormMessage) => void;
+  /** Resaltada al abrir la app desde su notificación */
+  highlighted?: boolean;
 }
 
 interface ActionButton {
@@ -30,6 +33,8 @@ interface ActionButton {
   onPress: () => void;
   container: string;
   text: string;
+  /** Herramientas de diagnóstico: van en una sección plegable para no saturar la tarjeta */
+  tool?: boolean;
 }
 
 const getStatusStyles = (
@@ -141,6 +146,7 @@ function getActionButtons(
     actionButtons.push(
       {
         key: 'diagnose',
+        tool: true,
         label: '🔍 Diagnosticar',
         onPress: showResult(diagnoseTaskNotification),
         container: isDark ? 'bg-indigo-900/40' : 'bg-indigo-100',
@@ -148,6 +154,7 @@ function getActionButtons(
       },
       {
         key: 'test-notification',
+        tool: true,
         label: '🔔 Probar Notif.',
         onPress: showResult(scheduleTaskTestNotification),
         container: isDark ? 'bg-purple-900/40' : 'bg-purple-100',
@@ -155,6 +162,7 @@ function getActionButtons(
       },
       {
         key: 'test-notification-immediate',
+        tool: true,
         label: '⚡ Prueba Rápida',
         onPress: showResult(scheduleTaskQuickTestNotification),
         container: isDark ? 'bg-orange-900/40' : 'bg-orange-100',
@@ -162,6 +170,7 @@ function getActionButtons(
       },
       {
         key: 'reschedule-notification',
+        tool: true,
         label: '🔄 Reprogramar',
         onPress: showResult(rescheduleTaskNotification),
         container: isDark ? 'bg-cyan-900/40' : 'bg-cyan-100',
@@ -190,6 +199,7 @@ export default function TaskCard({
   onStatusChange,
   onDelete,
   onShowMessage,
+  highlighted = false,
 }: TaskCardProps) {
   const statusStyles = getStatusStyles(isDark);
   const priorityAccentStyles = getPriorityAccentStyles(isDark);
@@ -198,12 +208,16 @@ export default function TaskCard({
     onDelete,
     onShowMessage,
   });
+  const mainActions = actionButtons.filter(button => !button.tool);
+  const toolActions = actionButtons.filter(button => button.tool);
+  const [showTools, setShowTools] = useState(false);
 
   return (
     <View
-      className={`rounded-3xl p-5 border mb-4 ${
+      style={highlighted ? highlightStyle : undefined}
+      className={`rounded-2xl p-5 border mb-3 ${
         isDark
-          ? 'bg-gray-800/80 border-gray-700'
+          ? 'bg-gray-800 border-gray-700'
           : 'bg-white border-gray-200'
       }`}
     >
@@ -260,8 +274,14 @@ export default function TaskCard({
             </View>
           </View>
         </View>
-        <TouchableOpacity onPress={() => onEdit(task)}>
-          <Text className="text-blue-500 text-sm font-semibold">
+        <TouchableOpacity
+          onPress={() => onEdit(task)}
+          accessibilityRole="button"
+          accessibilityLabel={`Editar ${task.title}`}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          className={`px-3 py-1.5 rounded-lg ${isDark ? 'bg-blue-500/15' : 'bg-blue-50'}`}
+        >
+          <Text className={`text-sm font-semibold ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
             Editar
           </Text>
         </TouchableOpacity>
@@ -357,21 +377,55 @@ export default function TaskCard({
       </View>
 
       <View className="mt-4 flex-row flex-wrap -mx-1">
-        {actionButtons.map(button => (
+        {mainActions.map(button => (
           <View key={button.key} className="w-1/2 px-1 mb-2">
             <TouchableOpacity
               onPress={button.onPress}
-              className={`py-2.5 rounded-2xl items-center justify-center ${button.container}`}
+              accessibilityRole="button"
+              className={`py-2.5 rounded-xl items-center justify-center ${button.container}`}
             >
-              <Text
-                className={`text-sm font-semibold ${button.text}`}
-              >
+              <Text className={`text-sm font-semibold ${button.text}`}>
                 {button.label}
               </Text>
             </TouchableOpacity>
           </View>
         ))}
       </View>
+
+      {toolActions.length > 0 && (
+        <View className={`mt-1 pt-2 border-t ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
+          <TouchableOpacity
+            onPress={() => setShowTools(current => !current)}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: showTools }}
+            className="flex-row items-center justify-between py-2"
+          >
+            <Text className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+              Herramientas de notificación
+            </Text>
+            <Text className={isDark ? 'text-gray-400' : 'text-gray-500'}>
+              {showTools ? '▲' : '▼'}
+            </Text>
+          </TouchableOpacity>
+          {showTools && (
+            <View className="flex-row flex-wrap -mx-1 mt-1">
+              {toolActions.map(button => (
+                <View key={button.key} className="w-1/2 px-1 mb-2">
+                  <TouchableOpacity
+                    onPress={button.onPress}
+                    accessibilityRole="button"
+                    className={`py-2.5 rounded-xl items-center justify-center ${button.container}`}
+                  >
+                    <Text className={`text-sm font-semibold ${button.text}`}>
+                      {button.label}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
     </View>
   );
 }

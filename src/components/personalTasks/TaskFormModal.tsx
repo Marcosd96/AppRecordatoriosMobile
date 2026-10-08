@@ -121,12 +121,20 @@ export default function TaskFormModal({
                   </View>
                   <TouchableOpacity
                     onPress={onClose}
+                    accessibilityRole="button"
+                    accessibilityLabel="Cerrar"
                     disabled={submitting}
                     className={`h-10 w-10 rounded-xl items-center justify-center ${
                       isDark ? 'bg-gray-800' : 'bg-gray-100'
                     }`}
                   >
-                    <Text className="text-lg">✕</Text>
+                    <Text
+                      className={`text-lg ${isDark ? 'text-gray-200' : 'text-gray-700'}`}
+                      // El texto es solo un icono: la etiqueta la pone el botón
+                      importantForAccessibility="no"
+                    >
+                      ✕
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>

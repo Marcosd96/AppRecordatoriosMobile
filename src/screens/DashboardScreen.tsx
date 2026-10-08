@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -7,6 +7,8 @@ import { useResponsive } from '../hooks/useResponsive';
 import { DashboardMessage, useDashboard } from '../hooks/useDashboard';
 import AnimatedButton from '../components/AnimatedButton';
 import StyledModal from '../components/StyledModal';
+import LoadingScreen from '../components/LoadingScreen';
+import ScreenHeader from '../components/ScreenHeader';
 import CompaniesSummaryCard from '../components/dashboard/CompaniesSummaryCard';
 import DashboardStatsCard from '../components/dashboard/DashboardStatsCard';
 import NotificationStatusCard from '../components/dashboard/NotificationStatusCard';
@@ -49,67 +51,27 @@ export default function DashboardScreen({ navigation }: any) {
   };
 
   if (loading) {
-    return (
-      <SafeAreaView
-        className={`flex-1 items-center justify-center ${
-          isDark ? 'bg-gray-900' : 'bg-gray-50'
-        }`}
-        edges={['top']}
-      >
-        <ActivityIndicator size="large" color="#2563eb" />
-        <Text className={isDark ? 'text-gray-300 mt-4' : 'text-gray-600 mt-4'}>
-          Cargando datos...
-        </Text>
-      </SafeAreaView>
-    );
+    return <LoadingScreen isDark={isDark} message="Cargando datos..." />;
   }
+
+  const firstName = user?.name?.split(' ')[0];
 
   return (
     <SafeAreaView
       className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}
       edges={['top']}
     >
-      {/* Header fijo */}
-      <View
-        className={`border-b ${
-          isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-        }`}
-        style={{
-          paddingHorizontal: responsive.spacing.lg,
-          paddingVertical: responsive.spacing.md,
-        }}
-      >
-        <View className="flex-row justify-between items-center" style={{ marginBottom: responsive.spacing.sm }}>
-          <View className="flex-1">
-            <Text
-              className={`font-bold ${
-                isDark ? 'text-white' : 'text-gray-900'
-              }`}
-              style={{ fontSize: responsive.fontSize['3xl'] }}
-            >
-              Menú Principal
-            </Text>
-            <Text
-              className={`${
-                isDark ? 'text-gray-300' : 'text-gray-600'
-              }`}
-              style={{
-                marginTop: responsive.spacing.sm,
-                fontSize: responsive.fontSize.base,
-              }}
-            >
-              {user?.name
-                ? `Hola, ${user.name} 👋`
-                : 'Resumen de tus recordatorios fiscales'}
-            </Text>
-          </View>
-          <AnimatedButton onPress={handleSignOut}>
+      <ScreenHeader
+        isDark={isDark}
+        title={firstName ? `Hola, ${firstName}` : 'Inicio'}
+        subtitle="Resumen de tus recordatorios fiscales"
+        right={
+          <AnimatedButton onPress={handleSignOut} accessibilityLabel="Cerrar sesión">
             <View
-              className={`rounded-xl ${
-                isDark ? 'bg-gray-700' : 'bg-gray-100'
+              className={`rounded-xl border ${
+                isDark ? 'border-gray-700' : 'border-gray-200'
               }`}
               style={{
-                marginLeft: responsive.spacing.md,
                 paddingHorizontal: responsive.spacing.md,
                 paddingVertical: responsive.spacing.sm,
               }}
@@ -124,8 +86,8 @@ export default function DashboardScreen({ navigation }: any) {
               </Text>
             </View>
           </AnimatedButton>
-        </View>
-      </View>
+        }
+      />
 
       <ScrollView
         className="flex-1"
