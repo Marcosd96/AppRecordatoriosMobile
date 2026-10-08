@@ -14,7 +14,6 @@ import ScreenHeader from '../components/ScreenHeader';
 import TaskCard from '../components/personalTasks/TaskCard';
 import TaskFilters from '../components/personalTasks/TaskFilters';
 import TaskFormModal from '../components/personalTasks/TaskFormModal';
-import TaskSummaryCard from '../components/personalTasks/TaskSummaryCard';
 import {
   FormMessage,
   StatusFilter,
@@ -185,18 +184,13 @@ export default function PersonalTasksScreen({ route }: any) {
       <ScrollView
         ref={scrollRef}
         className="flex-1"
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
-        contentContainerStyle={{ paddingBottom: 32 }}
+        contentContainerStyle={{ paddingBottom: responsive.spacing.xl }}
       >
         <View style={{ paddingHorizontal: responsive.spacing.lg, paddingVertical: responsive.spacing.md }}>
-          <TaskSummaryCard
-            isDark={isDark}
-            stats={stats}
-            onSelectStatus={setStatusFilter}
-          />
-
           <TaskFilters
             isDark={isDark}
             searchQuery={searchQuery}

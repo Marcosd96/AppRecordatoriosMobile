@@ -21,7 +21,7 @@ export default function TaskFilters({
   onChangeStatus,
 }: TaskFiltersProps) {
   return (
-    <View className="mt-4">
+    <View>
       <TextInput
         className={`border rounded-xl px-4 py-3 ${
           isDark
