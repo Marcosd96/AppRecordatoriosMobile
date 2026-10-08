@@ -9,7 +9,7 @@ import {
   notificationsService,
   reminderFingerprint,
 } from '../src/services/notificationsService';
-import { Reminder } from '../src/types';
+import { PersonalTask, Reminder } from '../src/types';
 
 const NOW = new Date('2026-03-02T08:00:00');
 const DAY = 24 * 60 * 60 * 1000;
@@ -147,6 +147,62 @@ describe('acciones sobre un solo elemento', () => {
     await notificationsService.syncReminders(reminders);
 
     expect(scheduled.size).toBe(4);
+  });
+});
+
+describe('aviso de recordatorio pasado de una tarea futura', () => {
+  // Tarea dentro de 30 minutos con aviso 60 minutos antes: el aviso ya pasó
+  const task: PersonalTask = {
+    id: 't1',
+    userId: 'u1',
+    title: 'Llamar',
+    isRecurring: false,
+    startDate: new Date(NOW.getTime() + 30 * 60 * 1000).toISOString(),
+    status: 'active',
+    priority: 'medium',
+    reminderEnabled: true,
+    reminderMinutes: 60,
+    createdAt: NOW.toISOString(),
+    updatedAt: NOW.toISOString(),
+  };
+
+  it('se envía una sola vez aunque se sincronice varias veces el mismo día', async () => {
+    await notificationsService.syncPersonalTasks([task], { force: true });
+    await notificationsService.syncPersonalTasks([task], { force: true });
+
+    expect(notifee.displayNotification).toHaveBeenCalledTimes(1);
+  });
+
+  it('se vuelve a enviar al día siguiente', async () => {
+    await notificationsService.syncPersonalTasks([task], { force: true });
+    jest.setSystemTime(new Date(NOW.getTime() + DAY));
+    const tomorrowTask = {
+      ...task,
+      startDate: new Date(NOW.getTime() + DAY + 30 * 60 * 1000).toISOString(),
+    };
+    await notificationsService.syncPersonalTasks([tomorrowTask], { force: true });
+
+    expect(notifee.displayNotification).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('avisos pospuestos', () => {
+  it('al sincronizar se cancelan los de recordatorios que ya no están pendientes', async () => {
+    scheduled.add('snooze_reminder_a_1days');
+    scheduled.add('snooze_reminder_b_1days');
+    (notifee.getTriggerNotifications as jest.Mock).mockResolvedValue([
+      { notification: { id: 'snooze_reminder_a_1days', data: { reminderId: 'a' } } },
+      { notification: { id: 'snooze_reminder_b_1days', data: { reminderId: 'b' } } },
+    ]);
+
+    // "a" sigue pendiente, "b" se completó
+    await notificationsService.syncReminders([
+      makeReminder('a', 10),
+      makeReminder('b', 12, 'completed'),
+    ]);
+
+    expect(scheduled.has('snooze_reminder_a_1days')).toBe(true);
+    expect(scheduled.has('snooze_reminder_b_1days')).toBe(false);
   });
 });
 

@@ -2,6 +2,11 @@ import notifee, { AndroidImportance, TriggerType } from '@notifee/react-native';
 import { Platform, PermissionsAndroid, AppState, Linking } from 'react-native';
 import { Reminder, PersonalTask } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  ITEM_ACTIONS_CATEGORY,
+  androidItemActions,
+  iosItemActionsCategory,
+} from './notificationActionConfig';
 
 const NOTIFICATION_STORAGE_KEY = '@scheduled_notifications';
 const IMMEDIATE_NOTIFICATIONS_TODAY_KEY = '@immediate_notifications_today';
@@ -179,6 +184,23 @@ class NotificationsService {
   }
 
   /**
+   * Cancela los avisos pospuestos ("Posponer 1 h") cuyos datos cumplen el filtro, p. ej. los de
+   * un recordatorio o tarea que ya se completó
+   */
+  async cancelSnoozes(matches: (data: Record<string, unknown>) => boolean): Promise<void> {
+    try {
+      const triggers = await notifee.getTriggerNotifications();
+      for (const { notification } of triggers) {
+        if (notification.id?.startsWith('snooze_') && matches(notification.data ?? {})) {
+          await notifee.cancelNotification(notification.id);
+        }
+      }
+    } catch (error) {
+      console.error('Error al cancelar avisos pospuestos:', error);
+    }
+  }
+
+  /**
    * Une los IDs indicados con los que notifee tiene programados y cumplen el filtro
    */
   private async withTriggerIdsMatching(
@@ -258,6 +280,10 @@ class NotificationsService {
    * Crea un canal de notificaciones para Android
    */
   async createNotificationChannel() {
+    if (Platform.OS === 'ios') {
+      // En iOS los botones de las notificaciones se definen por categoría
+      await notifee.setNotificationCategories([iosItemActionsCategory]);
+    }
     if (Platform.OS === 'android') {
       await notifee.createChannel({
         id: 'reminders_v2',
@@ -371,10 +397,12 @@ class NotificationsService {
             pressAction: {
               id: 'default',
             },
+            actions: androidItemActions,
             smallIcon: 'ic_launcher',
             color: immediateColor,
           },
           ios: {
+            categoryId: ITEM_ACTIONS_CATEGORY,
             sound: 'alarma_fiscal.wav',
             foregroundPresentationOptions: {
               alert: true,
@@ -452,10 +480,12 @@ class NotificationsService {
                 pressAction: {
                   id: 'default',
                 },
+                actions: androidItemActions,
                 smallIcon: 'ic_launcher',
                 color: color,
               },
               ios: {
+                categoryId: ITEM_ACTIONS_CATEGORY,
                 sound: 'alarma_fiscal.wav',
                 foregroundPresentationOptions: {
                   alert: true,
@@ -534,6 +564,10 @@ class NotificationsService {
           MAX_REMINDER_TRIGGERS - scheduledCount
         );
       }
+
+      // Los avisos pospuestos de recordatorios que ya no están pendientes sobran
+      const pendingIds = new Set(pendingReminders.map(r => r.id));
+      await this.cancelSnoozes(data => typeof data.reminderId === 'string' && !pendingIds.has(data.reminderId));
 
       console.log(
         `Programadas ${scheduledCount} notificaciones para ${pendingReminders.length} recordatorios ` +
@@ -784,12 +818,16 @@ class NotificationsService {
                 pressAction: {
                   id: 'default',
                 },
+                actions: androidItemActions,
                 smallIcon: 'ic_launcher',
                 color: color,
                 showTimestamp: true,
                 // Forzar mostrar en primer plano
                 visibility: 1, // VISIBILITY_PUBLIC
                 autoCancel: true,
+              },
+              ios: {
+                categoryId: ITEM_ACTIONS_CATEGORY,
               },
             });
             console.log('✅ Notificación inmediata enviada (app en primer plano)');
@@ -810,11 +848,13 @@ class NotificationsService {
                 pressAction: {
                   id: 'default',
                 },
+                actions: androidItemActions,
                 smallIcon: 'ic_launcher',
                 color: color,
                 showTimestamp: true,
               },
               ios: {
+                categoryId: ITEM_ACTIONS_CATEGORY,
                 sound: 'alarma_fiscal.wav',
                 foregroundPresentationOptions: {
                   alert: true,
@@ -853,6 +893,7 @@ class NotificationsService {
             pressAction: {
               id: 'default',
             },
+            actions: androidItemActions,
             smallIcon: 'ic_launcher',
             color: color,
             showTimestamp: true,
@@ -862,6 +903,7 @@ class NotificationsService {
             ongoing: false,
           },
           ios: {
+            categoryId: ITEM_ACTIONS_CATEGORY,
             sound: 'alarma_fiscal.wav',
             foregroundPresentationOptions: {
               alert: true,
@@ -1160,9 +1202,14 @@ class NotificationsService {
         // Caso 2: La tarea no es recurrente pero la fecha de la tarea es futura
         // Ejemplo: Tarea para mañana a las 8am, recordatorio 24h antes (hoy 8am), pero son las 9am
         else if (targetDate.getTime() > now.getTime()) {
-          console.log(`⚠️ Recordatorio pasado para tarea futura ${task.id}. Enviando inmediata.`);
-          // Enviar notificación inmediata advirtiendo que el recordatorio se pasó
-          await this.sendImmediatePersonalTaskNotification(task);
+          // Avisar de que el recordatorio se pasó, pero solo una vez al día por ocurrencia:
+          // cada sincronización completa (p. ej. al abrir la app) volvería a enviarlo
+          const immediateKey = `task:${task.id}:${targetDate.getTime()}`;
+          if (!(await this.hasImmediateNotificationToday(immediateKey))) {
+            console.log(`⚠️ Recordatorio pasado para tarea futura ${task.id}. Enviando inmediata.`);
+            await this.sendImmediatePersonalTaskNotification(task);
+            await this.markImmediateNotificationSent(immediateKey);
+          }
           return false;
         }
         // Caso 3: La tarea ya pasó y no es recurrente -> No hacer nada
@@ -1216,10 +1263,12 @@ class NotificationsService {
             pressAction: {
               id: 'default',
             },
+            actions: androidItemActions,
             smallIcon: 'ic_launcher',
             color: color,
           },
           ios: {
+            categoryId: ITEM_ACTIONS_CATEGORY,
             sound: 'default',
             foregroundPresentationOptions: {
               alert: true,
@@ -1278,8 +1327,12 @@ class NotificationsService {
           pressAction: {
             id: 'default',
           },
+          actions: androidItemActions,
           smallIcon: 'ic_launcher',
           color: color,
+        },
+        ios: {
+          categoryId: ITEM_ACTIONS_CATEGORY,
         },
       });
     } catch (error) {
@@ -1332,6 +1385,10 @@ class NotificationsService {
           scheduledCount++;
         }
       }
+
+      // Los avisos pospuestos de tareas que ya no están activas sobran
+      const activeIds = new Set(activeTasksWithReminders.map(t => t.id));
+      await this.cancelSnoozes(data => typeof data.taskId === 'string' && !activeIds.has(data.taskId));
 
       console.log(
         `Programadas ${scheduledCount} notificaciones para ${activeTasksWithReminders.length} tareas personales ` +
