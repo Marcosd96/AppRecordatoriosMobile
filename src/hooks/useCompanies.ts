@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Company, Reminder } from '../types';
+import { useQueryClient } from '@tanstack/react-query';
+import { Company } from '../types';
 import { companiesService } from '../services/companiesService';
 import { remindersService } from '../services/remindersService';
 import { notificationsService } from '../services/notificationsService';
 import { CalendarType } from '../config/calendarTypes';
+import { queryKeys } from '../config/queryClient';
+import {
+  useCalendarsQuery,
+  useCompaniesQuery,
+  useRefetchOnFocus,
+  useRemindersQuery,
+} from './queries';
 
 export interface CompaniesMessage {
   title: string;
@@ -11,75 +19,61 @@ export interface CompaniesMessage {
 }
 
 /**
- * Empresas del usuario y sus recordatorios, con las notificaciones sincronizadas.
+ * Empresas del usuario y sus recordatorios, desde la caché (también sin conexión).
+ * Las notificaciones las sincroniza NotificationSync al cambiar los recordatorios.
  * Los errores de carga se notifican con `onError`; las acciones devuelven el mensaje a mostrar.
  */
 export function useCompanies(onError: (error: CompaniesMessage) => void) {
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const queryClient = useQueryClient();
+  const companiesQuery = useCompaniesQuery();
+  const remindersQuery = useRemindersQuery();
+  const calendarsQuery = useCalendarsQuery();
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [availableCalendars, setAvailableCalendars] = useState<CalendarType[]>([]);
+
+  useRefetchOnFocus([companiesQuery, remindersQuery]);
 
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
 
-  /**
-   * @param sendImmediate Envía avisos inmediatos de los recordatorios que vencen pronto
-   *   (se usa justo después de crear o regenerar recordatorios)
-   */
-  const loadData = useCallback(async ({ sendImmediate = false } = {}) => {
-    try {
-      const [companiesData, remindersData] = await Promise.all([
-        companiesService.getAll(),
-        remindersService.getAll(),
-      ]);
-      setCompanies(companiesData);
-      setReminders(remindersData);
-
-      // Programar notificaciones automáticamente para todos los recordatorios pendientes
-      await notificationsService.syncReminders(remindersData, { sendImmediate });
-    } catch (error: any) {
-      console.error('Error al cargar datos:', error);
+  // Avisar del error solo si no hay datos guardados que mostrar
+  const loadError = companiesQuery.error ?? remindersQuery.error;
+  const hasData = companiesQuery.data !== undefined && remindersQuery.data !== undefined;
+  const lastReportedError = useRef<unknown>(null);
+  useEffect(() => {
+    if (loadError && !hasData && lastReportedError.current !== loadError) {
+      lastReportedError.current = loadError;
+      console.error('Error al cargar datos:', loadError);
       onErrorRef.current({
         title: 'Error',
         message:
-          error.message ||
+          (loadError as Error).message ||
           'No se pudieron cargar los datos. Verifica tu conexión.',
       });
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
     }
-  }, []);
+  }, [loadError, hasData]);
 
-  const loadAvailableCalendars = useCallback(async () => {
-    try {
-      const calendars = await companiesService.getAvailableCalendars();
-      console.log('[CompaniesScreen] Calendarios disponibles:', calendars.length);
-      setAvailableCalendars(calendars);
-    } catch (error) {
-      console.error('Error al cargar calendarios disponibles:', error);
-    }
-  }, []);
+  
 
-  useEffect(() => {
-    // Inicializar notificaciones al montar el componente
-    const initializeNotifications = async () => {
-      await notificationsService.createNotificationChannel();
-      await notificationsService.requestPermissions();
-    };
-
-    initializeNotifications();
-    loadData();
-    loadAvailableCalendars();
-  }, [loadData, loadAvailableCalendars]);
+  /**
+   * Vuelve a pedir empresas, recordatorios y panel (el backend genera o borra recordatorios
+   * al cambiar empresas)
+   */
+  const refreshAfterChange = useCallback(
+    () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.companies }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.reminders }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard }),
+      ]),
+    [queryClient],
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadData();
-  }, [loadData]);
+    await Promise.all([companiesQuery.refetch(), remindersQuery.refetch()]);
+    setRefreshing(false);
+  }, [companiesQuery, remindersQuery]);
 
   /**
    * Crea una empresa sin calendarios preseleccionados.
@@ -118,8 +112,7 @@ export function useCompanies(onError: (error: CompaniesMessage) => void) {
           }
         }
 
-        // Recargar datos para obtener los recordatorios generados (y programar sus notificaciones)
-        await loadData();
+        await refreshAfterChange();
 
         return {
           created: true,
@@ -139,23 +132,16 @@ export function useCompanies(onError: (error: CompaniesMessage) => void) {
         setCreating(false);
       }
     },
-    [loadData],
+    [refreshAfterChange],
   );
 
   const deleteCompany = useCallback(
     async (companyId: string): Promise<CompaniesMessage> => {
       try {
-        // Obtener los recordatorios de la empresa antes de eliminarla
-        const companyReminders = reminders.filter(r => r.companyId === companyId);
-
         await companiesService.delete(companyId);
-        setCompanies(prev => prev.filter(c => c.id !== companyId));
-        setReminders(prev => prev.filter(r => r.companyId !== companyId));
-
-        // Cancelar todas las notificaciones de los recordatorios de esta empresa
-        for (const reminder of companyReminders) {
-          await notificationsService.cancelReminderNotifications(reminder.id);
-        }
+        // Al recargar, la empresa y sus recordatorios desaparecen y NotificationSync
+        // cancela sus notificaciones
+        await refreshAfterChange();
 
         return {
           title: 'Éxito',
@@ -167,7 +153,7 @@ export function useCompanies(onError: (error: CompaniesMessage) => void) {
         return { title: 'Error', message: error.message || 'No se pudo eliminar la empresa' };
       }
     },
-    [reminders],
+    [refreshAfterChange],
   );
 
   /**
@@ -183,9 +169,18 @@ export function useCompanies(onError: (error: CompaniesMessage) => void) {
           calendarTypes: selectedCalendars,
         });
 
-        // Recargar datos (el backend regenera los recordatorios) con avisos inmediatos,
-        // porque se acaban de crear/actualizar recordatorios
-        await loadData({ sendImmediate: true });
+        // El backend regenera los recordatorios: pedirlos ya y programarlos con avisos
+        // inmediatos, porque se acaban de crear/actualizar
+        const reminders = await queryClient.fetchQuery({
+          queryKey: queryKeys.reminders,
+          queryFn: () => remindersService.getAll(),
+          staleTime: 0,
+        });
+        await notificationsService.syncReminders(reminders, { sendImmediate: true });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: queryKeys.companies }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.dashboard }),
+        ]);
 
         return {
           title: 'Éxito',
@@ -197,16 +192,17 @@ export function useCompanies(onError: (error: CompaniesMessage) => void) {
         throw error;
       }
     },
-    [loadData],
+    [queryClient],
   );
 
   return {
-    companies,
-    reminders,
-    loading,
+    companies: companiesQuery.data ?? [],
+    reminders: remindersQuery.data ?? [],
+    // Solo se muestra la pantalla de carga si no hay nada guardado y se está pidiendo
+    loading: companiesQuery.isPending && companiesQuery.fetchStatus === 'fetching',
     refreshing,
     creating,
-    availableCalendars,
+    availableCalendars: calendarsQuery.data ?? [],
     onRefresh,
     createCompany,
     deleteCompany,

@@ -1,11 +1,7 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-import { Reminder } from '../types';
-import { dashboardService } from '../services/dashboardService';
-import { healthService } from '../services/healthService';
-import { remindersService } from '../services/remindersService';
 import { notificationsService } from '../services/notificationsService';
+import { useDashboardQuery, useRefetchOnFocus, useRemindersQuery } from './queries';
 
 export interface NotificationStatus {
   hasPermission: boolean;
@@ -22,6 +18,8 @@ export interface DashboardMessage {
   title: string;
   message: string;
 }
+
+const EMPTY_STATS = { total: 0, pending: 0, overdue: 0, upcoming: 0 };
 
 async function fetchNotificationStatus(): Promise<NotificationStatus> {
   const status = await notificationsService.getNotificationStatus();
@@ -41,106 +39,59 @@ async function fetchNotificationStatus(): Promise<NotificationStatus> {
 }
 
 /**
- * Datos del panel principal. Además mantiene programadas las notificaciones de todos
- * los recordatorios (importante si hay empresas creadas desde el proyecto web).
+ * Datos del panel principal. Se muestran desde la caché (también sin conexión) y se
+ * refrescan en segundo plano. Las notificaciones las sincroniza NotificationSync.
  */
 export function useDashboard() {
-  const [upcomingReminders, setUpcomingReminders] = useState<Reminder[]>([]);
-  const [stats, setStats] = useState({
-    total: 0,
-    pending: 0,
-    overdue: 0,
-    upcoming: 0,
-  });
-  const [companiesCount, setCompaniesCount] = useState(0);
+  const dashboardQuery = useDashboardQuery();
+  const remindersQuery = useRemindersQuery();
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [notificationStatus, setNotificationStatus] = useState<NotificationStatus | null>(null);
-  const isInitialMount = useRef(true);
+  const lastAlertedError = useRef<unknown>(null);
+
+  useRefetchOnFocus([dashboardQuery, remindersQuery]);
 
   const refreshNotificationStatus = useCallback(async () => {
     try {
       setNotificationStatus(await fetchNotificationStatus());
-    } catch (error) {
-      console.error('Error al obtener estado de notificaciones:', error);
+    } catch (statusError) {
+      console.error('Error al obtener estado de notificaciones:', statusError);
     }
   }, []);
 
-  const loadData = useCallback(async () => {
-    try {
-      // Primero verificar conectividad
-      try {
-        await healthService.check();
-        console.log('[Dashboard] Conexión con servidor OK');
-      } catch (healthError: any) {
-        console.error('[Dashboard] Error de conectividad:', healthError);
-        Alert.alert(
-          'Error de Conexión',
-          `No se pudo conectar al servidor:\n\n${healthError.message}\n\n` +
-            `Verifica:\n` +
-            `1. Tu conexión a internet\n` +
-            `2. Que la URL sea correcta\n` +
-            `3. Que el servidor esté funcionando`,
-        );
-        return;
-      }
+  
 
-      // Luego cargar datos del dashboard
-      const dashboardData = await dashboardService.getDashboard();
-      setStats(dashboardData.stats);
-      setUpcomingReminders(dashboardData.upcomingReminders);
-      setCompaniesCount(dashboardData.companiesCount);
-
-      // Asegurar que las notificaciones estén programadas después de cargar datos
-      try {
-        const allReminders = await remindersService.getAll();
-        await notificationsService.syncReminders(allReminders);
-      } catch (notifError) {
-        console.error('[Dashboard] Error programando notificaciones:', notifError);
-        // No interrumpir el flujo si falla la programación de notificaciones
-      }
-    } catch (error: any) {
-      console.error('Error al cargar datos del dashboard:', error);
-      Alert.alert('Error', error.message || 'No se pudieron cargar los datos.');
-    } finally {
-      await refreshNotificationStatus();
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [refreshNotificationStatus]);
-
+  // El estado de las notificaciones depende de que terminen de sincronizarse los recordatorios.
+  // syncReminders va en cola detrás de la de NotificationSync y, si no hay cambios, no hace nada.
+  const reminders = remindersQuery.data;
   useEffect(() => {
-    const initialize = async () => {
-      try {
-        await notificationsService.createNotificationChannel();
-        const hasPermission = await notificationsService.checkPermissions();
-        if (!hasPermission) {
-          await notificationsService.requestPermissions();
-        }
-      } catch (error) {
-        console.error('[Dashboard] Error inicializando notificaciones:', error);
-      }
-      await loadData();
-      // Marcar que la carga inicial se completó después de que termine
-      isInitialMount.current = false;
-    };
+    if (!reminders) {
+      return;
+    }
+    notificationsService
+      .syncReminders(reminders)
+      .catch(syncError => console.error('[Dashboard] Error sincronizando notificaciones:', syncError))
+      .finally(refreshNotificationStatus);
+  }, [reminders, refreshNotificationStatus]);
 
-    initialize();
-  }, [loadData]);
-
-  // Recargar datos cuando la pantalla recibe el foco (evitar doble carga al inicio)
-  useFocusEffect(
-    React.useCallback(() => {
-      if (!isInitialMount.current) {
-        loadData();
-      }
-    }, [loadData]),
-  );
+  // Avisar del error solo si no hay datos guardados que mostrar
+  const { error, data } = dashboardQuery;
+  useEffect(() => {
+    if (error && !data && lastAlertedError.current !== error) {
+      lastAlertedError.current = error;
+      console.error('Error al cargar datos del dashboard:', error);
+      Alert.alert(
+        'Error',
+        (error as Error).message || 'No se pudieron cargar los datos.',
+      );
+    }
+  }, [error, data]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadData();
-  }, [loadData]);
+    await Promise.all([dashboardQuery.refetch(), remindersQuery.refetch()]);
+    setRefreshing(false);
+  }, [dashboardQuery, remindersQuery]);
 
   /**
    * Muestra una notificación de prueba y devuelve el mensaje para el usuario
@@ -166,21 +117,23 @@ export function useDashboard() {
         title: 'Éxito',
         message: 'Se envió una notificación de prueba. Deberías verla ahora.',
       };
-    } catch (error: any) {
-      console.error('Error al enviar notificación de prueba:', error);
+    } catch (testError: any) {
+      console.error('Error al enviar notificación de prueba:', testError);
       return {
         title: 'Error',
-        message: error.message || 'No se pudo enviar la notificación de prueba',
+        message: testError.message || 'No se pudo enviar la notificación de prueba',
       };
     }
   }, [refreshNotificationStatus]);
 
   return {
-    upcomingReminders,
-    stats,
-    companiesCount,
+    upcomingReminders: data?.upcomingReminders ?? [],
+    stats: data?.stats ?? EMPTY_STATS,
+    companiesCount: data?.companiesCount ?? 0,
     refreshing,
-    loading,
+    // Solo se muestra la pantalla de carga si no hay nada guardado
+    // (y se está pidiendo: sin conexión y sin datos se muestra la pantalla vacía, no un spinner eterno)
+    loading: dashboardQuery.isPending && dashboardQuery.fetchStatus === 'fetching',
     notificationStatus,
     onRefresh,
     sendTestNotification,

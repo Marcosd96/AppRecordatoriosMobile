@@ -13,10 +13,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { Reminder, ReminderFilter, SortBy, Company } from '../types';
+import { useQueryClient } from '@tanstack/react-query';
+import { Reminder, ReminderFilter, SortBy } from '../types';
 import { remindersService } from '../services/remindersService';
-import { companiesService } from '../services/companiesService';
-import { notificationsService } from '../services/notificationsService';
+
+import { queryKeys } from '../config/queryClient';
+import { useCompaniesQuery, useRefetchOnFocus, useRemindersQuery } from '../hooks/queries';
 import { useTheme } from '../context/ThemeContext';
 import { useResponsive } from '../hooks/useResponsive';
 import StyledModal from '../components/StyledModal';
@@ -33,21 +35,25 @@ if (
 export default function RemindersScreen({ route }: any) {
   const { isDark } = useTheme();
   const responsive = useResponsive();
-  const [reminders, setReminders] = useState<Reminder[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
+    const queryClient = useQueryClient();
+  const remindersQuery = useRemindersQuery();
+  const companiesQuery = useCompaniesQuery();
+  const reminders = useMemo(() => remindersQuery.data ?? [], [remindersQuery.data]);
+  const companies = companiesQuery.data ?? [];
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(
     null,
   );
   const [filter, setFilter] = useState<ReminderFilter>('all');
   const [sortBy] = useState<SortBy>('date');
-  const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+  // Solo se muestra la pantalla de carga si no hay nada guardado y se está pidiendo
+  const loading = remindersQuery.isPending && remindersQuery.fetchStatus === 'fetching';
   const [searchQuery, setSearchQuery] = useState('');
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState({ title: '', message: '' });
   const [showStatusFilter, setShowStatusFilter] = useState(false);
   const [showCompanyFilter, setShowCompanyFilter] = useState(false);
-  const isInitialMount = useRef(true);
+  
 
   // Función para animar los cambios de layout
   const animateLayout = () => {
@@ -60,48 +66,27 @@ export default function RemindersScreen({ route }: any) {
     );
   };
 
-  const loadData = async () => {
-    try {
-      const [remindersData, companiesData] = await Promise.all([
-        remindersService.getAll(),
-        companiesService.getAll(),
-      ]);
-      setReminders(remindersData);
-      setCompanies(companiesData);
+  useRefetchOnFocus([remindersQuery, companiesQuery]);
 
-      // Programar notificaciones para los recordatorios pendientes
-      await notificationsService.syncReminders(remindersData);
-    } catch (error: any) {
-      console.error('Error al cargar datos:', error);
+  // Avisar del error solo si no hay datos guardados que mostrar
+  const loadError = remindersQuery.error ?? companiesQuery.error;
+  const hasData = remindersQuery.data !== undefined;
+  const lastReportedError = useRef<unknown>(null);
+  useEffect(() => {
+    if (loadError && !hasData && lastReportedError.current !== loadError) {
+      lastReportedError.current = loadError;
+      console.error('Error al cargar datos:', loadError);
       setErrorMessage({
         title: 'Error',
         message:
-          error.message ||
+          (loadError as Error).message ||
           'No se pudieron cargar los datos. Verifica tu conexión.',
       });
       setShowErrorModal(true);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
     }
-  };
+  }, [loadError, hasData]);
 
-  useEffect(() => {
-    // Inicializar notificaciones al montar el componente
-    const initializeNotifications = async () => {
-      await notificationsService.createNotificationChannel();
-      await notificationsService.requestPermissions();
-    };
-
-    const initialize = async () => {
-      await initializeNotifications();
-      await loadData();
-      // Marcar que la carga inicial se completó después de que termine
-      isInitialMount.current = false;
-    };
-
-    initialize();
-  }, []);
+  
 
   // Actualizar selectedCompanyId y filter cuando cambian los parámetros de ruta
   useEffect(() => {
@@ -123,16 +108,14 @@ export default function RemindersScreen({ route }: any) {
       if (route?.params?.filter) {
         setFilter(route.params.filter);
       }
-      // Recargar datos cuando la pantalla recibe el foco (evitar doble carga al inicio)
-      if (!isInitialMount.current) {
-        loadData();
-      }
+      
     }, [route?.params?.companyId, route?.params?.filter]),
   );
 
-  const onRefresh = async () => {
+    const onRefresh = async () => {
     setRefreshing(true);
-    await loadData();
+    await Promise.all([remindersQuery.refetch(), companiesQuery.refetch()]);
+    setRefreshing(false);
   };
 
   // Memoizar los recordatorios filtrados para evitar recalcular en cada render
@@ -217,20 +200,11 @@ export default function RemindersScreen({ route }: any) {
 
       try {
         const result = await remindersService.toggleStatus(id);
-        const updatedReminders = reminders.map(r =>
-          r.id === id ? result.reminder : r,
+        // Al actualizar la caché, NotificationSync cancela o reprograma sus notificaciones
+        queryClient.setQueryData<Reminder[]>(queryKeys.reminders, current =>
+          (current ?? []).map(r => (r.id === id ? result.reminder : r)),
         );
-        setReminders(updatedReminders);
-
-        // Si se completó el recordatorio, cancelar sus notificaciones
-        if (result.reminder.status === 'completed') {
-          await notificationsService.cancelReminderNotifications(id);
-        } else {
-          // Si se reactivó, reprogramar notificaciones
-          await notificationsService.scheduleReminderNotification(
-            result.reminder,
-          );
-        }
+        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
       } catch (error: any) {
         console.error('Error al actualizar recordatorio:', error);
         setErrorMessage({
@@ -240,7 +214,7 @@ export default function RemindersScreen({ route }: any) {
         setShowErrorModal(true);
       }
     },
-    [reminders],
+    [reminders, queryClient],
   );
 
   const getStatusBadge = (status: Reminder['status']) => {
