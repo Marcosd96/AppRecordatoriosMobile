@@ -72,6 +72,29 @@ def enableProguardInReleaseBuilds = false
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
+/**
+ * Versión de la app tomada de package.json para no mantenerla en dos sitios.
+ * versionCode = major * 10000 + minor * 100 + patch (1.2.0 -> 10200).
+ */
+def packageJson = new groovy.json.JsonSlurper().parse(file("../../package.json"))
+def appVersionName = packageJson.version.toString()
+def appVersionParts = appVersionName.tokenize('.-')
+def appVersionCode = appVersionParts[0].toInteger() * 10000 +
+        appVersionParts[1].toInteger() * 100 +
+        appVersionParts[2].toInteger()
+
+/**
+ * Firma de release. Define estas propiedades en ~/.gradle/gradle.properties
+ * (nunca en el repo) o como variables de entorno en CI:
+ *   GESACCOL_UPLOAD_STORE_FILE, GESACCOL_UPLOAD_STORE_PASSWORD,
+ *   GESACCOL_UPLOAD_KEY_ALIAS, GESACCOL_UPLOAD_KEY_PASSWORD
+ */
+def releaseSigningProp = { String name ->
+    project.findProperty(name) ?: System.getenv(name)
+}
+def hasReleaseSigning = ['GESACCOL_UPLOAD_STORE_FILE', 'GESACCOL_UPLOAD_STORE_PASSWORD',
+                         'GESACCOL_UPLOAD_KEY_ALIAS', 'GESACCOL_UPLOAD_KEY_PASSWORD'].every { releaseSigningProp(it) }
+
 android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
@@ -86,8 +109,8 @@ android {
         applicationId "com.apprecordatoriosmobile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode appVersionCode
+        versionName appVersionName
     }
     signingConfigs {
         debug {
@@ -96,15 +119,31 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        if (hasReleaseSigning) {
+            release {
+                storeFile file(releaseSigningProp('GESACCOL_UPLOAD_STORE_FILE'))
+                storePassword releaseSigningProp('GESACCOL_UPLOAD_STORE_PASSWORD')
+                keyAlias releaseSigningProp('GESACCOL_UPLOAD_KEY_ALIAS')
+                keyPassword releaseSigningProp('GESACCOL_UPLOAD_KEY_PASSWORD')
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            // Sin credenciales de release se usa la clave de debug: vale para probar en local,
+            // pero ese APK/AAB no se puede publicar en Play Store.
+            // Ver https://reactnative.dev/docs/signed-apk-android
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            } else {
+                if (gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }) {
+                    logger.warn("⚠️  Firma de release no configurada: usando debug.keystore")
+                }
+                signingConfig signingConfigs.debug
+            }
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
