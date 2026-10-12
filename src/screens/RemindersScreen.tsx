@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   View,
   Text,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   RefreshControl,
   TextInput,
@@ -29,6 +29,7 @@ import ReminderCard from '../components/reminders/ReminderCard';
 import EmptyState from '../components/EmptyState';
 import { SearchIcon } from '../components/icons/ActionIcons';
 import { CalendarIcon } from '../components/icons/TabIcons';
+import { MainTabScreenProps } from '../navigation/types';
 
 // Clave del chip "Todas las empresas" (en el estado se guarda como null)
 const ALL_COMPANIES = '__all__';
@@ -41,7 +42,7 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-export default function RemindersScreen({ route }: any) {
+export default function RemindersScreen({ route }: MainTabScreenProps<'Reminders'>) {
   const { isDark } = useTheme();
   const responsive = useResponsive();
     const queryClient = useQueryClient();
@@ -97,11 +98,6 @@ export default function RemindersScreen({ route }: any) {
   // Al abrir desde una notificación: quitar filtros, ir hasta el recordatorio y resaltarlo
   const highlightReminderId: string | undefined = route?.params?.reminderId;
   const highlightAt: number | undefined = route?.params?.highlightAt;
-  const { scrollRef, registerItem, highlightedId } = useHighlightItem(
-    highlightReminderId,
-    highlightAt,
-    remindersQuery.data !== undefined,
-  );
   useEffect(() => {
     if (highlightReminderId && highlightAt) {
       setFilter('all');
@@ -184,6 +180,13 @@ export default function RemindersScreen({ route }: any) {
           }
         }),
     [reminders, selectedCompanyId, filter, sortBy, searchQuery],
+  );
+
+  const { listRef, highlightedId, onScrollToIndexFailed } = useHighlightItem(
+    highlightReminderId,
+    highlightAt,
+    remindersQuery.data !== undefined,
+    filteredReminders,
   );
 
   const stats = {
@@ -275,97 +278,107 @@ export default function RemindersScreen({ route }: any) {
         }
       />
 
-      <ScrollView
-        ref={scrollRef}
+      <FlatList
+        ref={listRef}
         className="flex-1"
+        data={filteredReminders}
+        keyExtractor={reminder => reminder.id}
         keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         contentContainerStyle={{ paddingBottom: responsive.spacing.xl }}
-      >
-        {/* Búsqueda y filtros */}
-        <View
-          style={{
-            paddingHorizontal: responsive.spacing.lg,
-            paddingTop: responsive.spacing.md,
-          }}
-        >
-          <TextInput
-            className={`border rounded-xl ${
-              isDark
-                ? 'bg-gray-800 border-gray-700 text-white'
-                : 'bg-white border-gray-200 text-gray-900'
-            }`}
+        onScrollToIndexFailed={onScrollToIndexFailed}
+        // Búsqueda y filtros. Es un elemento, no un componente: así el buscador no pierde el foco
+        ListHeaderComponent={
+          <View
             style={{
-              paddingHorizontal: responsive.spacing.md,
-              paddingVertical: responsive.spacing.sm + 4,
-              fontSize: responsive.fontSize.base,
+              paddingHorizontal: responsive.spacing.lg,
+              paddingTop: responsive.spacing.md,
+              // Mismo espacio que había entre los filtros y la lista
+              paddingBottom: responsive.spacing.md,
             }}
-            placeholder="Buscar por descripción o empresa"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholderTextColor="#9ca3af"
-            returnKeyType="search"
-            clearButtonMode="while-editing"
-            accessibilityLabel="Buscar recordatorios"
-          />
-
-          <View style={{ marginTop: responsive.spacing.sm }}>
-            <FilterChips
-              isDark={isDark}
-              options={statusOptions}
-              selected={filter}
-              onSelect={selectFilter}
+          >
+            <TextInput
+              className={`border rounded-xl ${
+                isDark
+                  ? 'bg-gray-800 border-gray-700 text-white'
+                  : 'bg-white border-gray-200 text-gray-900'
+              }`}
+              style={{
+                paddingHorizontal: responsive.spacing.md,
+                paddingVertical: responsive.spacing.sm + 4,
+                fontSize: responsive.fontSize.base,
+              }}
+              placeholder="Buscar por descripción o empresa"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholderTextColor="#9ca3af"
+              returnKeyType="search"
+              clearButtonMode="while-editing"
+              accessibilityLabel="Buscar recordatorios"
             />
-          </View>
-          {(companies.length > 1 || selectedCompanyId !== null) && (
-            <View style={{ marginTop: responsive.spacing.xs }}>
+
+            <View style={{ marginTop: responsive.spacing.sm }}>
               <FilterChips
                 isDark={isDark}
-                options={companyOptions}
-                selected={selectedCompanyId ?? ALL_COMPANIES}
-                onSelect={selectCompany}
+                options={statusOptions}
+                selected={filter}
+                onSelect={selectFilter}
               />
             </View>
-          )}
-
-          <View
-            className="flex-row items-center justify-between"
-            style={{ marginTop: responsive.spacing.sm }}
-          >
-            <Text
-              className={isDark ? 'text-gray-400' : 'text-gray-500'}
-              style={{ fontSize: responsive.fontSize.sm }}
-            >
-              {filteredReminders.length} de {reminders.length} recordatorio
-              {reminders.length === 1 ? '' : 's'}
-            </Text>
-            {hasActiveFilters && (
-              <TouchableOpacity
-                onPress={clearFilters}
-                accessibilityRole="button"
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Text
-                  className="font-semibold text-blue-600"
-                  style={{ fontSize: responsive.fontSize.sm }}
-                >
-                  Limpiar filtros
-                </Text>
-              </TouchableOpacity>
+            {(companies.length > 1 || selectedCompanyId !== null) && (
+              <View style={{ marginTop: responsive.spacing.xs }}>
+                <FilterChips
+                  isDark={isDark}
+                  options={companyOptions}
+                  selected={selectedCompanyId ?? ALL_COMPANIES}
+                  onSelect={selectCompany}
+                />
+              </View>
             )}
-          </View>
-        </View>
 
-        {/* Lista de recordatorios */}
-        <View
-          style={{
-            paddingHorizontal: responsive.spacing.lg,
-            paddingTop: responsive.spacing.md,
-          }}
-        >
-          {filteredReminders.length === 0 ? (
+            <View
+              className="flex-row items-center justify-between"
+              style={{ marginTop: responsive.spacing.sm }}
+            >
+              <Text
+                className={isDark ? 'text-gray-400' : 'text-gray-500'}
+                style={{ fontSize: responsive.fontSize.sm }}
+              >
+                {filteredReminders.length} de {reminders.length} recordatorio
+                {reminders.length === 1 ? '' : 's'}
+              </Text>
+              {hasActiveFilters && (
+                <TouchableOpacity
+                  onPress={clearFilters}
+                  accessibilityRole="button"
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text
+                    className="font-semibold text-blue-600"
+                    style={{ fontSize: responsive.fontSize.sm }}
+                  >
+                    Limpiar filtros
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        }
+        renderItem={({ item: reminder }) => (
+          <View style={{ paddingHorizontal: responsive.spacing.lg }}>
+            <ReminderCard
+              reminder={reminder}
+              isDark={isDark}
+              disabled={loading}
+              onToggleStatus={toggleReminderStatus}
+              style={highlightedId === reminder.id ? highlightStyle : undefined}
+            />
+          </View>
+        )}
+        ListEmptyComponent={
+          <View style={{ paddingHorizontal: responsive.spacing.lg }}>
             <EmptyState
               isDark={isDark}
               renderIcon={color =>
@@ -377,32 +390,18 @@ export default function RemindersScreen({ route }: any) {
                   : 'No hay recordatorios con estos filtros'
               }
               message={
-                reminders.length === 0
-                  ? 'Agrega empresas para generar sus recordatorios fiscales.'
-                  : 'Prueba con otra búsqueda o quita los filtros.'
+                reminders.length > 0
+                  ? 'Prueba con otra búsqueda o quita los filtros.'
+                  : companies.length > 0
+                    ? 'Tus empresas aún no tienen recordatorios. Revisa sus calendarios en Empresas.'
+                    : 'Agrega empresas para generar sus recordatorios fiscales.'
               }
               actionLabel={hasActiveFilters ? 'Limpiar filtros' : undefined}
               onAction={clearFilters}
             />
-          ) : (
-            filteredReminders.map(reminder => (
-              <View
-                key={reminder.id}
-                ref={registerItem(reminder.id)}
-                collapsable={false}
-              >
-                <ReminderCard
-                  reminder={reminder}
-                  isDark={isDark}
-                  disabled={loading}
-                  onToggleStatus={toggleReminderStatus}
-                  style={highlightedId === reminder.id ? highlightStyle : undefined}
-                />
-              </View>
-            ))
-          )}
-        </View>
-      </ScrollView>
+          </View>
+        }
+      />
 
       {/* Modal de error */}
       <StyledModal

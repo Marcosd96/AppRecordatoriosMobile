@@ -7,7 +7,7 @@
 
 import './global.css';
 import React, { useEffect } from 'react';
-import { StatusBar } from 'react-native';
+import { Linking, StatusBar } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import notifee, { EventType } from '@notifee/react-native';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
@@ -15,7 +15,7 @@ import { PERSIST_MAX_AGE, queryClient, queryPersister } from './src/config/query
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import ErrorBoundary from './src/components/ErrorBoundary';
-import { openFromNotification } from './src/navigation/notificationNavigation';
+import { openFromNotification, openFromUrl } from './src/navigation/notificationNavigation';
 import { handleNotificationAction } from './src/services/notificationActions';
 
 function AppContent() {
@@ -50,6 +50,16 @@ function AppContent() {
         }
       })
       .catch(error => console.error('Error leyendo la notificación inicial:', error));
+  }, []);
+
+  useEffect(() => {
+    // Enlaces gesaccol:// (filas del widget): con la app cerrada llegan como enlace inicial,
+    // con la app abierta como evento
+    Linking.getInitialURL()
+      .then(openFromUrl)
+      .catch(error => console.error('Error leyendo el enlace inicial:', error));
+    const subscription = Linking.addEventListener('url', ({ url }) => openFromUrl(url));
+    return () => subscription.remove();
   }, []);
 
   // Los eventos en segundo plano se registran en index.js (requisito de notifee)

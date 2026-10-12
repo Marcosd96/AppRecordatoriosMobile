@@ -5,8 +5,9 @@
  * así que el destino queda pendiente y se aplica en cuanto la pantalla principal está lista.
  */
 import { createNavigationContainerRef } from '@react-navigation/native';
+import { RootStackParamList } from './types';
 
-export const navigationRef = createNavigationContainerRef<any>();
+export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 export type NotificationTarget =
   | { screen: 'Reminders'; params: { reminderId: string; highlightAt: number } }
@@ -67,6 +68,35 @@ export function openFromNotification(
     lastHandled = { id: notification.id, at: now };
   }
   const target = targetFromNotificationData(notification?.data);
+  if (!target) {
+    return;
+  }
+  pendingTarget = target;
+  flushPendingNavigation();
+}
+
+/**
+ * Destino de un enlace gesaccol://reminder/<id> o gesaccol://task/<id> (p. ej. una fila del widget)
+ */
+export function targetFromUrl(
+  url: string | null | undefined,
+  now: number = Date.now(),
+): NotificationTarget | null {
+  const match = url?.match(/^gesaccol:\/\/(reminder|task)\/([^/?#]+)/);
+  if (!match) {
+    return null;
+  }
+  const id = decodeURIComponent(match[2]);
+  return match[1] === 'reminder'
+    ? { screen: 'Reminders', params: { reminderId: id, highlightAt: now } }
+    : { screen: 'PersonalTasks', params: { taskId: id, highlightAt: now } };
+}
+
+/**
+ * Abre el destino de un enlace; igual que con las notificaciones, espera a que haya sesión
+ */
+export function openFromUrl(url: string | null | undefined): void {
+  const target = targetFromUrl(url);
   if (!target) {
     return;
   }

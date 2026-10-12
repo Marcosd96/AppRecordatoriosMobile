@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
-  ScrollView,
+  FlatList,
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -31,8 +31,9 @@ import { useResponsive } from '../hooks/useResponsive';
 import { usePersonalTasks } from '../hooks/usePersonalTasks';
 import { useHighlightItem } from '../hooks/useHighlightItem';
 import { PersonalTask } from '../types';
+import { MainTabScreenProps } from '../navigation/types';
 
-export default function PersonalTasksScreen({ route }: any) {
+export default function PersonalTasksScreen({ route }: MainTabScreenProps<'PersonalTasks'>) {
   const { isDark } = useTheme();
   const responsive = useResponsive();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -65,11 +66,6 @@ export default function PersonalTasksScreen({ route }: any) {
   // Al abrir desde una notificación: quitar filtros, ir hasta la tarea y resaltarla
   const highlightTaskId: string | undefined = route?.params?.taskId;
   const highlightAt: number | undefined = route?.params?.highlightAt;
-  const { scrollRef, registerItem, highlightedId } = useHighlightItem(
-    highlightTaskId,
-    highlightAt,
-    !loading,
-  );
   useEffect(() => {
     if (highlightTaskId && highlightAt) {
       setStatusFilter('all');
@@ -109,6 +105,13 @@ export default function PersonalTasksScreen({ route }: any) {
         );
       });
   }, [tasks, statusFilter, searchQuery]);
+
+  const { listRef, highlightedId, onScrollToIndexFailed } = useHighlightItem(
+    highlightTaskId,
+    highlightAt,
+    !loading,
+    filteredTasks,
+  );
 
   const openCreateModal = () => {
     setEditingTask(null);
@@ -184,28 +187,45 @@ export default function PersonalTasksScreen({ route }: any) {
         }
       />
 
-      <ScrollView
-        ref={scrollRef}
+      <FlatList
+        ref={listRef}
         className="flex-1"
+        data={filteredTasks}
+        keyExtractor={task => task.id}
         keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         contentContainerStyle={{ paddingBottom: responsive.spacing.xl }}
-      >
-        <View style={{ paddingHorizontal: responsive.spacing.lg, paddingVertical: responsive.spacing.md }}>
-          <TaskFilters
-            isDark={isDark}
-            searchQuery={searchQuery}
-            onChangeSearch={setSearchQuery}
-            statusFilter={statusFilter}
-            statusOptions={statusFilterOptions}
-            onChangeStatus={setStatusFilter}
-          />
-        </View>
-
-        <View style={{ paddingHorizontal: responsive.spacing.lg }}>
-          {filteredTasks.length === 0 ? (
+        onScrollToIndexFailed={onScrollToIndexFailed}
+        // Es un elemento, no un componente: así el buscador no pierde el foco al escribir
+        ListHeaderComponent={
+          <View style={{ paddingHorizontal: responsive.spacing.lg, paddingVertical: responsive.spacing.md }}>
+            <TaskFilters
+              isDark={isDark}
+              searchQuery={searchQuery}
+              onChangeSearch={setSearchQuery}
+              statusFilter={statusFilter}
+              statusOptions={statusFilterOptions}
+              onChangeStatus={setStatusFilter}
+            />
+          </View>
+        }
+        renderItem={({ item: task }) => (
+          <View style={{ paddingHorizontal: responsive.spacing.lg }}>
+            <TaskCard
+              task={task}
+              highlighted={highlightedId === task.id}
+              isDark={isDark}
+              onEdit={openEditModal}
+              onStatusChange={updateTaskStatus}
+              onDelete={setTaskToDelete}
+              onShowMessage={showMessage}
+            />
+          </View>
+        )}
+        ListEmptyComponent={
+          <View style={{ paddingHorizontal: responsive.spacing.lg }}>
             <EmptyState
               isDark={isDark}
               renderIcon={color =>
@@ -220,23 +240,9 @@ export default function PersonalTasksScreen({ route }: any) {
               actionLabel={tasks.length === 0 ? 'Crear mi primera tarea' : 'Nueva tarea'}
               onAction={openCreateModal}
             />
-          ) : (
-            filteredTasks.map(task => (
-              <View key={task.id} ref={registerItem(task.id)} collapsable={false}>
-              <TaskCard
-                task={task}
-                highlighted={highlightedId === task.id}
-                isDark={isDark}
-                onEdit={openEditModal}
-                onStatusChange={updateTaskStatus}
-                onDelete={setTaskToDelete}
-                onShowMessage={showMessage}
-              />
-              </View>
-            ))
-          )}
-        </View>
-      </ScrollView>
+          </View>
+        }
+      />
 
       <TaskFormModal
         visible={showFormModal}

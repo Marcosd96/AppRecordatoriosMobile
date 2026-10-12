@@ -6,6 +6,7 @@ import {
   getPendingTarget,
   openFromNotification,
   targetFromNotificationData,
+  targetFromUrl,
 } from '../src/navigation/notificationNavigation';
 
 describe('targetFromNotificationData', () => {
@@ -53,5 +54,24 @@ describe('openFromNotification', () => {
     openFromNotification({ id: 'n4', data: { taskId: 't4' } }, 20_000);
 
     expect(getPendingTarget()).toMatchObject({ screen: 'PersonalTasks', params: { taskId: 't4' } });
+  });
+});
+
+describe('targetFromUrl', () => {
+  it('los enlaces del widget llevan al recordatorio o a la tarea', () => {
+    expect(targetFromUrl('gesaccol://reminder/r%201', 123)).toEqual({
+      screen: 'Reminders',
+      params: { reminderId: 'r 1', highlightAt: 123 },
+    });
+    expect(targetFromUrl('gesaccol://task/t1', 123)).toEqual({
+      screen: 'PersonalTasks',
+      params: { taskId: 't1', highlightAt: 123 },
+    });
+  });
+
+  it('ignora otros enlaces', () => {
+    expect(targetFromUrl(null)).toBeNull();
+    expect(targetFromUrl('https://example.com/reminder/r1')).toBeNull();
+    expect(targetFromUrl('gesaccol://company/c1')).toBeNull();
   });
 });
