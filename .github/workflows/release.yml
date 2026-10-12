@@ -71,17 +71,19 @@ jobs:
       - name: Make Gradle executable
         run: chmod +x android/gradlew
 
-      - name: Build debug APK
+      # APK de release (no depurable y minificada). Sin los secrets de firma se firma con la
+      # clave de debug, la misma de las versiones anteriores, así que instala encima de ellas.
+      - name: Build release APK
         env:
           GRADLE_OPTS: '-Xmx4096m -XX:MaxMetaspaceSize=1024m'
           ORG_GRADLE_DAEMON_XMX: '4096m'
-        run: npm run build:apk
+        run: npm run build:apk:release
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: Gesaccol-android-${{ github.ref_name }}
-          path: releases/Gesaccol-debug.apk
+          path: releases/Gesaccol.apk
 
       - name: Build signed release AAB
         if: env.HAS_UPLOAD_KEYSTORE == 'true'
@@ -177,7 +179,7 @@ jobs:
       - name: Collect artifact paths
         id: artifacts
         run: |
-          APK_PATH=$(find dist -name "Gesaccol-debug.apk" -print -quit)
+          APK_PATH=$(find dist -name "Gesaccol.apk" -print -quit)
           IOS_PATH=$(find dist -name "Gesaccol-iOS-*.zip" -print -quit)
           if [ -z "$APK_PATH" ] || [ -z "$IOS_PATH" ]; then
             echo "No se encontraron artefactos para publicar" >&2
