@@ -20,6 +20,7 @@ import {
   CheckIcon,
   ChevronDownIcon,
 } from '../components/icons/ActionIcons';
+import { RootStackScreenProps } from '../navigation/types';
 
 // Consejos genéricos; se podrían ampliar detectando el fabricante del dispositivo
 const manufacturerAdvice = [
@@ -105,7 +106,9 @@ function StatusRow({ isDark, ok, title, okText, problemText, actionLabel, onActi
   );
 }
 
-export default function NotificationTroubleshootingScreen({ navigation }: any) {
+export default function NotificationTroubleshootingScreen({
+  navigation,
+}: RootStackScreenProps<'NotificationTroubleshooting'>) {
   const { isDark } = useTheme();
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<{

@@ -21,8 +21,9 @@ import AddCompanyModal from '../components/companies/AddCompanyModal';
 import CompanyCard from '../components/companies/CompanyCard';
 import { getCompanyStats } from '../components/companies/companyStats';
 import { CalendarType } from '../config/calendarTypes';
+import { MainTabScreenProps } from '../navigation/types';
 
-export default function CompaniesScreen({ navigation }: any) {
+export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Companies'>) {
   const { isDark } = useTheme();
   const responsive = useResponsive();
   const [showAddForm, setShowAddForm] = useState(false);

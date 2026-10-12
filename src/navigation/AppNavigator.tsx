@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { flushPendingNavigation, navigationRef } from './notificationNavigation';
-import { createStackNavigator } from '@react-navigation/stack';
+import { StackCardInterpolationProps, createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { View } from 'react-native';
@@ -20,7 +20,11 @@ import PersonalTasksScreen from '../screens/PersonalTasksScreen';
 import RemindersScreen from '../screens/RemindersScreen';
 import CompaniesScreen from '../screens/CompaniesScreen';
 import NotificationTroubleshootingScreen from '../screens/NotificationTroubleshootingScreen';
+import SearchScreen from '../screens/SearchScreen';
+import HistoryScreen from '../screens/HistoryScreen';
 import NotificationSync from '../components/NotificationSync';
+import { MainTabParamList, RootStackParamList } from './types';
+import WidgetSync from '../components/WidgetSync';
 import OfflineBanner from '../components/OfflineBanner';
 import LoadingScreen from '../components/LoadingScreen';
 import {
@@ -30,8 +34,8 @@ import {
   renderTasksTabIcon,
 } from '../components/icons/TabIcons';
 
-const Stack = createStackNavigator();
-const Tab = createBottomTabNavigator();
+const Stack = createStackNavigator<RootStackParamList>();
+const Tab = createBottomTabNavigator<MainTabParamList>();
 
 function MainTabs() {
   const insets = useSafeAreaInsets();
@@ -43,6 +47,7 @@ function MainTabs() {
   return (
     <View className="flex-1">
       <NotificationSync />
+      <WidgetSync />
       <Tab.Navigator
         screenOptions={{
           headerShown: false,
@@ -169,7 +174,7 @@ function AppNavigatorContent() {
   // Configuración de transiciones animadas
   const screenOptions = {
     headerShown: false,
-    cardStyleInterpolator: ({ current, layouts }: any) => {
+    cardStyleInterpolator: ({ current, layouts }: StackCardInterpolationProps) => {
       return {
         cardStyle: {
           transform: [
@@ -266,6 +271,8 @@ function AppNavigatorContent() {
                 presentation: 'modal',
               }}
             />
+            <Stack.Screen name="Search" component={SearchScreen} />
+            <Stack.Screen name="History" component={HistoryScreen} />
           </>
         )}
       </Stack.Navigator>

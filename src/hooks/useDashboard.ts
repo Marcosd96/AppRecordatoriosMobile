@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert } from 'react-native';
 import { notificationsService } from '../services/notificationsService';
 import { useDashboardQuery, useRefetchOnFocus, useRemindersQuery } from './queries';
 
@@ -48,6 +47,9 @@ export function useDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [notificationStatus, setNotificationStatus] = useState<NotificationStatus | null>(null);
   const lastAlertedError = useRef<unknown>(null);
+  // El mensaje se conserva al cerrar para que no se vacíe durante la animación de salida
+  const [loadError, setLoadError] = useState<DashboardMessage>({ title: '', message: '' });
+  const [showLoadError, setShowLoadError] = useState(false);
 
   useRefetchOnFocus([dashboardQuery, remindersQuery]);
 
@@ -80,10 +82,11 @@ export function useDashboard() {
     if (error && !data && lastAlertedError.current !== error) {
       lastAlertedError.current = error;
       console.error('Error al cargar datos del dashboard:', error);
-      Alert.alert(
-        'Error',
-        (error as Error).message || 'No se pudieron cargar los datos.',
-      );
+      setLoadError({
+        title: 'No se pudieron cargar los datos',
+        message: (error as Error).message || 'Inténtalo de nuevo en unos momentos.',
+      });
+      setShowLoadError(true);
     }
   }, [error, data]);
 
@@ -137,5 +140,9 @@ export function useDashboard() {
     notificationStatus,
     onRefresh,
     sendTestNotification,
+    /** Error de carga para mostrar en un modal (solo si no hay datos guardados) */
+    loadError,
+    showLoadError,
+    dismissLoadError: () => setShowLoadError(false),
   };
 }

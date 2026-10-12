@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
@@ -14,8 +14,13 @@ import DashboardStatsCard from '../components/dashboard/DashboardStatsCard';
 import NotificationStatusCard from '../components/dashboard/NotificationStatusCard';
 import UpcomingRemindersCard from '../components/dashboard/UpcomingRemindersCard';
 import AppearanceCard from '../components/dashboard/AppearanceCard';
+import HistorySummaryCard from '../components/dashboard/HistorySummaryCard';
+import { buildHistory } from '../components/history/historyStats';
+import { SearchIcon } from '../components/icons/ActionIcons';
+import { usePersonalTasksQuery, useRemindersQuery } from '../hooks/queries';
+import { MainTabScreenProps } from '../navigation/types';
 
-export default function DashboardScreen({ navigation }: any) {
+export default function DashboardScreen({ navigation }: MainTabScreenProps<'Dashboard'>) {
   const { user, signOut } = useAuth();
   const { isDark } = useTheme();
   const responsive = useResponsive();
@@ -28,7 +33,16 @@ export default function DashboardScreen({ navigation }: any) {
     notificationStatus,
     onRefresh,
     sendTestNotification,
+    loadError,
+    showLoadError,
+    dismissLoadError,
   } = useDashboard();
+  const { data: reminders } = useRemindersQuery();
+  const { data: tasks } = usePersonalTasksQuery();
+  const history = useMemo(
+    () => buildHistory(reminders ?? [], tasks ?? []),
+    [reminders, tasks],
+  );
   const [showSignOutModal, setShowSignOutModal] = useState(false);
   const [showTestNotificationModal, setShowTestNotificationModal] =
     useState(false);
@@ -67,26 +81,50 @@ export default function DashboardScreen({ navigation }: any) {
         title={firstName ? `Hola, ${firstName}` : 'Inicio'}
         subtitle="Resumen de tus recordatorios fiscales"
         right={
-          <AnimatedButton onPress={handleSignOut} accessibilityLabel="Cerrar sesión">
-            <View
-              className={`rounded-xl border ${
-                isDark ? 'border-gray-700' : 'border-gray-200'
-              }`}
-              style={{
-                paddingHorizontal: responsive.spacing.md,
-                paddingVertical: responsive.spacing.sm,
-              }}
+          <View className="flex-row items-center">
+            <AnimatedButton
+              onPress={() => navigation.navigate('Search')}
+              accessibilityLabel="Buscar"
             >
-              <Text
-                className={`font-semibold ${
-                  isDark ? 'text-gray-200' : 'text-gray-700'
+              <View
+                className={`rounded-xl border items-center justify-center ${
+                  isDark ? 'border-gray-700' : 'border-gray-200'
                 }`}
-                style={{ fontSize: responsive.fontSize.sm }}
+                style={{
+                  padding: responsive.spacing.sm,
+                  marginRight: responsive.spacing.sm,
+                }}
               >
-                Salir
-              </Text>
-            </View>
-          </AnimatedButton>
+                <SearchIcon
+                  color={isDark ? '#e5e7eb' : '#374151'}
+                  size={responsive.fontSize.lg}
+                />
+              </View>
+            </AnimatedButton>
+            <AnimatedButton
+              onPress={handleSignOut}
+              accessibilityLabel="Cerrar sesión"
+            >
+              <View
+                className={`rounded-xl border ${
+                  isDark ? 'border-gray-700' : 'border-gray-200'
+                }`}
+                style={{
+                  paddingHorizontal: responsive.spacing.md,
+                  paddingVertical: responsive.spacing.sm,
+                }}
+              >
+                <Text
+                  className={`font-semibold ${
+                    isDark ? 'text-gray-200' : 'text-gray-700'
+                  }`}
+                  style={{ fontSize: responsive.fontSize.sm }}
+                >
+                  Salir
+                </Text>
+              </View>
+            </AnimatedButton>
+          </View>
         }
       />
 
@@ -117,6 +155,12 @@ export default function DashboardScreen({ navigation }: any) {
           onOpenTroubleshooting={() => navigation.navigate('NotificationTroubleshooting')}
         />
 
+        <HistorySummaryCard
+          isDark={isDark}
+          history={history}
+          onOpenHistory={() => navigation.navigate('History')}
+        />
+
         <CompaniesSummaryCard
           isDark={isDark}
           companiesCount={companiesCount}
@@ -144,6 +188,15 @@ export default function DashboardScreen({ navigation }: any) {
             onPress: confirmSignOut,
           },
         ]}
+      />
+
+      {/* Error al cargar sin datos guardados */}
+      <StyledModal
+        visible={showLoadError}
+        onClose={dismissLoadError}
+        title={loadError.title}
+        message={loadError.message}
+        buttons={[{ text: 'Aceptar', onPress: dismissLoadError }]}
       />
 
       {/* Modal de notificaciones de prueba */}
