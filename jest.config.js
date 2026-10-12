@@ -7,6 +7,7 @@ module.exports = {
     '^@notifee/react-native$': '<rootDir>/__mocks__/@notifee/react-native.js',
     '^@react-native-google-signin/google-signin$': '<rootDir>/__mocks__/@react-native-google-signin/google-signin.js',
     '^@react-native-community/datetimepicker$': '<rootDir>/__mocks__/@react-native-community/datetimepicker.js',
+    '^react-native-keychain$': '<rootDir>/__mocks__/react-native-keychain.js',
   },
   transformIgnorePatterns: [
     'node_modules/(?!(react-native|@react-native|@react-navigation|@notifee|nativewind|tailwindcss|react-native-css-interop|@react-native-community|@react-native-google-signin)/)',

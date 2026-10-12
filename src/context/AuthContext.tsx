@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_BASE_URL, setUnauthorizedHandler } from '../config/api';
+import fetchAPI, { API_ENDPOINTS, ApiError, setUnauthorizedHandler } from '../config/api';
 import { notificationsService } from '../services/notificationsService';
+import { widgetService } from '../services/widgetService';
+import { clearSessionToken, getSessionToken, saveSessionToken } from '../services/sessionStorage';
 import { clearQueryCache } from '../config/queryClient';
 import { GOOGLE_WEB_CLIENT_ID } from '../config/env';
 
@@ -68,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadStoredAuth = async () => {
     try {
-      const storedToken = await AsyncStorage.getItem('auth_token');
+      const storedToken = await getSessionToken();
       const storedUser = await AsyncStorage.getItem('auth_user');
       
       if (storedToken && storedUser) {
@@ -85,11 +87,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async () => {
     try {
       if (!GoogleSignin) {
-        throw new Error('Google Sign-In no está disponible. Por favor, reinstala la app.');
+        throw new Error('El inicio de sesión con Google no está disponible. Reinstala la app e inténtalo de nuevo.');
       }
 
       if (!googleSignInConfigured) {
-        throw new Error('Google Sign-In no está configurado. Por favor, configura GOOGLE_WEB_CLIENT_ID en src/config/env.ts');
+        // Fallo de configuración de la app (GOOGLE_WEB_CLIENT_ID en src/config/env.ts)
+        console.error('Google Sign-In no configurado');
+        throw new Error('El inicio de sesión con Google no está disponible. Actualiza la app e inténtalo de nuevo.');
       }
 
       // Verificar si Google Play Services está disponible
@@ -121,53 +125,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error('No se recibió token de Google. Por favor, intenta de nuevo.');
       }
 
-      // Enviar token a nuestro backend
-      const authUrl = `${API_BASE_URL}/api/mobile/auth`;
-      console.log('Enviando token al backend:', authUrl);
-      
-      const response = await fetch(authUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          idToken: idToken,
-        }),
-      });
-
-            // No registrar el cuerpo: contiene el token de sesión
-      console.log('Respuesta del backend:', response.status);
-      const responseText = await response.text();
-
-
-      if (!response.ok) {
-        // Intentar parsear como JSON, si falla usar el texto
-        let errorMessage = `Error ${response.status}: ${response.statusText}`;
-        try {
-          const errorData = JSON.parse(responseText);
-          errorMessage = errorData.error || errorMessage;
-        } catch {
-          // Si no es JSON, podría ser HTML (página de error)
-          if (responseText.includes('<html') || responseText.includes('<!DOCTYPE')) {
-            errorMessage = `El servidor devolvió una página HTML. Verifica que el endpoint ${authUrl} exista.`;
-          } else {
-            errorMessage = responseText || errorMessage;
-          }
-        }
-        throw new Error(errorMessage);
-      }
-
-      // Parsear la respuesta JSON
-      let data;
+      // Enviar el token de Google a nuestro backend (con el timeout y los mensajes de fetchAPI)
+      let data: { token: string; user: User };
       try {
-        data = JSON.parse(responseText);
-      } catch (e) {
-        console.error('Error parseando respuesta JSON:', e);
-        throw new Error('El servidor devolvió una respuesta inválida. Verifica que el endpoint esté funcionando correctamente.');
+        data = await fetchAPI<{ token: string; user: User }>(API_ENDPOINTS.auth, {
+          method: 'POST',
+          body: JSON.stringify({ idToken }),
+        });
+      } catch (apiError) {
+        if (apiError instanceof ApiError && (apiError.status === 401 || apiError.status === 403)) {
+          throw new Error('No pudimos verificar tu cuenta de Google. Inténtalo de nuevo.');
+        }
+        if (apiError instanceof ApiError && apiError.status >= 500) {
+          throw new Error('El servidor no está disponible en este momento. Inténtalo más tarde.');
+        }
+        throw apiError;
       }
-      
+      if (!data?.token || !data?.user) {
+        throw new Error('No se pudo iniciar sesión. Inténtalo de nuevo.');
+      }
+
       // Guardar token y usuario
-      await AsyncStorage.setItem('auth_token', data.token);
+      // El token va al almacén seguro; el perfil (nombre, correo) no es secreto
+      await saveSessionToken(data.token);
       await AsyncStorage.setItem('auth_user', JSON.stringify(data.user));
       
       setToken(data.token);
@@ -192,7 +172,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     // Primero cerrar la sesión local: las pantallas con datos se desmontan y ya no se pueden
     // hacer peticiones con el token, así nada vuelve a llenar la caché ni a programar avisos
-    await AsyncStorage.multiRemove(['auth_token', 'auth_user']).catch((error) =>
+    await Promise.all([clearSessionToken(), AsyncStorage.removeItem('auth_user')]).catch(error =>
       console.error('Error borrando sesión almacenada:', error),
     );
     setToken(null);
@@ -203,7 +183,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await notificationsService.cancelAllNotifications();
       // Borrar también los datos guardados para uso sin conexión: no deben verse con otra cuenta
       await clearQueryCache();
-      console.log('[Auth] Sesión cerrada: notificaciones y datos guardados eliminados');
+      widgetService.clear();
+      console.log('[Auth] Sesión cerrada: notificaciones, datos guardados y widget eliminados');
       if (GoogleSignin && typeof GoogleSignin.signOut === 'function') {
         await GoogleSignin.signOut();
       }

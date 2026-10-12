@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getSessionToken } from '../services/sessionStorage';
 
 /**
  * Configuración de la API
@@ -18,6 +18,7 @@ export const API_BASE_URL = __DEV__
   : 'https://app-recordatorios.vercel.app'; // URL de producción
 
 export const API_ENDPOINTS = {
+  auth: '/api/mobile/auth',
   health: '/api/mobile/health',
   reminders: '/api/mobile/reminders',
   reminderToggle: (id: string) => `/api/mobile/reminders/${id}/toggle`,
@@ -33,17 +34,6 @@ export const API_ENDPOINTS = {
 };
 
 /**
- * Obtener token de autenticación almacenado
- */
-async function getAuthToken(): Promise<string | null> {
-  try {
-    return await AsyncStorage.getItem('auth_token');
-  } catch {
-    return null;
-  }
-}
-
-/**
  * Error de la API con el código HTTP (0 = sin conexión con el servidor)
  */
 export class ApiError extends Error {
@@ -56,6 +46,15 @@ export class ApiError extends Error {
     return this.status === 0;
   }
 }
+
+/**
+ * Tiempo máximo de espera de una petición. Pasado este tiempo se aborta y se
+ * trata como un error de red, para que la app use los datos guardados.
+ */
+export const REQUEST_TIMEOUT_MS = 15000;
+
+const NETWORK_ERROR_MESSAGE =
+  'No se pudo conectar al servidor. Revisa tu conexión a internet e inténtalo de nuevo.';
 
 let unauthorizedHandler: (() => void) | null = null;
 
@@ -77,8 +76,23 @@ async function fetchAPI<T>(
   const url = `${API_BASE_URL}${endpoint}`;
   
   // Obtener token de autenticación
-  const token = await getAuthToken();
-  
+  const token = await getSessionToken();
+
+  // Abortar la petición si el servidor no responde a tiempo (o si quien llama la cancela)
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, REQUEST_TIMEOUT_MS);
+  const callerSignal = options?.signal;
+  const abortFromCaller = () => controller.abort();
+  if (callerSignal?.aborted) {
+    controller.abort();
+  } else {
+    callerSignal?.addEventListener('abort', abortFromCaller);
+  }
+
   try {
     console.log(`[API] Fetching: ${url}`);
     
@@ -103,6 +117,7 @@ async function fetchAPI<T>(
     const response = await fetch(url, {
       ...options,
       headers,
+      signal: controller.signal,
     });
 
     console.log(`[API] Response status: ${response.status}`);
@@ -128,22 +143,26 @@ async function fetchAPI<T>(
       throw new ApiError(errorMessage, response.status);
     }
 
-    return response.json();
+    return await response.json();
   } catch (error: any) {
     console.error(`[API] Error fetching ${url}:`, error);
-    
-    // Mejorar mensajes de error
-    if (error.message?.includes('Network request failed')) {
+
+    if (timedOut) {
       throw new ApiError(
-        `No se pudo conectar al servidor. Verifica:\n` +
-        `1. Que la URL sea correcta: ${API_BASE_URL}\n` +
-        `2. Que tengas conexión a internet\n` +
-        `3. Si estás en desarrollo local, usa tu IP local en lugar de localhost`,
+        'El servidor tardó demasiado en responder. Inténtalo de nuevo en unos momentos.',
         0,
       );
     }
-    
+
+    // Mejorar mensajes de error
+    if (error.message?.includes('Network request failed')) {
+      throw new ApiError(NETWORK_ERROR_MESSAGE, 0);
+    }
+
     throw error;
+  } finally {
+    clearTimeout(timeoutId);
+    callerSignal?.removeEventListener('abort', abortFromCaller);
   }
 }
 
