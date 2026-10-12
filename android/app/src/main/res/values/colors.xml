@@ -2,5 +2,13 @@
 <resources>
     <!-- Color de fondo para el splash screen nativo (Tema claro) -->
     <color name="splash_background">#FFFFFF</color>
+
+    <!-- Widget de próximos vencimientos -->
+    <color name="widget_background">#FFFFFF</color>
+    <color name="widget_text_primary">#111827</color>
+    <color name="widget_text_secondary">#6B7280</color>
+    <color name="widget_accent">#2563EB</color>
+    <color name="widget_overdue">#DC2626</color>
+    <color name="widget_divider">#E5E7EB</color>
 </resources>
 

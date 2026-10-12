@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">Gesaccol</string>
+    <string name="widget_title">Próximos vencimientos</string>
+    <string name="widget_description">Tus próximos recordatorios fiscales y tareas</string>
+    <string name="widget_empty">Nada pendiente. ¡Todo al día!</string>
+    <string name="widget_signed_out">Abre Gesaccol para ver tus vencimientos</string>
 </resources>

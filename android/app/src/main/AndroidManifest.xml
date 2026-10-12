@@ -26,6 +26,26 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
+        <!-- Enlaces gesaccol://reminder/<id> y gesaccol://task/<id> (filas del widget) -->
+        <intent-filter>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="gesaccol" />
+        </intent-filter>
       </activity>
+
+      <!-- Widget "Próximos vencimientos" -->
+      <receiver
+        android:name=".widget.UpcomingWidgetProvider"
+        android:label="@string/widget_title"
+        android:exported="false">
+        <intent-filter>
+            <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+        </intent-filter>
+        <meta-data
+            android:name="android.appwidget.provider"
+            android:resource="@xml/upcoming_widget_info" />
+      </receiver>
     </application>
 </manifest>
