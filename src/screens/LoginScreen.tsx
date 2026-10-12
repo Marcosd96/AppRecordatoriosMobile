@@ -3,7 +3,6 @@ import {
   View,
   Text,
   ActivityIndicator,
-  Alert,
   Animated,
   StyleSheet,
 } from 'react-native';
@@ -12,12 +11,16 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import AnimatedView from '../components/AnimatedView';
 import AnimatedButton from '../components/AnimatedButton';
+import StyledModal from '../components/StyledModal';
 import { AppLogo, GoogleIcon } from '../components/icons/BrandIcons';
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
   const { isDark } = useTheme();
   const [loading, setLoading] = useState(false);
+  // El mensaje se conserva al cerrar para que no se vacíe durante la animación de salida
+  const [errorMessage, setErrorMessage] = useState('');
+  const [showError, setShowError] = useState(false);
   const logoScale = React.useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -36,10 +39,11 @@ export default function LoginScreen() {
       await signIn();
     } catch (error: any) {
       console.error('Error al iniciar sesión:', error);
-      Alert.alert(
-        'Error de Autenticación',
-        error.message || 'No se pudo iniciar sesión. Por favor, intenta de nuevo.'
-      );
+      // Si el usuario cerró la ventana de Google no hay nada que avisar
+      if (!error.message?.includes('cancelado')) {
+        setErrorMessage(error.message || 'No se pudo iniciar sesión. Por favor, intenta de nuevo.');
+        setShowError(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -112,6 +116,13 @@ export default function LoginScreen() {
           </View>
         </AnimatedView>
       </View>
+      <StyledModal
+        visible={showError}
+        onClose={() => setShowError(false)}
+        title="No se pudo iniciar sesión"
+        message={errorMessage}
+        buttons={[{ text: 'Aceptar', onPress: () => setShowError(false) }]}
+      />
     </SafeAreaView>
   );
 }

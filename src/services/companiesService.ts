@@ -67,8 +67,6 @@ export const companiesService = {
       const response = await fetchAPI<{ availableTypes: CalendarType[] }>(
         API_ENDPOINTS.calendars
       );
-      console.log('[companiesService] Respuesta de calendarios:', JSON.stringify(response, null, 2));
-      console.log('[companiesService] availableTypes:', response.availableTypes);
       return response.availableTypes || [];
     } catch (error) {
       console.error('Error al obtener calendarios disponibles:', error);
