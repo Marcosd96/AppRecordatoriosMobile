@@ -153,3 +153,12 @@ export const formatTaskDate = (date?: Date | string | null) => {
     return String(date);
   }
 };
+
+/**
+ * Tarea activa cuya fecha ya pasó sin completarse (p. ej. una tarea única que nadie marcó)
+ */
+export const isTaskOverdue = (task: PersonalTask, now: Date = new Date()): boolean => {
+  if (task.status !== 'active') return false;
+  const due = new Date(task.nextOccurrence || task.startDate).getTime();
+  return !isNaN(due) && due < now.getTime();
+};

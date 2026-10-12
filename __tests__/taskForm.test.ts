@@ -6,6 +6,7 @@ import {
   createInitialFormState,
   formStateFromTask,
   getNextRoundedHour,
+  isTaskOverdue,
   serializeTaskForm,
   validateTaskForm,
 } from '../src/components/personalTasks/taskForm';
@@ -95,5 +96,37 @@ describe('taskForm', () => {
   it('serializa la recurrencia cuando la tarea se repite', () => {
     const payload = serializeTaskForm(formStateFromTask(task));
     expect(payload).toMatchObject({ isRecurring: true, recurrenceType: 'monthly', recurrenceInterval: 1 });
+  });
+});
+
+describe('isTaskOverdue', () => {
+  const base = {
+    id: 't1',
+    userId: 'u1',
+    title: 'Tarea',
+    isRecurring: false,
+    priority: 'medium',
+    reminderEnabled: true,
+    reminderMinutes: 60,
+    createdAt: '2026-01-01',
+    updatedAt: '2026-01-01',
+  } as const;
+
+  it('una tarea activa con la fecha pasada está atrasada', () => {
+    expect(isTaskOverdue({ ...base, status: 'active', startDate: '2026-03-01T10:00:00' }, NOW)).toBe(true);
+  });
+
+  it('no lo está si su fecha es futura o si no está activa', () => {
+    expect(isTaskOverdue({ ...base, status: 'active', startDate: '2026-03-03T10:00:00' }, NOW)).toBe(false);
+    expect(isTaskOverdue({ ...base, status: 'completed', startDate: '2026-03-01T10:00:00' }, NOW)).toBe(false);
+  });
+
+  it('usa la próxima ocurrencia antes que la fecha de inicio', () => {
+    expect(
+      isTaskOverdue(
+        { ...base, status: 'active', startDate: '2026-01-01T10:00:00', nextOccurrence: '2026-03-05T10:00:00' },
+        NOW,
+      ),
+    ).toBe(false);
   });
 });

@@ -6,6 +6,7 @@ import {
   FormMessage,
   TaskStatusAction,
   formatTaskDate,
+  isTaskOverdue,
   priorityLabels,
   statusLabels,
 } from './taskForm';
@@ -203,6 +204,7 @@ export default function TaskCard({
 }: TaskCardProps) {
   const statusStyles = getStatusStyles(isDark);
   const priorityAccentStyles = getPriorityAccentStyles(isDark);
+  const overdue = isTaskOverdue(task);
   const actionButtons = getActionButtons(task, isDark, {
     onStatusChange,
     onDelete,
@@ -271,6 +273,17 @@ export default function TaskCard({
                   {priorityLabels[task.priority]}
                 </Text>
               </View>
+              {overdue && (
+                <View
+                  className={`ml-2 px-2 py-0.5 rounded-full ${isDark ? 'bg-red-500/15' : 'bg-red-50'}`}
+                >
+                  <Text
+                    className={`text-xs font-semibold ${isDark ? 'text-red-300' : 'text-red-700'}`}
+                  >
+                    Atrasada
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
         </View>
@@ -311,11 +324,13 @@ export default function TaskCard({
         <View className="flex-row justify-between mb-2">
           <View>
             <Text className="text-xs text-gray-500">
-              Próxima ejecución
+              {overdue ? 'Debía hacerse el' : 'Próxima ejecución'}
             </Text>
             <Text
               className={`text-sm font-semibold ${
-                isDark ? 'text-white' : 'text-gray-900'
+                overdue
+                  ? isDark ? 'text-red-300' : 'text-red-700'
+                  : isDark ? 'text-white' : 'text-gray-900'
               }`}
             >
               {formatTaskDate(task.nextOccurrence || task.startDate)}
