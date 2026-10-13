@@ -4,6 +4,7 @@ import { Company } from '../../types';
 import { useResponsive } from '../../hooks/useResponsive';
 import { CompanyStats } from './companyStats';
 import { TrashIcon } from '../icons/ActionIcons';
+import Button from '../Button';
 
 interface CompanyCardProps {
   company: Company;
@@ -114,35 +115,26 @@ export default function CompanyCard({
         ))}
       </View>
 
-      {/* Acciones */}
+      {/* Acciones: ninguna es rellena, cada empresa de la lista tiene las suyas */}
       <View className="flex-row" style={{ marginTop: responsive.spacing.md, gap: responsive.spacing.sm }}>
-        <TouchableOpacity
-          onPress={() => onOpenCalendars(company)}
-          accessibilityRole="button"
-          accessibilityLabel={`Calendarios de ${company.name}`}
-          className={`flex-1 rounded-xl items-center justify-center ${
-            isDark ? 'bg-gray-700' : 'bg-gray-100'
-          }`}
-          style={{ paddingVertical: responsive.spacing.sm + 2 }}
-        >
-          <Text
-            className={`font-semibold ${isDark ? 'text-gray-100' : 'text-gray-800'}`}
-            style={{ fontSize: responsive.fontSize.sm }}
-          >
-            Calendarios
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => onOpenReminders(company.id)}
-          accessibilityRole="button"
-          accessibilityLabel={`Ver recordatorios de ${company.name}`}
-          className="flex-1 rounded-xl items-center justify-center bg-blue-600"
-          style={{ paddingVertical: responsive.spacing.sm + 2 }}
-        >
-          <Text className="font-semibold text-white" style={{ fontSize: responsive.fontSize.sm }}>
-            Ver recordatorios
-          </Text>
-        </TouchableOpacity>
+        <View className="flex-1">
+          <Button
+            label="Calendarios"
+            onPress={() => onOpenCalendars(company)}
+            variant="secondary"
+            accessibilityLabel={`Calendarios de ${company.name}`}
+            fullWidth
+          />
+        </View>
+        <View className="flex-1">
+          <Button
+            label="Ver recordatorios"
+            onPress={() => onOpenReminders(company.id)}
+            variant="tonal"
+            accessibilityLabel={`Ver recordatorios de ${company.name}`}
+            fullWidth
+          />
+        </View>
       </View>
     </View>
   );

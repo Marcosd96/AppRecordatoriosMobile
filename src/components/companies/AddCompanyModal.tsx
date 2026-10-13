@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, TextInput, ActivityIndicator, TouchableOpacity } from 'react-native';
-import AnimatedButton from '../AnimatedButton';
+import { View, TextInput } from 'react-native';
+import Button from '../Button';
 import FormSheet, { FormField, inputClassName, placeholderColor } from '../FormSheet';
 
 interface AddCompanyModalProps {
@@ -53,30 +53,25 @@ export default function AddCompanyModal({
       onClose={handleClose}
       footer={
         <View className="flex-row gap-3">
-          <TouchableOpacity
-            onPress={handleClose}
-            disabled={creating}
-            accessibilityRole="button"
-            className={`flex-1 py-3.5 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}
-          >
-            <Text className={`text-center font-semibold ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
-              Cancelar
-            </Text>
-          </TouchableOpacity>
           <View className="flex-1">
-            <AnimatedButton
+            <Button
+              label="Cancelar"
+              onPress={handleClose}
+              variant="secondary"
+              size="large"
+              disabled={creating}
+              fullWidth
+            />
+          </View>
+          <View className="flex-1">
+            <Button
+              label="Crear empresa"
               onPress={handleSubmit}
-              disabled={submitDisabled}
-              accessibilityState={{ disabled: submitDisabled, busy: creating }}
-            >
-              <View className={`py-3.5 rounded-xl bg-blue-600 ${submitDisabled ? 'opacity-50' : ''}`}>
-                {creating ? (
-                  <ActivityIndicator color="#ffffff" />
-                ) : (
-                  <Text className="text-white text-center font-semibold">Crear empresa</Text>
-                )}
-              </View>
-            </AnimatedButton>
+              size="large"
+              busy={creating}
+              disabled={!isValid}
+              fullWidth
+            />
           </View>
         </View>
       }

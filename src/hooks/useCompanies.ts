@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Company } from '../types';
 import { companiesService } from '../services/companiesService';
@@ -18,12 +18,18 @@ export interface CompaniesMessage {
   message: string;
 }
 
+export interface CompaniesResult {
+  ok: boolean;
+  message: CompaniesMessage;
+}
+
 /**
  * Empresas del usuario y sus recordatorios, desde la caché (también sin conexión).
  * Las notificaciones las sincroniza NotificationSync al cambiar los recordatorios.
- * Los errores de carga se notifican con `onError`; las acciones devuelven el mensaje a mostrar.
+ * El error de carga se expone en `loadError`. Las acciones devuelven si salieron bien y el
+ * mensaje: los éxitos se confirman con un snackbar y los errores con un diálogo.
  */
-export function useCompanies(onError: (error: CompaniesMessage) => void) {
+export function useCompanies() {
   const queryClient = useQueryClient();
   const companiesQuery = useCompaniesQuery();
   const remindersQuery = useRemindersQuery();
@@ -33,27 +39,13 @@ export function useCompanies(onError: (error: CompaniesMessage) => void) {
 
   useRefetchOnFocus([companiesQuery, remindersQuery]);
 
-  const onErrorRef = useRef(onError);
-  onErrorRef.current = onError;
-
-  // Avisar del error solo si no hay datos guardados que mostrar
-  const loadError = companiesQuery.error ?? remindersQuery.error;
+  // Error de carga solo si no hay datos guardados: la pantalla lo muestra con "Reintentar"
+  const loadErrorSource = companiesQuery.error ?? remindersQuery.error;
   const hasData = companiesQuery.data !== undefined && remindersQuery.data !== undefined;
-  const lastReportedError = useRef<unknown>(null);
-  useEffect(() => {
-    if (loadError && !hasData && lastReportedError.current !== loadError) {
-      lastReportedError.current = loadError;
-      console.error('Error al cargar datos:', loadError);
-      onErrorRef.current({
-        title: 'Error',
-        message:
-          (loadError as Error).message ||
-          'No se pudieron cargar los datos. Verifica tu conexión.',
-      });
-    }
-  }, [loadError, hasData]);
-
-  
+  const loadError =
+    loadErrorSource && !hasData
+      ? (loadErrorSource as Error).message || 'No se pudieron cargar las empresas.'
+      : null;
 
   /**
    * Vuelve a pedir empresas, recordatorios y panel (el backend genera o borra recordatorios
@@ -92,7 +84,7 @@ export function useCompanies(onError: (error: CompaniesMessage) => void) {
         if (!result.success || !result.company) {
           return {
             created: false,
-            message: { title: 'Error', message: 'No se pudo crear la empresa' },
+            message: { title: 'No se pudo crear la empresa', message: 'Inténtalo de nuevo.' },
           };
         }
 
@@ -117,16 +109,18 @@ export function useCompanies(onError: (error: CompaniesMessage) => void) {
         return {
           created: true,
           message: {
-            title: 'Éxito',
-            message:
-              'Empresa agregada correctamente. Puedes gestionar los calendarios desde la configuración de la empresa.',
+            title: 'Empresa creada',
+            message: 'Empresa creada. Elige sus calendarios para generar los recordatorios.',
           },
         };
       } catch (error: any) {
         console.error('Error al crear empresa:', error);
         return {
           created: false,
-          message: { title: 'Error', message: error.message || 'No se pudo crear la empresa' },
+          message: {
+            title: 'No se pudo crear la empresa',
+            message: error.message || 'Inténtalo de nuevo.',
+          },
         };
       } finally {
         setCreating(false);
@@ -136,7 +130,7 @@ export function useCompanies(onError: (error: CompaniesMessage) => void) {
   );
 
   const deleteCompany = useCallback(
-    async (companyId: string): Promise<CompaniesMessage> => {
+    async (companyId: string): Promise<CompaniesResult> => {
       try {
         await companiesService.delete(companyId);
         // Al recargar, la empresa y sus recordatorios desaparecen y NotificationSync
@@ -144,13 +138,18 @@ export function useCompanies(onError: (error: CompaniesMessage) => void) {
         await refreshAfterChange();
 
         return {
-          title: 'Éxito',
-          message:
-            'Empresa eliminada correctamente. Las notificaciones asociadas han sido canceladas.',
+          ok: true,
+          message: { title: 'Empresa eliminada', message: 'Empresa eliminada y sus avisos cancelados.' },
         };
       } catch (error: any) {
         console.error('Error al eliminar empresa:', error);
-        return { title: 'Error', message: error.message || 'No se pudo eliminar la empresa' };
+        return {
+          ok: false,
+          message: {
+            title: 'No se pudo eliminar la empresa',
+            message: error.message || 'Inténtalo de nuevo.',
+          },
+        };
       }
     },
     [refreshAfterChange],
@@ -160,7 +159,7 @@ export function useCompanies(onError: (error: CompaniesMessage) => void) {
    * Guarda los calendarios de una empresa. Lanza el error para que el selector lo muestre.
    */
   const saveCalendars = useCallback(
-    async (company: Company, selectedCalendars: CalendarType[]): Promise<CompaniesMessage> => {
+    async (company: Company, selectedCalendars: CalendarType[]): Promise<string> => {
       try {
         await companiesService.update(company.id, {
           name: company.name,
@@ -182,11 +181,7 @@ export function useCompanies(onError: (error: CompaniesMessage) => void) {
           queryClient.invalidateQueries({ queryKey: queryKeys.dashboard }),
         ]);
 
-        return {
-          title: 'Éxito',
-          message:
-            'Calendarios actualizados correctamente. Los recordatorios se han regenerado.',
-        };
+        return 'Calendarios guardados. Los recordatorios se regeneraron.';
       } catch (error: any) {
         console.error('Error al guardar calendarios:', error);
         throw error;
@@ -200,6 +195,12 @@ export function useCompanies(onError: (error: CompaniesMessage) => void) {
     reminders: remindersQuery.data ?? [],
     // Solo se muestra la pantalla de carga si no hay nada guardado y se está pidiendo
     loading: companiesQuery.isPending && companiesQuery.fetchStatus === 'fetching',
+    loadError,
+    retrying: companiesQuery.isFetching || remindersQuery.isFetching,
+    retry: () => {
+      companiesQuery.refetch();
+      remindersQuery.refetch();
+    },
     refreshing,
     creating,
     availableCalendars: calendarsQuery.data ?? [],

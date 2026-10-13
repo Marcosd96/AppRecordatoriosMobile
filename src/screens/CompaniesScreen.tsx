@@ -11,10 +11,12 @@ import { useTheme } from '../context/ThemeContext';
 import { useResponsive } from '../hooks/useResponsive';
 import { CompaniesMessage, useCompanies } from '../hooks/useCompanies';
 import StyledModal from '../components/StyledModal';
-import AnimatedButton from '../components/AnimatedButton';
+import Button from '../components/Button';
 import LoadingScreen from '../components/LoadingScreen';
 import ScreenHeader from '../components/ScreenHeader';
 import EmptyState from '../components/EmptyState';
+import ErrorState from '../components/ErrorState';
+import { useSnackbar } from '../context/SnackbarContext';
 import { CompaniesIcon } from '../components/icons/TabIcons';
 import CalendarSelector from '../components/CalendarSelector';
 import AddCompanyModal from '../components/companies/AddCompanyModal';
@@ -51,19 +53,25 @@ export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Comp
     createCompany,
     deleteCompany,
     saveCalendars,
-  } = useCompanies(showMessage);
+    loadError,
+    retrying,
+    retry,
+  } = useCompanies();
+  const { showSnackbar } = useSnackbar();
 
   const handleAddCompany = async (name: string, nit: string) => {
     if (!name || !nit) {
-      showMessage({ title: 'Error', message: 'Por favor completa todos los campos' });
+      showMessage({ title: 'Faltan datos', message: 'Escribe el nombre y el NIT de la empresa.' });
       return false;
     }
 
     const { created, message } = await createCompany(name, nit);
     if (created) {
       setShowAddForm(false);
+      showSnackbar({ message: message.message });
+    } else {
+      showMessage(message);
     }
-    showMessage(message);
     return created;
   };
 
@@ -71,12 +79,18 @@ export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Comp
     if (!companyToDelete) return;
     const companyId = companyToDelete;
     setCompanyToDelete(null);
-    showMessage(await deleteCompany(companyId));
+    const { ok, message } = await deleteCompany(companyId);
+    if (ok) {
+      showSnackbar({ message: message.message });
+    } else {
+      showMessage(message);
+    }
   };
 
   const handleSaveCalendars = async (selectedCalendars: CalendarType[]) => {
     if (!selectedCompanyForCalendars) return;
-    showMessage(await saveCalendars(selectedCompanyForCalendars, selectedCalendars));
+    // Si falla, saveCalendars lanza el error y el selector lo muestra sin cerrarse
+    showSnackbar({ message: await saveCalendars(selectedCompanyForCalendars, selectedCalendars) });
   };
 
   const openCalendars = (company: Company) => {
@@ -102,29 +116,7 @@ export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Comp
             : 'Gestiona tus clientes'
         }
         right={
-          <AnimatedButton
-            onPress={() => setShowAddForm(!showAddForm)}
-            accessibilityLabel={showAddForm ? 'Cancelar' : 'Agregar empresa'}
-          >
-            <View
-              className={`rounded-xl ${
-                showAddForm ? (isDark ? 'bg-gray-700' : 'bg-gray-200') : 'bg-blue-600'
-              }`}
-              style={{
-                paddingHorizontal: responsive.spacing.md,
-                paddingVertical: responsive.spacing.sm,
-              }}
-            >
-              <Text
-                className={`font-semibold ${
-                  showAddForm ? (isDark ? 'text-gray-200' : 'text-gray-700') : 'text-white'
-                }`}
-                style={{ fontSize: responsive.fontSize.sm }}
-              >
-                {showAddForm ? 'Cancelar' : '+ Agregar'}
-              </Text>
-            </View>
-          </AnimatedButton>
+          <Button label="Nueva empresa" onPress={() => setShowAddForm(true)} />
         }
       />
 
@@ -142,7 +134,9 @@ export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Comp
             paddingVertical: responsive.spacing.md,
           }}
         >
-          {companies.length === 0 ? (
+          {loadError ? (
+            <ErrorState message={loadError} onRetry={retry} retrying={retrying} />
+          ) : companies.length === 0 ? (
             <EmptyState
               isDark={isDark}
               renderIcon={color => <CompaniesIcon color={color} size={28} />}
@@ -223,7 +217,7 @@ export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Comp
         message={modalMessage.message}
         buttons={[
           {
-            text: 'Aceptar',
+            text: 'Entendido',
             onPress: () => setShowMessageModal(false),
           },
         ]}

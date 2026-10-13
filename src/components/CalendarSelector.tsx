@@ -4,13 +4,13 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   StyleSheet,
 } from 'react-native';
 import { Company } from '../types';
 import { CalendarType, CALENDAR_CONFIGS } from '../config/calendarTypes';
 import { useTheme } from '../context/ThemeContext';
 import StyledModal from './StyledModal';
+import Button from './Button';
 
 interface CalendarSelectorProps {
   company: Company;
@@ -33,7 +33,6 @@ export default function CalendarSelector({
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const isSaveDisabled = loading || availableCalendars.length === 0;
 
   const checkboxStyles = React.useMemo(
     () => ({
@@ -46,20 +45,6 @@ export default function CalendarSelector({
         : { borderColor: '#d1d5db', backgroundColor: '#ffffff' },
     }),
     [isDark]
-  );
-
-  const buttonStyles = React.useMemo(
-    () => ({
-      cancel: {
-        backgroundColor: isDark ? '#374151' : '#e5e7eb',
-        opacity: loading ? 0.5 : 1,
-      },
-      save: {
-        backgroundColor: isSaveDisabled ? '#9ca3af' : '#2563eb',
-        opacity: isSaveDisabled ? 0.5 : 1,
-      },
-    }),
-    [isDark, isSaveDisabled, loading]
   );
 
   // Actualizar calendarios seleccionados cuando se abre el modal o cambia la empresa
@@ -213,39 +198,26 @@ export default function CalendarSelector({
           isDark ? 'border-gray-700' : 'border-gray-200'
         }`}>
           <View className="flex-row" style={styles.buttonRowGap}>
-            <TouchableOpacity
-              onPress={onClose}
-              disabled={loading}
-              accessibilityRole="button"
-              className="flex-1 py-3 rounded-xl items-center"
-              style={buttonStyles.cancel}
-              activeOpacity={0.7}
-            >
-              <Text className={`font-semibold ${
-                isDark ? 'text-gray-200' : 'text-gray-700'
-              }`}>
-                Cancelar
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={handleSave}
-              disabled={isSaveDisabled}
-              accessibilityRole="button"
-              className="flex-1 py-3 rounded-xl items-center"
-              style={buttonStyles.save}
-              activeOpacity={0.7}
-            >
-              {loading ? (
-                <View style={styles.loadingRow}>
-                  <ActivityIndicator color="#ffffff" size="small" />
-                  <Text className="text-white font-semibold">Guardando...</Text>
-                </View>
-              ) : (
-                <Text className="text-white font-semibold">
-                  Guardar
-                </Text>
-              )}
-            </TouchableOpacity>
+            <View className="flex-1">
+              <Button
+                label="Cancelar"
+                onPress={onClose}
+                variant="secondary"
+                size="large"
+                disabled={loading}
+                fullWidth
+              />
+            </View>
+            <View className="flex-1">
+              <Button
+                label="Guardar"
+                onPress={handleSave}
+                size="large"
+                busy={loading}
+                disabled={availableCalendars.length === 0}
+                fullWidth
+              />
+            </View>
           </View>
         </View>
       </View>
@@ -278,11 +250,6 @@ const styles = StyleSheet.create({
   },
   buttonRowGap: {
     gap: 12,
-  },
-  loadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
   },
 });
 
