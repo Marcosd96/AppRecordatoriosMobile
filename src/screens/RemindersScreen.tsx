@@ -1,32 +1,32 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
   FlatList,
-  TouchableOpacity,
   RefreshControl,
-  TextInput,
   LayoutAnimation,
   Platform,
   UIManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { useQueryClient } from '@tanstack/react-query';
-import { Reminder, ReminderFilter, SortBy } from '../types';
-import { remindersService } from '../services/remindersService';
-
-import { queryKeys } from '../config/queryClient';
-import { useCompaniesQuery, useRefetchOnFocus, useRemindersQuery } from '../hooks/queries';
+import { ReminderFilter } from '../types';
+import { useReminders } from '../hooks/useReminders';
+import { UserMessage } from '../hooks/actionResult';
 import { highlightStyle, useHighlightItem } from '../hooks/useHighlightItem';
 import { useTheme } from '../context/ThemeContext';
+import { useSnackbar } from '../context/SnackbarContext';
 import { useResponsive } from '../hooks/useResponsive';
 import StyledModal from '../components/StyledModal';
 import FilterChips, { FilterChipOption } from '../components/FilterChips';
 import LoadingScreen from '../components/LoadingScreen';
 import ScreenHeader from '../components/ScreenHeader';
 import ReminderCard from '../components/reminders/ReminderCard';
+import { filterReminders, getReminderStats } from '../components/reminders/reminderFilters';
 import EmptyState from '../components/EmptyState';
+import ErrorState from '../components/ErrorState';
+import SearchField from '../components/SearchField';
+import Button from '../components/Button';
 import { SearchIcon } from '../components/icons/ActionIcons';
 import { CalendarIcon } from '../components/icons/TabIcons';
 import { MainTabScreenProps } from '../navigation/types';
@@ -42,58 +42,40 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
+// Animación breve al cambiar de filtro
+const animateLayout = () => {
+  LayoutAnimation.configureNext(
+    LayoutAnimation.create(
+      250,
+      LayoutAnimation.Types.easeInEaseOut,
+      LayoutAnimation.Properties.opacity,
+    ),
+  );
+};
+
 export default function RemindersScreen({ route }: MainTabScreenProps<'Reminders'>) {
   const { isDark } = useTheme();
   const responsive = useResponsive();
-    const queryClient = useQueryClient();
-  const remindersQuery = useRemindersQuery();
-  const companiesQuery = useCompaniesQuery();
-  const reminders = useMemo(() => remindersQuery.data ?? [], [remindersQuery.data]);
-  const companies = companiesQuery.data ?? [];
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(
-    null,
-  );
+  const { showSnackbar } = useSnackbar();
+  const {
+    reminders,
+    companies,
+    loading,
+    isReady,
+    loadError,
+    retrying,
+    retry,
+    refreshing,
+    onRefresh,
+    togglingIds,
+    toggleReminder,
+  } = useReminders();
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [filter, setFilter] = useState<ReminderFilter>('all');
-  const [sortBy] = useState<SortBy>('date');
-    const [refreshing, setRefreshing] = useState(false);
-  // Solo se muestra la pantalla de carga si no hay nada guardado y se está pidiendo
-  const loading = remindersQuery.isPending && remindersQuery.fetchStatus === 'fetching';
   const [searchQuery, setSearchQuery] = useState('');
+  // El mensaje se conserva al cerrar para que no se vacíe durante la animación de salida
+  const [errorMessage, setErrorMessage] = useState<UserMessage>({ title: '', message: '' });
   const [showErrorModal, setShowErrorModal] = useState(false);
-  const [errorMessage, setErrorMessage] = useState({ title: '', message: '' });
-
-  // Función para animar los cambios de layout
-  const animateLayout = () => {
-    LayoutAnimation.configureNext(
-      LayoutAnimation.create(
-        250, // duración en ms
-        LayoutAnimation.Types.easeInEaseOut,
-        LayoutAnimation.Properties.opacity,
-      ),
-    );
-  };
-
-  useRefetchOnFocus([remindersQuery, companiesQuery]);
-
-  // Avisar del error solo si no hay datos guardados que mostrar
-  const loadError = remindersQuery.error ?? companiesQuery.error;
-  const hasData = remindersQuery.data !== undefined;
-  const lastReportedError = useRef<unknown>(null);
-  useEffect(() => {
-    if (loadError && !hasData && lastReportedError.current !== loadError) {
-      lastReportedError.current = loadError;
-      console.error('Error al cargar datos:', loadError);
-      setErrorMessage({
-        title: 'Error',
-        message:
-          (loadError as Error).message ||
-          'No se pudieron cargar los datos. Verifica tu conexión.',
-      });
-      setShowErrorModal(true);
-    }
-  }, [loadError, hasData]);
-
-  
 
   // Al abrir desde una notificación: quitar filtros, ir hasta el recordatorio y resaltarlo
   const highlightReminderId: string | undefined = route?.params?.reminderId;
@@ -106,126 +88,59 @@ export default function RemindersScreen({ route }: MainTabScreenProps<'Reminders
     }
   }, [highlightReminderId, highlightAt]);
 
-  // Actualizar selectedCompanyId y filter cuando cambian los parámetros de ruta
-  useEffect(() => {
-    if (route?.params?.companyId) {
-      setSelectedCompanyId(route.params.companyId);
-    }
-    if (route?.params?.filter) {
-      setFilter(route.params.filter);
-    }
-  }, [route?.params?.companyId, route?.params?.filter]);
-
-  // Recargar datos cuando la pantalla recibe el foco
+  // Filtros que llegan como parámetros (desde Inicio o Empresas), también al volver a la pestaña
   useFocusEffect(
-    React.useCallback(() => {
-      // Si hay params, establecer el filtro
+    useCallback(() => {
       if (route?.params?.companyId) {
         setSelectedCompanyId(route.params.companyId);
       }
       if (route?.params?.filter) {
         setFilter(route.params.filter);
       }
-      
     }, [route?.params?.companyId, route?.params?.filter]),
   );
 
-    const onRefresh = async () => {
-    setRefreshing(true);
-    await Promise.all([remindersQuery.refetch(), companiesQuery.refetch()]);
-    setRefreshing(false);
-  };
-
-  // Memoizar los recordatorios filtrados para evitar recalcular en cada render
   const filteredReminders = useMemo(
-    () =>
-      reminders
-        .filter(r => {
-          // Filtrar por empresa
-          if (selectedCompanyId && r.companyId !== selectedCompanyId)
-            return false;
-
-          // Filtrar por estado
-          if (filter === 'pending' && r.status !== 'pending') return false;
-          if (filter === 'overdue' && r.status !== 'overdue') return false;
-          if (filter === 'upcoming') {
-            const dueDate = new Date(r.dueDate);
-            const now = new Date();
-            const next30Days = new Date(
-              now.getTime() + 30 * 24 * 60 * 60 * 1000,
-            );
-            if (r.status !== 'pending' || dueDate < now || dueDate > next30Days)
-              return false;
-          }
-
-          // Filtrar por búsqueda
-          if (
-            searchQuery &&
-            !r.description.toLowerCase().includes(searchQuery.toLowerCase()) &&
-            !r.companyName.toLowerCase().includes(searchQuery.toLowerCase())
-          )
-            return false;
-
-          return true;
-        })
-        .sort((a, b) => {
-          if (sortBy === 'date') {
-            return (
-              new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
-            );
-          } else if (sortBy === 'company') {
-            return a.companyName.localeCompare(b.companyName);
-          } else {
-            return a.type.localeCompare(b.type);
-          }
-        }),
-    [reminders, selectedCompanyId, filter, sortBy, searchQuery],
+    () => filterReminders(reminders, { filter, companyId: selectedCompanyId, search: searchQuery }),
+    [reminders, filter, selectedCompanyId, searchQuery],
   );
+  const stats = useMemo(() => getReminderStats(reminders), [reminders]);
 
   const { listRef, highlightedId, onScrollToIndexFailed } = useHighlightItem(
     highlightReminderId,
     highlightAt,
-    remindersQuery.data !== undefined,
+    isReady,
     filteredReminders,
   );
 
-  const stats = {
-    total: reminders.length,
-    pending: reminders.filter(r => r.status === 'pending').length,
-    overdue: reminders.filter(r => r.status === 'overdue').length,
-    upcoming: reminders.filter(r => {
-      const dueDate = new Date(r.dueDate);
-      const now = new Date();
-      const next30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-      return r.status === 'pending' && dueDate >= now && dueDate <= next30Days;
-    }).length,
-  };
+  const showError = useCallback((message: UserMessage) => {
+    setErrorMessage(message);
+    setShowErrorModal(true);
+  }, []);
 
-  // Memoizar la función para evitar recrearla en cada render
-  const toggleReminderStatus = useCallback(
+  // Completar es la acción más frecuente y es reversible: se aplica al momento y se ofrece
+  // "Deshacer" en lugar de pedir confirmación
+  const handleToggle = useCallback(
     async (id: string) => {
-      const reminder = reminders.find(r => r.id === id);
-      if (!reminder) return;
-
-      try {
-        const result = await remindersService.toggleStatus(id);
-        // Al actualizar la caché, NotificationSync cancela o reprograma sus notificaciones
-        queryClient.setQueryData<Reminder[]>(queryKeys.reminders, current =>
-          (current ?? []).map(r => (r.id === id ? result.reminder : r)),
-        );
-        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
-      } catch (error: any) {
-        console.error('Error al actualizar recordatorio:', error);
-        setErrorMessage({
-          title: 'Error',
-          message: error.message || 'No se pudo actualizar el recordatorio',
+      const completing = reminders.find(r => r.id === id)?.status !== 'completed';
+      const result = await toggleReminder(id);
+      if (!result.ok) {
+        showError(result.error);
+      } else if (completing) {
+        showSnackbar({
+          message: 'Recordatorio completado',
+          actionLabel: 'Deshacer',
+          onAction: async () => {
+            const undo = await toggleReminder(id);
+            if (!undo.ok) {
+              showError(undo.error);
+            }
+          },
         });
-        setShowErrorModal(true);
       }
     },
-    [reminders, queryClient],
+    [reminders, toggleReminder, showError, showSnackbar],
   );
-
 
   if (loading) {
     return <LoadingScreen isDark={isDark} message="Cargando recordatorios..." />;
@@ -283,6 +198,7 @@ export default function RemindersScreen({ route }: MainTabScreenProps<'Reminders
         className="flex-1"
         data={filteredReminders}
         keyExtractor={reminder => reminder.id}
+        extraData={togglingIds}
         keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -299,23 +215,10 @@ export default function RemindersScreen({ route }: MainTabScreenProps<'Reminders
               paddingBottom: responsive.spacing.md,
             }}
           >
-            <TextInput
-              className={`border rounded-xl ${
-                isDark
-                  ? 'bg-gray-800 border-gray-700 text-white'
-                  : 'bg-white border-gray-200 text-gray-900'
-              }`}
-              style={{
-                paddingHorizontal: responsive.spacing.md,
-                paddingVertical: responsive.spacing.sm + 4,
-                fontSize: responsive.fontSize.base,
-              }}
-              placeholder="Buscar por descripción o empresa"
+            <SearchField
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholderTextColor="#9ca3af"
-              returnKeyType="search"
-              clearButtonMode="while-editing"
+              placeholder="Buscar por descripción o empresa"
               accessibilityLabel="Buscar recordatorios"
             />
 
@@ -350,18 +253,7 @@ export default function RemindersScreen({ route }: MainTabScreenProps<'Reminders
                 {reminders.length === 1 ? '' : 's'}
               </Text>
               {hasActiveFilters && (
-                <TouchableOpacity
-                  onPress={clearFilters}
-                  accessibilityRole="button"
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Text
-                    className="font-semibold text-blue-600"
-                    style={{ fontSize: responsive.fontSize.sm }}
-                  >
-                    Limpiar filtros
-                  </Text>
-                </TouchableOpacity>
+                <Button label="Limpiar filtros" onPress={clearFilters} variant="text" />
               )}
             </View>
           </View>
@@ -371,34 +263,42 @@ export default function RemindersScreen({ route }: MainTabScreenProps<'Reminders
             <ReminderCard
               reminder={reminder}
               isDark={isDark}
-              disabled={loading}
-              onToggleStatus={toggleReminderStatus}
+              busy={togglingIds.has(reminder.id)}
+              onToggleStatus={handleToggle}
               style={highlightedId === reminder.id ? highlightStyle : undefined}
             />
           </View>
         )}
         ListEmptyComponent={
           <View style={{ paddingHorizontal: responsive.spacing.lg }}>
-            <EmptyState
-              isDark={isDark}
-              renderIcon={color =>
-                reminders.length === 0 ? <CalendarIcon color={color} size={28} /> : <SearchIcon color={color} size={28} />
-              }
-              title={
-                reminders.length === 0
-                  ? 'Aún no hay recordatorios'
-                  : 'No hay recordatorios con estos filtros'
-              }
-              message={
-                reminders.length > 0
-                  ? 'Prueba con otra búsqueda o quita los filtros.'
-                  : companies.length > 0
-                    ? 'Tus empresas aún no tienen recordatorios. Revisa sus calendarios en Empresas.'
-                    : 'Agrega empresas para generar sus recordatorios fiscales.'
-              }
-              actionLabel={hasActiveFilters ? 'Limpiar filtros' : undefined}
-              onAction={clearFilters}
-            />
+            {loadError ? (
+              <ErrorState
+                message={loadError}
+                onRetry={retry}
+                retrying={retrying}
+              />
+            ) : (
+              <EmptyState
+                isDark={isDark}
+                renderIcon={color =>
+                  reminders.length === 0 ? <CalendarIcon color={color} size={28} /> : <SearchIcon color={color} size={28} />
+                }
+                title={
+                  reminders.length === 0
+                    ? 'Aún no hay recordatorios'
+                    : 'No hay recordatorios con estos filtros'
+                }
+                message={
+                  reminders.length > 0
+                    ? 'Prueba con otra búsqueda o quita los filtros.'
+                    : companies.length > 0
+                      ? 'Tus empresas aún no tienen recordatorios. Revisa sus calendarios en Empresas.'
+                      : 'Agrega empresas para generar sus recordatorios fiscales.'
+                }
+                actionLabel={hasActiveFilters ? 'Limpiar filtros' : undefined}
+                onAction={clearFilters}
+              />
+            )}
           </View>
         }
       />
@@ -411,7 +311,7 @@ export default function RemindersScreen({ route }: MainTabScreenProps<'Reminders
         message={errorMessage.message}
         buttons={[
           {
-            text: 'Aceptar',
+            text: 'Entendido',
             onPress: () => setShowErrorModal(false),
           },
         ]}

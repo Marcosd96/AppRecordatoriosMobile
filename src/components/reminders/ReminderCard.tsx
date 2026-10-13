@@ -1,7 +1,10 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleProp, ViewStyle } from 'react-native';
+import { View, Text, StyleProp, ViewStyle } from 'react-native';
 import { Reminder } from '../../types';
 import { formatDaysLabel, getDaysUntil } from '../dashboard/dashboardFormat';
+import Button from '../Button';
+import StatusBadge, { BadgeTone } from '../StatusBadge';
+import { CheckIcon } from '../icons/ActionIcons';
 
 const formatDate = (date: Date | string): string =>
   new Intl.DateTimeFormat('es-CO', {
@@ -13,50 +16,46 @@ const formatDate = (date: Date | string): string =>
 interface ReminderCardProps {
   reminder: Reminder;
   isDark: boolean;
-  disabled?: boolean;
+  /** Cambio de estado en curso: el botón no admite otra pulsación hasta que termine */
+  busy?: boolean;
   onToggleStatus: (id: string) => void;
   style?: StyleProp<ViewStyle>;
 }
 
 type Tone = 'done' | 'overdue' | 'urgent' | 'normal';
 
-const toneStyles = (isDark: boolean): Record<Tone, { accent: string; badge: string; badgeText: string; days: string }> => ({
+// Franja, insignia y días usan el mismo estado (DESIGN_SYSTEM §2.2)
+const toneStyles = (isDark: boolean): Record<Tone, { accent: string; days: string }> => ({
   done: {
     accent: isDark ? 'bg-gray-600' : 'bg-gray-300',
-    badge: isDark ? 'bg-green-500/15' : 'bg-green-100',
-    badgeText: isDark ? 'text-green-300' : 'text-green-800',
     days: isDark ? 'text-gray-400' : 'text-gray-500',
   },
   overdue: {
     accent: 'bg-red-500',
-    badge: isDark ? 'bg-red-500/15' : 'bg-red-100',
-    badgeText: isDark ? 'text-red-300' : 'text-red-800',
     days: isDark ? 'text-red-300' : 'text-red-600',
   },
   urgent: {
     accent: 'bg-amber-500',
-    badge: isDark ? 'bg-amber-500/15' : 'bg-amber-100',
-    badgeText: isDark ? 'text-amber-300' : 'text-amber-800',
     days: isDark ? 'text-amber-300' : 'text-amber-700',
   },
   normal: {
     accent: 'bg-blue-500',
-    badge: isDark ? 'bg-amber-500/15' : 'bg-amber-100',
-    badgeText: isDark ? 'text-amber-300' : 'text-amber-800',
     days: isDark ? 'text-gray-200' : 'text-gray-700',
   },
 });
 
-const statusLabels: Record<Reminder['status'], string> = {
-  pending: 'Pendiente',
-  overdue: 'Vencido',
-  completed: 'Completado',
+// La etiqueta sale del estado calculado: un pendiente con fecha pasada se muestra "Vencido"
+const badges: Record<Tone, { label: string; tone: BadgeTone }> = {
+  done: { label: 'Completado', tone: 'success' },
+  overdue: { label: 'Vencido', tone: 'error' },
+  urgent: { label: 'Pendiente', tone: 'warning' },
+  normal: { label: 'Pendiente', tone: 'primary' },
 };
 
 export default function ReminderCard({
   reminder,
   isDark,
-  disabled,
+  busy = false,
   onToggleStatus,
   style,
 }: ReminderCardProps) {
@@ -84,28 +83,8 @@ export default function ReminderCard({
 
       <View className="flex-1 p-4">
         <View className="flex-row items-center flex-wrap gap-1.5">
-          <View className={`px-2 py-0.5 rounded-full ${styles.badge}`}>
-            <Text className={`text-xs font-semibold ${styles.badgeText}`}>
-              {statusLabels[reminder.status]}
-            </Text>
-          </View>
-          <View
-            className={`px-2 py-0.5 rounded-full ${
-              isIva
-                ? isDark ? 'bg-blue-500/15' : 'bg-blue-100'
-                : isDark ? 'bg-purple-500/15' : 'bg-purple-100'
-            }`}
-          >
-            <Text
-              className={`text-xs font-semibold ${
-                isIva
-                  ? isDark ? 'text-blue-300' : 'text-blue-800'
-                  : isDark ? 'text-purple-300' : 'text-purple-800'
-              }`}
-            >
-              {reminder.type}
-            </Text>
-          </View>
+          <StatusBadge label={badges[tone].label} tone={badges[tone].tone} />
+          <StatusBadge label={reminder.type} tone={isIva ? 'primary' : 'category'} />
         </View>
 
         <Text
@@ -134,27 +113,15 @@ export default function ReminderCard({
             )}
           </View>
 
-          <TouchableOpacity
+          {/* Acción de fila: tonal, no rellena (con 20 filas habría 20 acciones principales) */}
+          <Button
+            label={isCompleted ? 'Deshacer' : 'Completar'}
             onPress={() => onToggleStatus(reminder.id)}
-            disabled={disabled}
-            accessibilityRole="button"
-            accessibilityLabel={
-              isCompleted ? 'Marcar como pendiente' : 'Marcar como completado'
-            }
-            className={`px-4 py-2.5 rounded-xl ${
-              isCompleted
-                ? isDark ? 'bg-gray-700' : 'bg-gray-100'
-                : 'bg-green-600'
-            }`}
-          >
-            <Text
-              className={`text-sm font-semibold ${
-                isCompleted ? (isDark ? 'text-gray-200' : 'text-gray-700') : 'text-white'
-              }`}
-            >
-              {isCompleted ? 'Deshacer' : '✓ Completar'}
-            </Text>
-          </TouchableOpacity>
+            variant={isCompleted ? 'secondary' : 'tonal'}
+            renderIcon={isCompleted ? undefined : color => <CheckIcon color={color} size={16} />}
+            busy={busy}
+            accessibilityLabel={isCompleted ? 'Marcar como pendiente' : 'Marcar como completado'}
+          />
         </View>
       </View>
     </View>
