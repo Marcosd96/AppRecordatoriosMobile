@@ -9,6 +9,8 @@ import AnimatedButton from '../components/AnimatedButton';
 import StyledModal from '../components/StyledModal';
 import LoadingScreen from '../components/LoadingScreen';
 import ScreenHeader from '../components/ScreenHeader';
+import ErrorState from '../components/ErrorState';
+import { useSnackbar } from '../context/SnackbarContext';
 import CompaniesSummaryCard from '../components/dashboard/CompaniesSummaryCard';
 import DashboardStatsCard from '../components/dashboard/DashboardStatsCard';
 import NotificationStatusCard from '../components/dashboard/NotificationStatusCard';
@@ -34,9 +36,10 @@ export default function DashboardScreen({ navigation }: MainTabScreenProps<'Dash
     onRefresh,
     sendTestNotification,
     loadError,
-    showLoadError,
-    dismissLoadError,
+    retrying,
+    retry,
   } = useDashboard();
+  const { showSnackbar } = useSnackbar();
   const { data: reminders } = useRemindersQuery();
   const { data: tasks } = usePersonalTasksQuery();
   const history = useMemo(
@@ -52,8 +55,13 @@ export default function DashboardScreen({ navigation }: MainTabScreenProps<'Dash
   });
 
   const handleTestNotification = async () => {
-    setTestNotificationMessage(await sendTestNotification());
-    setShowTestNotificationModal(true);
+    const result = await sendTestNotification();
+    if (result.ok) {
+      showSnackbar({ message: result.message });
+    } else {
+      setTestNotificationMessage(result);
+      setShowTestNotificationModal(true);
+    }
   };
 
   const handleSignOut = () => {
@@ -135,18 +143,27 @@ export default function DashboardScreen({ navigation }: MainTabScreenProps<'Dash
         }
         contentContainerStyle={{ paddingBottom: responsive.spacing.lg }}
       >
-        <DashboardStatsCard
-          isDark={isDark}
-          stats={stats}
-          onSelectFilter={filter => navigation.navigate('Reminders', { filter })}
-        />
+        {/* Sin datos del panel, las cifras serían ceros engañosos ("Todo al día") */}
+        {loadError ? (
+          <View style={{ paddingHorizontal: responsive.spacing.lg, paddingTop: responsive.spacing.md }}>
+            <ErrorState message={loadError} onRetry={retry} retrying={retrying} />
+          </View>
+        ) : (
+          <>
+            <DashboardStatsCard
+              isDark={isDark}
+              stats={stats}
+              onSelectFilter={filter => navigation.navigate('Reminders', { filter })}
+            />
 
-        <UpcomingRemindersCard
-          isDark={isDark}
-          reminders={upcomingReminders}
-          onOpenReminders={() => navigation.navigate('Reminders')}
-          onAddCompany={() => navigation.navigate('Companies')}
-        />
+            <UpcomingRemindersCard
+              isDark={isDark}
+              reminders={upcomingReminders}
+              onOpenReminders={() => navigation.navigate('Reminders')}
+              onAddCompany={() => navigation.navigate('Companies')}
+            />
+          </>
+        )}
 
         <NotificationStatusCard
           isDark={isDark}
@@ -161,11 +178,13 @@ export default function DashboardScreen({ navigation }: MainTabScreenProps<'Dash
           onOpenHistory={() => navigation.navigate('History')}
         />
 
-        <CompaniesSummaryCard
-          isDark={isDark}
-          companiesCount={companiesCount}
-          onOpenCompanies={() => navigation.navigate('Companies')}
-        />
+        {!loadError && (
+          <CompaniesSummaryCard
+            isDark={isDark}
+            companiesCount={companiesCount}
+            onOpenCompanies={() => navigation.navigate('Companies')}
+          />
+        )}
 
         <AppearanceCard />
       </ScrollView>
@@ -190,15 +209,6 @@ export default function DashboardScreen({ navigation }: MainTabScreenProps<'Dash
         ]}
       />
 
-      {/* Error al cargar sin datos guardados */}
-      <StyledModal
-        visible={showLoadError}
-        onClose={dismissLoadError}
-        title={loadError.title}
-        message={loadError.message}
-        buttons={[{ text: 'Aceptar', onPress: dismissLoadError }]}
-      />
-
       {/* Modal de notificaciones de prueba */}
       <StyledModal
         visible={showTestNotificationModal}
@@ -207,7 +217,7 @@ export default function DashboardScreen({ navigation }: MainTabScreenProps<'Dash
         message={testNotificationMessage.message}
         buttons={[
           {
-            text: 'Aceptar',
+            text: 'Entendido',
             onPress: () => setShowTestNotificationModal(false),
           },
         ]}

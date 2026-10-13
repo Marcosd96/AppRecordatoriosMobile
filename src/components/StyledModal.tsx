@@ -3,13 +3,13 @@ import {
   Modal,
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
   TouchableWithoutFeedback,
   Animated,
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useResponsive } from '../hooks/useResponsive';
+import Button, { ButtonVariant } from './Button';
 
 interface StyledModalProps {
   visible: boolean;
@@ -25,6 +25,15 @@ interface StyledModalProps {
   animationType?: 'fade' | 'slide';
 }
 
+const buttonVariants: Record<'default' | 'destructive' | 'cancel', ButtonVariant> = {
+  default: 'filled',
+  destructive: 'destructive',
+  cancel: 'secondary',
+};
+
+// Distancia desde la que entra el diálogo al animarse
+const MODAL_SLIDE_OFFSET = 300;
+
 export default function StyledModal({
   visible,
   onClose,
@@ -37,11 +46,7 @@ export default function StyledModal({
   const { isDark } = useTheme();
   const responsive = useResponsive();
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
-  const modalSlideOffset = React.useMemo(
-    () => responsive.scale(300),
-    [responsive],
-  );
-  const slideAnim = React.useRef(new Animated.Value(modalSlideOffset)).current;
+  const slideAnim = React.useRef(new Animated.Value(MODAL_SLIDE_OFFSET)).current;
   const animationRef = React.useRef<Animated.CompositeAnimation | null>(null);
   const [isModalVisible, setIsModalVisible] = React.useState(false);
   const isAnimatingRef = React.useRef(false);
@@ -59,7 +64,7 @@ export default function StyledModal({
       
       // Reiniciar valores antes de animar
       fadeAnim.setValue(0);
-      slideAnim.setValue(modalSlideOffset);
+      slideAnim.setValue(MODAL_SLIDE_OFFSET);
 
       // Pequeño delay para asegurar que los valores se han establecido
       const timer = setTimeout(() => {
@@ -100,7 +105,7 @@ export default function StyledModal({
           useNativeDriver: true,
         }),
         Animated.timing(slideAnim, {
-          toValue: animationType === 'slide' ? modalSlideOffset : 0,
+          toValue: animationType === 'slide' ? MODAL_SLIDE_OFFSET : 0,
           duration: 250,
           useNativeDriver: true,
         }),
@@ -118,7 +123,6 @@ export default function StyledModal({
     animationType,
     fadeAnim,
     isModalVisible,
-    modalSlideOffset,
     slideAnim,
     visible,
   ]);
@@ -127,25 +131,6 @@ export default function StyledModal({
   if (!isModalVisible && !visible) {
     return null;
   }
-
-  const getButtonStyle = (style?: 'default' | 'destructive' | 'cancel') => {
-    if (style === 'destructive') {
-      return {
-        backgroundColor: '#dc2626',
-        textColor: '#ffffff',
-      };
-    }
-    if (style === 'cancel') {
-      return {
-        backgroundColor: isDark ? '#374151' : '#f3f4f6',
-        textColor: isDark ? '#d1d5db' : '#374151',
-      };
-    }
-    return {
-      backgroundColor: '#2563eb',
-      textColor: '#ffffff',
-    };
-  };
 
   // Función para manejar el cierre con animación
   const handleClose = () => {
@@ -203,17 +188,7 @@ export default function StyledModal({
       flexDirection: stackButtons ? 'column' : 'row',
       gap: responsive.spacing.sm,
     },
-    button: {
-      paddingHorizontal: responsive.spacing.md,
-      paddingVertical: responsive.spacing.sm + 4,
-      borderRadius: responsive.borderRadius.lg,
-      alignItems: 'center',
-      flex: stackButtons ? 0 : 1,
-    },
-    buttonText: {
-      fontSize: responsive.fontSize.base,
-      fontWeight: '600',
-    },
+    buttonSlot: { flex: 1 },
   });
 
   return (
@@ -242,6 +217,7 @@ export default function StyledModal({
             >
               <View style={dynamicStyles.contentContainer}>
                 <Text
+                  accessibilityRole="header"
                   style={[
                     dynamicStyles.title,
                     palette.title,
@@ -265,12 +241,13 @@ export default function StyledModal({
               {buttons && buttons.length > 0 && (
                 <View style={dynamicStyles.buttonsContainer}>
                   <View style={dynamicStyles.buttonsRow}>
-                    {buttons.map((button, index) => {
-                      const buttonStyle = getButtonStyle(button.style);
-                      return (
-                        <TouchableOpacity
-                          key={index}
-                          accessibilityRole="button"
+                    {buttons.map((button, index) => (
+                      <View key={index} style={stackButtons ? undefined : dynamicStyles.buttonSlot}>
+                        <Button
+                          label={button.text}
+                          variant={buttonVariants[button.style ?? 'default']}
+                          size="large"
+                          fullWidth
                           onPress={() => {
                             if (!isAnimatingRef.current) {
                               button.onPress();
@@ -279,24 +256,9 @@ export default function StyledModal({
                               }
                             }
                           }}
-                          style={[
-                            dynamicStyles.button,
-                            { backgroundColor: buttonStyle.backgroundColor },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              dynamicStyles.buttonText,
-                              {
-                                color: buttonStyle.textColor,
-                              },
-                            ]}
-                          >
-                            {button.text}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
+                        />
+                      </View>
+                    ))}
                   </View>
                 </View>
               )}

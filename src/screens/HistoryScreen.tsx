@@ -7,7 +7,8 @@ import { HISTORY_MONTHS, HistoryEntry, buildHistory } from '../components/histor
 import MonthlyChart, { LATE_COLOR, ON_TIME_COLOR } from '../components/history/MonthlyChart';
 import EmptyState from '../components/EmptyState';
 import LoadingScreen from '../components/LoadingScreen';
-import { BackIcon, CheckIcon } from '../components/icons/ActionIcons';
+import { CheckIcon } from '../components/icons/ActionIcons';
+import StackHeader from '../components/StackHeader';
 import { RootStackScreenProps } from '../navigation/types';
 
 const MAX_ENTRIES = 50;
@@ -108,26 +109,7 @@ export default function HistoryScreen({ navigation }: RootStackScreenProps<'Hist
 
   return (
     <SafeAreaView className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
-      <View
-        className={`flex-row items-center px-2 py-2 border-b ${
-          isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
-        }`}
-      >
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          accessibilityRole="button"
-          accessibilityLabel="Volver"
-          className="h-11 w-11 items-center justify-center rounded-full mr-1"
-        >
-          <BackIcon color={isDark ? '#f9fafb' : '#111827'} />
-        </TouchableOpacity>
-        <Text
-          accessibilityRole="header"
-          className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}
-        >
-          Historial
-        </Text>
-      </View>
+      <StackHeader title="Historial" onBack={() => navigation.goBack()} />
 
       <ScrollView
         className="flex-1"

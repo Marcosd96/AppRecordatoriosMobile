@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { AlertIcon } from './icons/ActionIcons';
+import Button from './Button';
 
 interface ErrorBoundaryState {
   error: Error | null;
@@ -61,13 +62,7 @@ function ErrorFallback({ onRetry }: { onRetry: () => void }) {
       <Text className={`text-center mb-6 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
         Esta pantalla tuvo un problema. Tus datos están a salvo; puedes intentarlo de nuevo.
       </Text>
-      <TouchableOpacity
-        onPress={onRetry}
-        accessibilityRole="button"
-        className="bg-blue-600 px-8 py-3.5 rounded-xl"
-      >
-        <Text className="text-white font-semibold">Reintentar</Text>
-      </TouchableOpacity>
+      <Button label="Reintentar" onPress={onRetry} size="large" />
     </View>
   );
 }

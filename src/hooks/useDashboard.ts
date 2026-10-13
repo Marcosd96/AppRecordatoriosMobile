@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { notificationsService } from '../services/notificationsService';
 import { useDashboardQuery, useRefetchOnFocus, useRemindersQuery } from './queries';
 
@@ -16,6 +16,10 @@ export interface NotificationStatus {
 export interface DashboardMessage {
   title: string;
   message: string;
+}
+
+export interface DashboardResult extends DashboardMessage {
+  ok: boolean;
 }
 
 const EMPTY_STATS = { total: 0, pending: 0, overdue: 0, upcoming: 0 };
@@ -46,10 +50,6 @@ export function useDashboard() {
   const remindersQuery = useRemindersQuery();
   const [refreshing, setRefreshing] = useState(false);
   const [notificationStatus, setNotificationStatus] = useState<NotificationStatus | null>(null);
-  const lastAlertedError = useRef<unknown>(null);
-  // El mensaje se conserva al cerrar para que no se vacíe durante la animación de salida
-  const [loadError, setLoadError] = useState<DashboardMessage>({ title: '', message: '' });
-  const [showLoadError, setShowLoadError] = useState(false);
 
   useRefetchOnFocus([dashboardQuery, remindersQuery]);
 
@@ -76,19 +76,10 @@ export function useDashboard() {
       .finally(refreshNotificationStatus);
   }, [reminders, refreshNotificationStatus]);
 
-  // Avisar del error solo si no hay datos guardados que mostrar
+  // Error de carga solo si no hay datos guardados: la pantalla lo muestra con "Reintentar"
   const { error, data } = dashboardQuery;
-  useEffect(() => {
-    if (error && !data && lastAlertedError.current !== error) {
-      lastAlertedError.current = error;
-      console.error('Error al cargar datos del dashboard:', error);
-      setLoadError({
-        title: 'No se pudieron cargar los datos',
-        message: (error as Error).message || 'Inténtalo de nuevo en unos momentos.',
-      });
-      setShowLoadError(true);
-    }
-  }, [error, data]);
+  const loadError =
+    error && !data ? (error as Error).message || 'Inténtalo de nuevo en unos momentos.' : null;
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -99,7 +90,7 @@ export function useDashboard() {
   /**
    * Muestra una notificación de prueba y devuelve el mensaje para el usuario
    */
-  const sendTestNotification = useCallback(async (): Promise<DashboardMessage> => {
+  const sendTestNotification = useCallback(async (): Promise<DashboardResult> => {
     try {
       // Verificar permisos primero
       const hasPermission = await notificationsService.checkPermissions();
@@ -107,6 +98,7 @@ export function useDashboard() {
         const granted = await notificationsService.requestPermissions();
         if (!granted) {
           return {
+            ok: false,
             title: 'Permisos requeridos',
             message:
               'Necesitas conceder permisos de notificación para recibir recordatorios. Puedes activarlos desde la configuración de la app.',
@@ -117,14 +109,16 @@ export function useDashboard() {
       await notificationsService.displayTestNotification();
       await refreshNotificationStatus();
       return {
-        title: 'Éxito',
-        message: 'Se envió una notificación de prueba. Deberías verla ahora.',
+        ok: true,
+        title: 'Notificación enviada',
+        message: 'Notificación de prueba enviada. Deberías verla ahora.',
       };
     } catch (testError: any) {
       console.error('Error al enviar notificación de prueba:', testError);
       return {
-        title: 'Error',
-        message: testError.message || 'No se pudo enviar la notificación de prueba',
+        ok: false,
+        title: 'No se pudo enviar la notificación',
+        message: testError.message || 'Inténtalo de nuevo.',
       };
     }
   }, [refreshNotificationStatus]);
@@ -140,9 +134,9 @@ export function useDashboard() {
     notificationStatus,
     onRefresh,
     sendTestNotification,
-    /** Error de carga para mostrar en un modal (solo si no hay datos guardados) */
+    /** Error de carga (solo si no hay datos guardados) */
     loadError,
-    showLoadError,
-    dismissLoadError: () => setShowLoadError(false),
+    retrying: dashboardQuery.isFetching,
+    retry: dashboardQuery.refetch,
   };
 }

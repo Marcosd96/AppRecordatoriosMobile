@@ -26,6 +26,7 @@ import NotificationSync from '../components/NotificationSync';
 import { MainTabParamList, RootStackParamList } from './types';
 import WidgetSync from '../components/WidgetSync';
 import OfflineBanner from '../components/OfflineBanner';
+import { SnackbarProvider } from '../context/SnackbarContext';
 import LoadingScreen from '../components/LoadingScreen';
 import {
   renderCalendarTabIcon,
@@ -37,74 +38,78 @@ import {
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
+const TAB_BAR_HEIGHT = 60;
+
 function MainTabs() {
   const insets = useSafeAreaInsets();
   const { isDark } = useTheme();
   const responsive = useResponsive();
-  const tabBarHeight =
-    responsive.scale(60) + Math.max(insets.bottom - responsive.spacing.xs, 0);
+  // Altura fija: no crece con el ancho (en horizontal o en tablet ocupaba más de 140 dp)
+  const tabBarHeight = TAB_BAR_HEIGHT + Math.max(insets.bottom - responsive.spacing.xs, 0);
 
   return (
     <View className="flex-1">
       <NotificationSync />
       <WidgetSync />
-      <Tab.Navigator
-        screenOptions={{
-          headerShown: false,
-          // Mismos colores que el encabezado de cada pantalla; en oscuro, un azul más claro
-          // para que la pestaña activa contraste
-          tabBarActiveTintColor: isDark ? '#60a5fa' : '#2563eb',
-          tabBarInactiveTintColor: isDark ? '#9ca3af' : '#6b7280',
-          tabBarStyle: {
-            backgroundColor: isDark ? '#111827' : '#ffffff',
-            borderTopWidth: 1,
-            borderTopColor: isDark ? '#1f2937' : '#e5e7eb',
-            paddingBottom: Math.max(insets.bottom, responsive.spacing.xs),
-            paddingTop: responsive.spacing.xs,
-            height: tabBarHeight,
-          },
-          tabBarLabelStyle: {
-            fontSize: responsive.fontSize.xs,
-            fontWeight: '600',
-          },
-          tabBarIconStyle: {
-            marginTop: responsive.spacing.xs,
-          },
-        }}
-      >
-        <Tab.Screen
-          name="Dashboard"
-          component={DashboardScreen}
-          options={{
-            tabBarLabel: 'Inicio',
-            tabBarIcon: renderHomeTabIcon,
+      <SnackbarProvider bottomOffset={tabBarHeight}>
+        <Tab.Navigator
+          screenOptions={{
+            headerShown: false,
+            // Mismos colores que el encabezado de cada pantalla; en oscuro, un azul más claro
+            // para que la pestaña activa contraste
+            tabBarActiveTintColor: isDark ? '#60a5fa' : '#2563eb',
+            tabBarInactiveTintColor: isDark ? '#9ca3af' : '#6b7280',
+            tabBarStyle: {
+              backgroundColor: isDark ? '#111827' : '#ffffff',
+              borderTopWidth: 1,
+              borderTopColor: isDark ? '#1f2937' : '#e5e7eb',
+              paddingBottom: Math.max(insets.bottom, responsive.spacing.xs),
+              paddingTop: responsive.spacing.xs,
+              height: tabBarHeight,
+            },
+            tabBarLabelStyle: {
+              fontSize: responsive.fontSize.xs,
+              fontWeight: '600',
+            },
+            tabBarIconStyle: {
+              marginTop: responsive.spacing.xs,
+            },
           }}
-        />
-        <Tab.Screen
-          name="PersonalTasks"
-          component={PersonalTasksScreen}
-          options={{
-            tabBarLabel: 'Tareas',
-            tabBarIcon: renderTasksTabIcon,
-          }}
-        />
-        <Tab.Screen
-          name="Reminders"
-          component={RemindersScreen}
-          options={{
-            tabBarLabel: 'Recordatorios',
-            tabBarIcon: renderCalendarTabIcon,
-          }}
-        />
-        <Tab.Screen
-          name="Companies"
-          component={CompaniesScreen}
-          options={{
-            tabBarLabel: 'Empresas',
-            tabBarIcon: renderCompaniesTabIcon,
-          }}
-        />
-      </Tab.Navigator>
+        >
+          <Tab.Screen
+            name="Dashboard"
+            component={DashboardScreen}
+            options={{
+              tabBarLabel: 'Inicio',
+              tabBarIcon: renderHomeTabIcon,
+            }}
+          />
+          <Tab.Screen
+            name="PersonalTasks"
+            component={PersonalTasksScreen}
+            options={{
+              tabBarLabel: 'Tareas',
+              tabBarIcon: renderTasksTabIcon,
+            }}
+          />
+          <Tab.Screen
+            name="Reminders"
+            component={RemindersScreen}
+            options={{
+              tabBarLabel: 'Recordatorios',
+              tabBarIcon: renderCalendarTabIcon,
+            }}
+          />
+          <Tab.Screen
+            name="Companies"
+            component={CompaniesScreen}
+            options={{
+              tabBarLabel: 'Empresas',
+              tabBarIcon: renderCompaniesTabIcon,
+            }}
+          />
+        </Tab.Navigator>
+      </SnackbarProvider>
       <OfflineBanner bottom={tabBarHeight} />
     </View>
   );

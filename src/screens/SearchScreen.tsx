@@ -1,19 +1,14 @@
 import React, { useMemo, useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { useCompaniesQuery, usePersonalTasksQuery, useRemindersQuery } from '../hooks/queries';
 import { searchAll } from '../components/search/globalSearch';
 import { formatDaysLabel, getDaysUntil } from '../components/dashboard/dashboardFormat';
 import EmptyState from '../components/EmptyState';
-import { BackIcon, SearchIcon } from '../components/icons/ActionIcons';
+import { SearchIcon } from '../components/icons/ActionIcons';
+import StackHeader from '../components/StackHeader';
+import SearchField from '../components/SearchField';
 import { TaskStatus } from '../types';
 import { NavigatorScreenParams } from '@react-navigation/native';
 import { MainTabParamList, RootStackScreenProps } from '../navigation/types';
@@ -98,48 +93,15 @@ export default function SearchScreen({ navigation }: RootStackScreenProps<'Searc
 
   return (
     <SafeAreaView className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
-      <View
-        className={`flex-row items-center px-2 py-2 border-b ${
-          isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
-        }`}
-      >
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          accessibilityRole="button"
-          accessibilityLabel="Volver"
-          className="h-11 w-11 items-center justify-center rounded-full mr-1"
-        >
-          <BackIcon color={isDark ? '#f9fafb' : '#111827'} />
-        </TouchableOpacity>
-        <View
-          className={`flex-1 flex-row items-center rounded-xl px-3 mr-2 ${
-            isDark ? 'bg-gray-800' : 'bg-gray-100'
-          }`}
-        >
-          <SearchIcon color={isDark ? '#9ca3af' : '#6b7280'} size={18} />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Buscar recordatorios, tareas o empresas"
-            placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
-            autoFocus
-            autoCorrect={false}
-            returnKeyType="search"
-            accessibilityLabel="Buscar"
-            className={`flex-1 py-2.5 ml-2 text-base ${isDark ? 'text-white' : 'text-gray-900'}`}
-          />
-          {hasQuery ? (
-            <TouchableOpacity
-              onPress={() => setQuery('')}
-              accessibilityRole="button"
-              accessibilityLabel="Borrar búsqueda"
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Text className={isDark ? 'text-gray-400' : 'text-gray-500'}>✕</Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
-      </View>
+      <StackHeader onBack={() => navigation.goBack()}>
+        <SearchField
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Buscar recordatorios, tareas o empresas"
+          accessibilityLabel="Buscar"
+          autoFocus
+        />
+      </StackHeader>
 
       <ScrollView
         className="flex-1"

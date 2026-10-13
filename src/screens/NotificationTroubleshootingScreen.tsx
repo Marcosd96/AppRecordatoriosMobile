@@ -4,22 +4,17 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   LayoutAnimation,
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { notificationsService } from '../services/notificationsService';
-import AnimatedButton from '../components/AnimatedButton';
+import Button from '../components/Button';
+import StackHeader from '../components/StackHeader';
 import LoadingScreen from '../components/LoadingScreen';
 import StyledModal from '../components/StyledModal';
-import {
-  AlertIcon,
-  BackIcon,
-  CheckIcon,
-  ChevronDownIcon,
-} from '../components/icons/ActionIcons';
+import { AlertIcon, CheckIcon, ChevronDownIcon } from '../components/icons/ActionIcons';
 import { RootStackScreenProps } from '../navigation/types';
 
 // Consejos genéricos; se podrían ampliar detectando el fabricante del dispositivo
@@ -96,11 +91,10 @@ function StatusRow({ isDark, ok, title, okText, problemText, actionLabel, onActi
         </View>
       </View>
       {!ok && (
-        <AnimatedButton onPress={onAction} style={styles.rowAction}>
-          <View className="bg-blue-600 py-2.5 px-4 rounded-xl items-center">
-            <Text className="text-white font-semibold">{actionLabel}</Text>
-          </View>
-        </AnimatedButton>
+        <View style={styles.rowAction}>
+          {/* Tonal: puede haber dos problemas a la vez y ninguno debe parecer la única salida */}
+          <Button label={actionLabel} onPress={onAction} variant="tonal" fullWidth />
+        </View>
       )}
     </View>
   );
@@ -208,26 +202,7 @@ export default function NotificationTroubleshootingScreen({
 
   return (
     <SafeAreaView className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
-      <View
-        className={`flex-row items-center px-2 py-2 border-b ${
-          isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
-        }`}
-      >
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          accessibilityRole="button"
-          accessibilityLabel="Volver"
-          className="h-11 w-11 items-center justify-center rounded-full mr-1"
-        >
-          <BackIcon color={isDark ? '#f9fafb' : '#111827'} />
-        </TouchableOpacity>
-        <Text
-          accessibilityRole="header"
-          className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}
-        >
-          Diagnóstico de notificaciones
-        </Text>
-      </View>
+      <StackHeader title="Diagnóstico de notificaciones" onBack={() => navigation.goBack()} />
 
       <ScrollView className="flex-1" contentContainerStyle={styles.content}>
         {/* Resumen */}
@@ -275,24 +250,14 @@ export default function NotificationTroubleshootingScreen({
         />
 
         <Text className={`${sectionTitleClass} mt-3`}>Prueba</Text>
-        <AnimatedButton
+        <Button
+          label="Enviar notificación de prueba"
           onPress={handleTestNotification}
-          disabled={sendingTest}
-          accessibilityState={{ disabled: sendingTest, busy: sendingTest }}
-        >
-          <View
-            className={`py-3.5 rounded-xl flex-row items-center justify-center ${
-              isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
-            } ${sendingTest ? 'opacity-70' : ''}`}
-          >
-            {sendingTest && (
-              <ActivityIndicator size="small" color={isDark ? '#60a5fa' : '#2563eb'} className="mr-2" />
-            )}
-            <Text className={`font-semibold ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
-              {sendingTest ? 'Enviando...' : 'Enviar notificación de prueba'}
-            </Text>
-          </View>
-        </AnimatedButton>
+          busy={sendingTest}
+          variant="secondary"
+          size="large"
+          fullWidth
+        />
 
         <Text className={`${sectionTitleClass} mt-8`}>Guía por fabricante</Text>
         <Text className={`text-sm mb-3 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>

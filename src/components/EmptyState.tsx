@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import AnimatedButton from './AnimatedButton';
+import Button from './Button';
 
 interface EmptyStateProps {
   isDark: boolean;
@@ -43,11 +43,9 @@ export default function EmptyState({
         {message}
       </Text>
       {actionLabel && onAction ? (
-        <AnimatedButton onPress={onAction}>
-          <View className="mt-5 px-6 py-3 rounded-xl bg-blue-600">
-            <Text className="text-white font-semibold text-center">{actionLabel}</Text>
-          </View>
-        </AnimatedButton>
+        <View className="mt-5">
+          <Button label={actionLabel} onPress={onAction} size="large" />
+        </View>
       ) : null}
     </View>
   );
