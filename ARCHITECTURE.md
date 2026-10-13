@@ -35,7 +35,8 @@ Estructura del código, gestión del estado y reparto de responsabilidades. Ver 
 screens/        UI de pantalla: compone componentes, lee el hook, sin lógica de negocio
    │
    ▼
-hooks/          "ViewModels": estado de UI + acciones (useReminders, usePersonalTasks, useCompanies, useDashboard)
+hooks/          "ViewModels": estado de UI + acciones (useHome, useReminders, usePersonalTasks, useCompanies)
+   │               también hooks compartidos: useNotificationStatus, useCompleteReminder
    │               └── queries.ts: consultas compartidas y claves de caché
    ▼
 services/       Acceso a datos y efectos: API, notificaciones, sesión, widget
@@ -105,7 +106,7 @@ Responsabilidades:
 - Exponer el **estado de UI** ya derivado (`tasks`, `stats`, `loading`, `refreshing`).
 - Exponer **acciones** con nombre de intención (`saveTask`, `updateTaskStatus`, `deleteTask`), que llaman al servicio, invalidan la caché y devuelven el resultado.
 - Exponer el error de carga sin caché como `loadError` + `retry`/`retrying`; la pantalla lo pinta con `ErrorState`.
-- Las acciones devuelven un `ActionResult` (`hooks/actionResult.ts`): la pantalla confirma los éxitos con snackbar y muestra los errores en un diálogo. (`useCompanies` y `useDashboard` aún usan su propio tipo `{ ok, message }`; se unifica al tocarlos.)
+- Las acciones devuelven un `ActionResult` (`hooks/actionResult.ts`): la pantalla confirma los éxitos con snackbar y muestra los errores en un diálogo. (`useCompanies` aún usa su propio tipo `{ ok, message }`; se unifica al tocarlo.)
 - Una acción no se puede lanzar dos veces sobre el mismo elemento mientras está en curso: el hook lleva el registro (`togglingIds`, `busyTaskIds`).
 
 No hace: JSX, estilos, navegación, `Alert`.
@@ -178,7 +179,7 @@ El "vacío por filtro" se resuelve en la pantalla: `content` con `items` filtrad
 
 - Kotlin solo donde RN no llega (widget). El puente es `WidgetModule`; los datos se envían desde `widgetService.ts` como JSON.
 - Los colores y textos del widget se mantienen alineados con DESIGN_SYSTEM.
-- Ningún cambio en `android/` o `ios/` sin probar el build de release (`npm run build:apk:release`).
+- Ningún cambio en `android/` o `ios/` sin probar el build de release (`npm run build:apk:release`, que funciona en Windows, Linux y macOS: `scripts/build-apk.js`).
 
 ---
 

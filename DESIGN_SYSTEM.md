@@ -71,9 +71,9 @@ solo si hay un caso de uso real.
 **Colores de categoría** (no son estados): `IVA` → familia `blue`; otros impuestos →
 familia `purple`. No añadir categorías nuevas sin revisar contraste en ambos temas.
 
-**Fuera de la paleta**: hoy el código usa también `green` para acciones ("Completar"),
-`yellow`, `orange`, `emerald`, `indigo` y `cyan` (prioridades y botones de diagnóstico en
-`TaskCard`). No son roles: no usarlos en código nuevo. `green` solo como `success`.
+**Fuera de la paleta**: `yellow`, `orange`, `emerald`, `indigo` y `cyan` no son roles: no
+usarlos. `green` solo como `success`. Las insignias usan `StatusBadge`, que solo admite tonos
+por rol.
 
 ### 2.2 Estados de vencimiento
 
@@ -87,8 +87,7 @@ Se calculan en un único sitio (ver `ReminderCard.tsx`, función de `tone`) y se
 | `done`     | completado                         | `onSurfaceVariant`, tachado, opacidad 70 % |
 
 El color **nunca** es la única señal: siempre acompaña un texto ("Vencido", "en 3 días").
-La franja y la insignia de un mismo elemento usan **el mismo** estado (hoy `normal` muestra
-franja azul con insignia ámbar: es un error).
+La franja y la insignia de un mismo elemento usan **el mismo** estado.
 
 ### 2.4 Estados de interacción
 
@@ -109,7 +108,7 @@ botones a mano. **Pendiente**: el indicador de foco por teclado/D-pad; no está 
 - Prohibido escribir hex sueltos en componentes. Para props que no aceptan clases (iconos
   SVG, `ActivityIndicator`, `placeholderTextColor`, `android_ripple`) se usa
   `useThemeColors()` de `src/theme/colors.ts`. Aún quedan literales antiguos (`tabBarStyle`,
-  `StyledModal`, iconos de Inicio y del flujo de entrada): se migran al tocar cada archivo.
+  `StyledModal` y el flujo de entrada): se migran al tocar cada archivo.
 - **Objetivo**: definir los roles en `tailwind.config.js` (`colors.primary`, `surface`…)
   con variables CSS y usar `dark:` (NativeWind ya tiene `darkMode: 'class'`), para
   eliminar las ternarias `isDark ? 'bg-gray-800' : 'bg-white'` repetidas en cada archivo.
@@ -179,8 +178,7 @@ Rejilla de **4 dp**. Valores permitidos (Tailwind):
 | `full`         | `rounded-full` | —     | Chips, insignias, FAB, aviso sin conexión |
 
 No mezclar radios distintos en elementos hermanos. Un elemento anidado lleva un radio
-**menor** que su contenedor (hoy `TaskCard` anida bloques `rounded-2xl` dentro de una
-tarjeta `rounded-2xl`).
+**menor** que su contenedor.
 
 ## 6. Elevación
 
@@ -215,10 +213,12 @@ esos componentes consumen.
 
 - Duraciones: 150 ms (micro, pulsación), 250 ms (entrada de hoja/diálogo), 300 ms (navegación).
 - El movimiento explica una transición (aparece la hoja desde abajo); no se anima por decorar.
-- Transiciones de navegación: las nativas de la plataforma. Hoy el stack usa un *spring*
-  propio con desplazamiento lateral + fundido, que en Android no es el patrón del sistema.
-- Splash: el nativo basta. Una animación de marca no debe retrasar el arranque; hoy la
-  secuencia JS de `SplashScreen` impone ~4,3 s en cada arranque en frío.
+- Transiciones de navegación: las nativas de la plataforma (`AppNavigator` no define
+  interpoladores propios).
+- Splash: `SplashScreen` es estático, continúa el fondo del splash nativo y solo se ve
+  mientras se restaura la sesión. Ninguna animación de marca retrasa el arranque.
+- Sin animaciones de entrada decorativas (logos que escalan, textos que suben): se
+  retiraron de Login, Onboarding y Permisos.
 - Respetar "Reducir movimiento": `AccessibilityInfo.isReduceMotionEnabled()` ⇒ sin escalas
   ni rebotes, solo fundidos.
 

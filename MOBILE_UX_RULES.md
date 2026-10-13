@@ -28,15 +28,17 @@ Cada decisión de UX se valida contra esta lista: lo frecuente debe estar a ≤ 
 
 ```
 Stack raíz
-├── Splash → Onboarding → Login → WelcomePermissions   (flujo de entrada, sin "atrás")
+├── Onboarding → Login → WelcomePermissions   (flujo de entrada, sin "atrás"; mientras se
+│                                               restaura la sesión se ve SplashScreen, fuera del stack)
 ├── Main (barra de navegación inferior)
 │   ├── Inicio          (Dashboard)
 │   ├── Tareas          (PersonalTasks)
 │   ├── Recordatorios   (Reminders)
 │   └── Empresas        (Companies)
-├── Search                 (pantalla completa desde Inicio)
-├── History                (pantalla completa desde Inicio)
-└── NotificationTroubleshooting
+├── Search                 (desde Inicio)
+├── History                (desde Inicio)
+├── Settings               (desde Inicio: tema, notificaciones, cuenta, versión)
+└── NotificationTroubleshooting (desde Ajustes o el aviso de Inicio)
 ```
 
 **Por qué barra inferior**: 4 destinos de primer nivel, de uso equivalente y frecuente. Es el
@@ -45,6 +47,7 @@ patrón M3 *navigation bar* para 3–5 destinos en ventana compacta.
 ### 2.2 Reglas
 
 - Los destinos de primer nivel viven **solo** en la barra inferior. No duplicarlos con botones grandes en Inicio (Inicio usa enlaces "Ver todos").
+- **Inicio** muestra, en este orden: aviso si las notificaciones están bloqueadas, Vencidos, Esta semana (o "Lo próximo" si no hay nada), Tareas para hoy e Historial. Máximo 5 elementos por sección; el resto, en la pestaña. Sin rejillas de cifras.
 - Máximo 5 pestañas. Un destino nuevo va al stack o dentro de una pestaña existente.
 - El botón Atrás del sistema (y el gesto) siempre funciona: cierra hoja/diálogo → vuelve en el stack → sale de la app desde una pestaña raíz. Nunca interceptarlo para "confirmar salida".
 - Tras Login/Onboarding se usa `reset`, no `navigate`: Atrás no debe volver al login.

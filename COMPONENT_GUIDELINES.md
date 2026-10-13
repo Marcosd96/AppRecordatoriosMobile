@@ -20,7 +20,7 @@ Cada entrada indica su estado:
 |------------|--------|---------|---------------|
 | `ScreenHeader` | Existe | `components/ScreenHeader.tsx` | Cabecera de las 4 pestañas: título, subtítulo, una acción a la derecha |
 | `StackHeader` | Existe | `components/StackHeader.tsx` | Cabecera de pantallas del stack: botón Atrás + título (o un campo, como en Búsqueda) + acción opcional |
-| `Button` | Existe | `components/Button.tsx` | Todo botón con texto. Pendiente de migrar: Inicio (paso 4) y Login/Onboarding/Permisos (paso 5) |
+| `Button` | Existe | `components/Button.tsx` | Todo botón con texto. Única excepción: "Continuar con Google" en Login, que sigue las normas de marca de Google |
 | `IconButton` | Existe | `components/IconButton.tsx` | Botón solo icono, 48 dp, `accessibilityLabel` obligatorio |
 | `SearchField` | Existe | `components/SearchField.tsx` | Campo de búsqueda con icono y botón de borrar |
 | `FilterChips` | Existe | `components/FilterChips.tsx` | Filtrar una lista por una dimensión, con recuento |
@@ -35,11 +35,10 @@ Cada entrada indica su estado:
 | `ErrorState` | Existe | `components/ErrorState.tsx` | Error de carga sin caché: mensaje + "Reintentar", en el lugar de la lista |
 | `LoadingScreen` | Existe | `components/LoadingScreen.tsx` | Carga inicial sin caché |
 | `OfflineBanner` | Existe | `components/OfflineBanner.tsx` | Modo sin conexión (montado en `MainTabs`) |
-| `SectionCard` | Existe | `components/SectionCard.tsx` | Solo Inicio: sección con título y "Ver todos" |
+| `ListRow` | Existe | `components/ListRow.tsx` | Fila de lista (56 dp): título, subtítulo, chevron o contenido a la derecha; `destructive` y `divider`. Ajustes, enlaces de Inicio |
 | `ReminderCard` | Existe | `components/reminders/ReminderCard.tsx` | Elemento de lista de recordatorios |
 | `TaskCard` | Existe | `components/personalTasks/TaskCard.tsx` | Elemento de lista de tareas: una acción visible + ⋮; tocarla edita |
-| `CompanyCard` | Existe | `components/companies/CompanyCard.tsx` | Elemento de lista de empresas |
-| `AnimatedButton` | Obsoleto | `components/AnimatedButton.tsx` | No usar en código nuevo: `Button`. Se retira al migrar Inicio y el flujo de entrada |
+| `CompanyCard` | Existe | `components/companies/CompanyCard.tsx` | Elemento de lista de empresas: tocarla abre sus recordatorios; resto en ⋮ |
 | `ErrorBoundary` | Existe | `components/ErrorBoundary.tsx` | Raíz de la app |
 | Iconos | Existe | `components/icons/` | Todo icono. Nunca emojis ni caracteres (`✕`, `✓`, `▲`) como icono |
 
@@ -87,9 +86,10 @@ Reglas:
 | Stack | `StackHeader` | Atrás (48 dp) + título (`titleMedium`) + acción opcional |
 
 - El subtítulo informa del estado; no repite el título ("Gestiona tus clientes" no aporta).
-- Inicio no saluda ("Hola, <nombre>"): el título es "Inicio" o el estado del día.
-- "Cerrar sesión" y "Apariencia" no van en la cabecera ni en Inicio: van en una pantalla de
-  Ajustes (**Objetivo**) accesible desde Inicio.
+- Inicio no saluda: el título es "Inicio" y el subtítulo, el resumen del día
+  ("2 vencidos · 3 esta semana" o "Todo al día").
+- "Cerrar sesión", "Apariencia" y el estado de las notificaciones están en **Ajustes**
+  (`SettingsScreen`), a la que se llega con el icono de ajustes de la cabecera de Inicio.
 
 ---
 
@@ -126,11 +126,9 @@ no con otra caja con fondo y borde.
 
 ### Problemas actuales a corregir al tocar cada archivo
 
-| Componente | Problema |
-|------------|----------|
-| `CompanyCard` | Rejilla de 3 KPIs + 2 botones + eliminar en cada empresa; eliminar visible y a un toque del contenido |
-
-`ReminderCard` y `TaskCard` ya siguen esta anatomía (paso 3 de la auditoría).
+`ReminderCard`, `TaskCard` y `CompanyCard` siguen esta anatomía. En `CompanyCard`, tocar abre
+los recordatorios de la empresa y ⋮ ofrece Calendarios y Eliminar; la única acción a la
+vista es "Elegir calendarios" cuando la empresa aún no tiene recordatorios.
 
 ---
 
