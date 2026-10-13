@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, ActivityIndicator, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { notificationsService } from '../services/notificationsService';
 import { useTheme } from '../context/ThemeContext';
-import AnimatedView from '../components/AnimatedView';
-import AnimatedButton from '../components/AnimatedButton';
+import Button from '../components/Button';
 import StyledModal from '../components/StyledModal';
 import { BellIcon } from '../components/icons/ActionIcons';
 
@@ -12,7 +11,7 @@ interface WelcomePermissionsScreenProps {
   onComplete: () => void;
 }
 
-type PermissionDialog = 'granted' | 'denied' | 'error' | 'skip';
+type PermissionDialog = 'denied' | 'error' | 'skip';
 
 // Coincide con lo que programa notificationsService para cada recordatorio fiscal
 const notificationMoments = [
@@ -56,7 +55,8 @@ export default function WelcomePermissionsScreen({
         setHasPermission(true);
         // Crear el canal de notificaciones para Android
         await notificationsService.createNotificationChannel();
-        openDialog('granted');
+        // El diálogo del sistema ya confirmó el permiso: no hace falta otro que lo repita
+        onComplete();
       } else {
         openDialog('denied');
       }
@@ -81,15 +81,10 @@ export default function WelcomePermissionsScreen({
     PermissionDialog,
     { title: string; message: string; buttons: React.ComponentProps<typeof StyledModal>['buttons'] }
   > = {
-    granted: {
-      title: '¡Notificaciones activadas!',
-      message: 'Te avisaremos de tus recordatorios fiscales importantes.',
-      buttons: [{ text: 'Continuar', onPress: () => setTimeout(onComplete, 300) }],
-    },
     denied: {
       title: 'Permiso no concedido',
       message:
-        'Puedes activar las notificaciones más tarde desde la configuración de la app para no perderte ningún recordatorio importante.',
+        'Puedes activar las notificaciones más tarde desde Ajustes para no perderte ningún recordatorio importante.',
       buttons: [
         continueWithoutNotifications,
         { text: 'Intentar de nuevo', onPress: handleRequestPermissions },
@@ -98,13 +93,13 @@ export default function WelcomePermissionsScreen({
     error: {
       title: 'No se pudo solicitar el permiso',
       message:
-        'Hubo un problema al solicitar los permisos. Puedes continuar y activarlos más tarde desde la configuración.',
+        'Hubo un problema al solicitar los permisos. Puedes continuar y activarlos más tarde desde Ajustes.',
       buttons: [{ text: 'Continuar', onPress: onComplete }],
     },
     skip: {
       title: '¿Continuar sin notificaciones?',
       message:
-        'Las notificaciones te ayudan a no perderte ningún vencimiento. Puedes activarlas más tarde desde la configuración.',
+        'Las notificaciones te ayudan a no perderte ningún vencimiento. Puedes activarlas más tarde desde Ajustes.',
       buttons: [
         { text: 'Volver', style: 'cancel', onPress: closeDialog },
         { text: 'Omitir', onPress: onComplete },
@@ -119,7 +114,7 @@ export default function WelcomePermissionsScreen({
         contentContainerStyle={styles.content}
         className="px-8"
       >
-        <AnimatedView animationType="scale" delay={0} duration={600}>
+        <View>
           <View className="items-center mb-8">
             <View
               className={`h-24 w-24 rounded-3xl items-center justify-center ${
@@ -129,9 +124,9 @@ export default function WelcomePermissionsScreen({
               <BellIcon color={isDark ? '#93c5fd' : '#2563eb'} size={48} />
             </View>
           </View>
-        </AnimatedView>
+        </View>
 
-        <AnimatedView animationType="slideUp" delay={150} duration={600}>
+        <View>
           <Text
             accessibilityRole="header"
             className={`text-3xl font-bold text-center mb-4 ${
@@ -147,9 +142,9 @@ export default function WelcomePermissionsScreen({
           >
             Así Gesaccol puede avisarte antes de cada vencimiento fiscal.
           </Text>
-        </AnimatedView>
+        </View>
 
-        <AnimatedView animationType="fadeIn" delay={300} duration={600}>
+        <View>
           <View
             className={`rounded-2xl p-4 mb-4 border ${
               isDark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'
@@ -176,38 +171,28 @@ export default function WelcomePermissionsScreen({
           >
             Puedes cambiarlo en cualquier momento desde la configuración del dispositivo.
           </Text>
-        </AnimatedView>
+        </View>
       </ScrollView>
 
       <View className="px-8 pb-6">
-        <AnimatedButton
+        <Button
+          label={hasPermission ? 'Notificaciones activadas' : 'Activar notificaciones'}
           onPress={handleRequestPermissions}
-          disabled={isRequesting || hasPermission}
-          accessibilityState={{ disabled: isRequesting || hasPermission, busy: isRequesting }}
-        >
-          <View
-            className={`py-4 rounded-xl flex-row items-center justify-center ${
-              hasPermission ? 'bg-green-600' : 'bg-blue-600'
-            } ${isRequesting ? 'opacity-70' : ''}`}
-          >
-            {isRequesting && <ActivityIndicator color="white" size="small" className="mr-2" />}
-            <Text className="text-white text-lg font-semibold">
-              {isRequesting
-                ? 'Solicitando...'
-                : hasPermission
-                ? '✓ Notificaciones activadas'
-                : 'Activar notificaciones'}
-            </Text>
-          </View>
-        </AnimatedButton>
+          busy={isRequesting || hasPermission}
+          size="large"
+          fullWidth
+        />
 
-        <AnimatedButton onPress={() => openDialog('skip')} disabled={isRequesting}>
-          <View className="py-3 mt-2 items-center">
-            <Text className={`text-base ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-              Omitir por ahora
-            </Text>
-          </View>
-        </AnimatedButton>
+        <View className="mt-2">
+          <Button
+            label="Omitir por ahora"
+            onPress={() => openDialog('skip')}
+            variant="text"
+            size="large"
+            disabled={isRequesting}
+            fullWidth
+          />
+        </View>
       </View>
 
       <StyledModal

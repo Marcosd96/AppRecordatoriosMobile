@@ -11,8 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
-import AnimatedView from '../components/AnimatedView';
-import AnimatedButton from '../components/AnimatedButton';
+import Button from '../components/Button';
 import { AppLogo } from '../components/icons/BrandIcons';
 import { BellIcon } from '../components/icons/ActionIcons';
 import { CalendarIcon, CompaniesIcon } from '../components/icons/TabIcons';
@@ -94,16 +93,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
       {/* "Saltar" arriba: siempre en el mismo sitio y sin mover el resto */}
       <View className="flex-row justify-end px-4 h-12 items-center">
         {!isLastPage && (
-          <TouchableOpacity
-            onPress={onComplete}
-            accessibilityRole="button"
-            hitSlop={8}
-            className="px-3 py-2"
-          >
-            <Text className={`text-base font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-              Saltar
-            </Text>
-          </TouchableOpacity>
+          <Button label="Saltar" onPress={onComplete} variant="text" />
         )}
       </View>
 
@@ -115,17 +105,15 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
         onMomentumScrollEnd={handleMomentumEnd}
         className="flex-1"
       >
-        {onboardingData.map((item, index) => (
+        {onboardingData.map(item => (
           <View
             key={item.title}
             className="flex-1 items-center justify-center px-8"
             style={{ width }}
           >
-            <AnimatedView animationType="scale" delay={index * 100} duration={500}>
-              <View className="mb-10">
-                <PageIcon icon={item.icon} isDark={isDark} />
-              </View>
-            </AnimatedView>
+            <View className="mb-10">
+              <PageIcon icon={item.icon} isDark={isDark} />
+            </View>
             <Text
               accessibilityRole="header"
               className={`text-3xl font-bold text-center mb-4 ${
@@ -172,13 +160,12 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
       </View>
 
       <View className="px-8 pb-8">
-        <AnimatedButton onPress={goToNext}>
-          <View className="bg-blue-600 py-4 rounded-xl items-center">
-            <Text className="text-white text-lg font-semibold">
-              {isLastPage ? 'Comenzar' : 'Siguiente'}
-            </Text>
-          </View>
-        </AnimatedButton>
+        <Button
+          label={isLastPage ? 'Comenzar' : 'Siguiente'}
+          onPress={goToNext}
+          size="large"
+          fullWidth
+        />
       </View>
     </SafeAreaView>
   );
