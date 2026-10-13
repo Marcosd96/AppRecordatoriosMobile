@@ -141,7 +141,7 @@ vista es "Elegir calendarios" cuando la empresa aún no tiene recordatorios.
 | Error que bloquea y requiere decisión | `StyledModal` |
 | Error de carga sin caché | `ErrorState` en la propia pantalla, con "Reintentar" |
 | Éxito / acción reversible | `Snackbar`: 4 s, o 6 s si lleva acción ("Deshacer") |
-| Error de validación | Texto bajo el campo (`FormField` con `error`, **Objetivo**) |
+| Error de validación | Texto bajo el campo: `FormField` con `error` (borde del campo en `error` con `inputClassName(isDark, true)`). Se anuncia a TalkBack y desaparece al cambiar el campo |
 
 - Títulos de diálogo sin emojis y sin "Error" genérico: describen lo que pasó
   ("No se pudo guardar la tarea").

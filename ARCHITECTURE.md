@@ -36,7 +36,8 @@ screens/        UI de pantalla: compone componentes, lee el hook, sin lógica de
    │
    ▼
 hooks/          "ViewModels": estado de UI + acciones (useHome, useReminders, usePersonalTasks, useCompanies)
-   │               también hooks compartidos: useNotificationStatus, useCompleteReminder
+   │               también hooks compartidos: useNotificationStatus, useCompleteReminder, useTaskForm
+   │               y acciones con efectos que no son de una pantalla: taskNotificationTools.ts
    │               └── queries.ts: consultas compartidas y claves de caché
    ▼
 services/       Acceso a datos y efectos: API, notificaciones, sesión, widget
@@ -106,7 +107,7 @@ Responsabilidades:
 - Exponer el **estado de UI** ya derivado (`tasks`, `stats`, `loading`, `refreshing`).
 - Exponer **acciones** con nombre de intención (`saveTask`, `updateTaskStatus`, `deleteTask`), que llaman al servicio, invalidan la caché y devuelven el resultado.
 - Exponer el error de carga sin caché como `loadError` + `retry`/`retrying`; la pantalla lo pinta con `ErrorState`.
-- Las acciones devuelven un `ActionResult` (`hooks/actionResult.ts`): la pantalla confirma los éxitos con snackbar y muestra los errores en un diálogo. (`useCompanies` aún usa su propio tipo `{ ok, message }`; se unifica al tocarlo.)
+- Las acciones devuelven un `ActionResult` (`hooks/actionResult.ts`): la pantalla confirma los éxitos con snackbar y muestra los errores en un diálogo. Excepción: `useCompanies.saveCalendars` lanza el error, porque `CalendarSelector` lo muestra sin cerrarse.
 - Una acción no se puede lanzar dos veces sobre el mismo elemento mientras está en curso: el hook lleva el registro (`togglingIds`, `busyTaskIds`).
 
 No hace: JSX, estilos, navegación, `Alert`.
