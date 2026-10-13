@@ -99,3 +99,31 @@ export function SearchIcon({ color, size = 24 }: IconProps) {
     </Svg>
   );
 }
+
+export function CloseIcon({ color, size = 20 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d="M6 6l12 12M18 6L6 18"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        fill="none"
+      />
+    </Svg>
+  );
+}
+
+export function MoreIcon({ color, size = 22 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d="M12 5h.01M12 12h.01M12 19h.01"
+        stroke={color}
+        strokeWidth={3}
+        strokeLinecap="round"
+        fill="none"
+      />
+    </Svg>
+  );
+}
