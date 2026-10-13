@@ -1,227 +1,282 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text, ScrollView, RefreshControl } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { View, Text, ScrollView, RefreshControl, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { useResponsive } from '../hooks/useResponsive';
-import { DashboardMessage, useDashboard } from '../hooks/useDashboard';
-import AnimatedButton from '../components/AnimatedButton';
-import StyledModal from '../components/StyledModal';
+import { useHome } from '../hooks/useHome';
+import { useCompleteReminder } from '../hooks/useCompleteReminder';
+import { UserMessage } from '../hooks/actionResult';
+import Button from '../components/Button';
+import EmptyState from '../components/EmptyState';
+import ErrorState from '../components/ErrorState';
+import IconButton from '../components/IconButton';
+import ListRow from '../components/ListRow';
 import LoadingScreen from '../components/LoadingScreen';
 import ScreenHeader from '../components/ScreenHeader';
-import ErrorState from '../components/ErrorState';
-import { useSnackbar } from '../context/SnackbarContext';
-import CompaniesSummaryCard from '../components/dashboard/CompaniesSummaryCard';
-import DashboardStatsCard from '../components/dashboard/DashboardStatsCard';
-import NotificationStatusCard from '../components/dashboard/NotificationStatusCard';
-import UpcomingRemindersCard from '../components/dashboard/UpcomingRemindersCard';
-import AppearanceCard from '../components/dashboard/AppearanceCard';
-import HistorySummaryCard from '../components/dashboard/HistorySummaryCard';
-import { buildHistory } from '../components/history/historyStats';
-import { SearchIcon } from '../components/icons/ActionIcons';
-import { usePersonalTasksQuery, useRemindersQuery } from '../hooks/queries';
+import StyledModal from '../components/StyledModal';
+import ReminderCard from '../components/reminders/ReminderCard';
+import { formatDaysLabel, getDaysUntil } from '../components/dashboard/dashboardFormat';
+import { formatTaskDate, isTaskOverdue } from '../components/personalTasks/taskForm';
+import { CompaniesIcon } from '../components/icons/TabIcons';
+import { SearchIcon, SettingsIcon } from '../components/icons/ActionIcons';
 import { MainTabScreenProps } from '../navigation/types';
+import { ReminderFilter } from '../types';
 
-export default function DashboardScreen({ navigation }: MainTabScreenProps<'Dashboard'>) {
-  const { user, signOut } = useAuth();
+// Más elementos por sección convertirían Inicio en una copia de la pestaña
+const MAX_PER_SECTION = 5;
+
+function SectionHeader({
+  title,
+  count,
+  actionLabel,
+  onAction,
+}: {
+  title: string;
+  /** Sin recuento cuando no aporta (p. ej. una sección que ya dice que no hay nada) */
+  count?: number;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
   const { isDark } = useTheme();
-  const responsive = useResponsive();
+  return (
+    <View className="flex-row items-center justify-between mb-2" style={styles.sectionHeader}>
+      <Text
+        accessibilityRole="header"
+        className={`text-base font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}
+      >
+        {title}
+        {count !== undefined ? (
+          <Text className={isDark ? 'text-gray-400' : 'text-gray-500'}> · {count}</Text>
+        ) : null}
+      </Text>
+      {actionLabel && onAction ? (
+        <Button label={actionLabel} onPress={onAction} variant="text" />
+      ) : null}
+    </View>
+  );
+}
+
+function ListGroup({ children }: { children: React.ReactNode }) {
+  const { isDark } = useTheme();
+  return (
+    <View
+      className={`rounded-2xl border overflow-hidden ${
+        isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+      }`}
+    >
+      {children}
+    </View>
+  );
+}
+
+/**
+ * Inicio responde "¿qué tengo que hacer?": lo vencido, lo que vence esta semana y las tareas
+ * de hoy, con la acción de completar a mano. El resto (ajustes, historial) queda a un toque.
+ */
+export default function DashboardScreen({ navigation }: MainTabScreenProps<'Dashboard'>) {
+  const { isDark } = useTheme();
   const {
-    upcomingReminders,
-    stats,
-    companiesCount,
-    refreshing,
+    agenda,
+    summary,
+    hasCompanies,
+    hasReminders,
+    completedThisMonth,
+    notificationsBlocked,
     loading,
-    notificationStatus,
-    onRefresh,
-    sendTestNotification,
     loadError,
     retrying,
     retry,
-  } = useDashboard();
-  const { showSnackbar } = useSnackbar();
-  const { data: reminders } = useRemindersQuery();
-  const { data: tasks } = usePersonalTasksQuery();
-  const history = useMemo(
-    () => buildHistory(reminders ?? [], tasks ?? []),
-    [reminders, tasks],
-  );
-  const [showSignOutModal, setShowSignOutModal] = useState(false);
-  const [showTestNotificationModal, setShowTestNotificationModal] =
-    useState(false);
-  const [testNotificationMessage, setTestNotificationMessage] = useState<DashboardMessage>({
-    title: '',
-    message: '',
-  });
+    refreshing,
+    onRefresh,
+    reminders,
+    togglingIds,
+    toggleReminder,
+  } = useHome();
+  // El mensaje se conserva al cerrar para que no se vacíe durante la animación de salida
+  const [errorMessage, setErrorMessage] = useState<UserMessage>({ title: '', message: '' });
+  const [showError, setShowError] = useState(false);
 
-  const handleTestNotification = async () => {
-    const result = await sendTestNotification();
-    if (result.ok) {
-      showSnackbar({ message: result.message });
-    } else {
-      setTestNotificationMessage(result);
-      setShowTestNotificationModal(true);
-    }
-  };
+  const onError = useCallback((message: UserMessage) => {
+    setErrorMessage(message);
+    setShowError(true);
+  }, []);
+  const handleToggle = useCompleteReminder(reminders, toggleReminder, onError);
 
-  const handleSignOut = () => {
-    setShowSignOutModal(true);
-  };
-
-  const confirmSignOut = async () => {
-    await signOut();
-    setShowSignOutModal(false);
-  };
+  const openReminders = (filter: ReminderFilter) => navigation.navigate('Reminders', { filter });
 
   if (loading) {
-    return <LoadingScreen isDark={isDark} message="Cargando datos..." />;
+    return <LoadingScreen isDark={isDark} message="Cargando..." />;
   }
 
-  const firstName = user?.name?.split(' ')[0];
+  const { overdue, thisWeek, next, tasksToday } = agenda;
+  const nothingDue = overdue.length === 0 && thisWeek.length === 0;
+
+  const renderReminders = (items: typeof overdue) =>
+    items.slice(0, MAX_PER_SECTION).map(reminder => (
+      <ReminderCard
+        key={reminder.id}
+        reminder={reminder}
+        isDark={isDark}
+        busy={togglingIds.has(reminder.id)}
+        onToggleStatus={handleToggle}
+      />
+    ));
 
   return (
-    <SafeAreaView
-      className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}
-      edges={['top']}
-    >
+    <SafeAreaView className={`flex-1 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`} edges={['top']}>
       <ScreenHeader
         isDark={isDark}
-        title={firstName ? `Hola, ${firstName}` : 'Inicio'}
-        subtitle="Resumen de tus recordatorios fiscales"
+        title="Inicio"
+        subtitle={loadError ? undefined : summary}
         right={
-          <View className="flex-row items-center">
-            <AnimatedButton
-              onPress={() => navigation.navigate('Search')}
+          <View className="flex-row">
+            <IconButton
               accessibilityLabel="Buscar"
-            >
-              <View
-                className={`rounded-xl border items-center justify-center ${
-                  isDark ? 'border-gray-700' : 'border-gray-200'
-                }`}
-                style={{
-                  padding: responsive.spacing.sm,
-                  marginRight: responsive.spacing.sm,
-                }}
-              >
-                <SearchIcon
-                  color={isDark ? '#e5e7eb' : '#374151'}
-                  size={responsive.fontSize.lg}
-                />
-              </View>
-            </AnimatedButton>
-            <AnimatedButton
-              onPress={handleSignOut}
-              accessibilityLabel="Cerrar sesión"
-            >
-              <View
-                className={`rounded-xl border ${
-                  isDark ? 'border-gray-700' : 'border-gray-200'
-                }`}
-                style={{
-                  paddingHorizontal: responsive.spacing.md,
-                  paddingVertical: responsive.spacing.sm,
-                }}
-              >
-                <Text
-                  className={`font-semibold ${
-                    isDark ? 'text-gray-200' : 'text-gray-700'
-                  }`}
-                  style={{ fontSize: responsive.fontSize.sm }}
-                >
-                  Salir
-                </Text>
-              </View>
-            </AnimatedButton>
+              onPress={() => navigation.navigate('Search')}
+              renderIcon={color => <SearchIcon color={color} size={22} />}
+            />
+            <IconButton
+              accessibilityLabel="Ajustes"
+              onPress={() => navigation.navigate('Settings')}
+              renderIcon={color => <SettingsIcon color={color} />}
+            />
           </View>
         }
       />
 
       <ScrollView
         className="flex-1"
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        contentContainerStyle={{ paddingBottom: responsive.spacing.lg }}
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        {/* Sin datos del panel, las cifras serían ceros engañosos ("Todo al día") */}
-        {loadError ? (
-          <View style={{ paddingHorizontal: responsive.spacing.lg, paddingTop: responsive.spacing.md }}>
-            <ErrorState message={loadError} onRetry={retry} retrying={retrying} />
+        {/* Solo se avisa si hay un problema: sin permiso no llega ningún recordatorio */}
+        {notificationsBlocked && (
+          <View
+            className={`flex-row items-center rounded-xl pl-4 pr-1 py-1 mb-6 ${
+              isDark ? 'bg-red-500/15' : 'bg-red-50'
+            }`}
+            accessibilityLiveRegion="polite"
+          >
+            <Text className={`flex-1 text-sm py-2 ${isDark ? 'text-red-200' : 'text-red-800'}`}>
+              Las notificaciones están desactivadas: no recibirás los recordatorios.
+            </Text>
+            <Button
+              label="Activar"
+              variant="text"
+              onPress={() => navigation.navigate('NotificationTroubleshooting')}
+            />
           </View>
+        )}
+
+        {loadError ? (
+          <ErrorState message={loadError} onRetry={retry} retrying={retrying} />
+        ) : !hasCompanies && !hasReminders ? (
+          <EmptyState
+            isDark={isDark}
+            renderIcon={color => <CompaniesIcon color={color} size={28} />}
+            title="Agrega tu primera empresa"
+            message="Generaremos sus recordatorios fiscales según los calendarios de la DIAN."
+            actionLabel="Agregar empresa"
+            onAction={() => navigation.navigate('Companies')}
+          />
         ) : (
           <>
-            <DashboardStatsCard
-              isDark={isDark}
-              stats={stats}
-              onSelectFilter={filter => navigation.navigate('Reminders', { filter })}
-            />
+            {overdue.length > 0 && (
+              <View style={styles.section}>
+                <SectionHeader
+                  title="Vencidos"
+                  count={overdue.length}
+                  actionLabel={overdue.length > MAX_PER_SECTION ? 'Ver todos' : undefined}
+                  onAction={() => openReminders('overdue')}
+                />
+                {renderReminders(overdue)}
+              </View>
+            )}
 
-            <UpcomingRemindersCard
-              isDark={isDark}
-              reminders={upcomingReminders}
-              onOpenReminders={() => navigation.navigate('Reminders')}
-              onAddCompany={() => navigation.navigate('Companies')}
-            />
+            {thisWeek.length > 0 && (
+              <View style={styles.section}>
+                <SectionHeader
+                  title="Esta semana"
+                  count={thisWeek.length}
+                  actionLabel="Próximos 30 días"
+                  onAction={() => openReminders('upcoming')}
+                />
+                {renderReminders(thisWeek)}
+              </View>
+            )}
+
+            {nothingDue && (
+              <View style={styles.section}>
+                <SectionHeader title="Recordatorios" />
+                <ListGroup>
+                  <ListRow
+                    title="Nada vence esta semana"
+                    subtitle={
+                      next
+                        ? `Lo próximo: ${next.description} · ${next.companyName} · ${formatDaysLabel(
+                            getDaysUntil(next.dueDate),
+                          ).toLowerCase()}`
+                        : 'No hay recordatorios pendientes.'
+                    }
+                    onPress={() => openReminders('all')}
+                  />
+                </ListGroup>
+              </View>
+            )}
+
+            {tasksToday.length > 0 && (
+              <View style={styles.section}>
+                <SectionHeader
+                  title="Tareas para hoy"
+                  count={tasksToday.length}
+                  actionLabel="Ver tareas"
+                  onAction={() => navigation.navigate('PersonalTasks')}
+                />
+                <ListGroup>
+                  {tasksToday.slice(0, MAX_PER_SECTION).map((task, index) => {
+                    const date = formatTaskDate(task.nextOccurrence || task.startDate);
+                    return (
+                      <ListRow
+                        key={task.id}
+                        divider={index > 0}
+                        title={task.title}
+                        subtitle={isTaskOverdue(task) ? `Atrasada · debía hacerse el ${date}` : date}
+                        onPress={() =>
+                          navigation.navigate('PersonalTasks', {
+                            taskId: task.id,
+                            highlightAt: Date.now(),
+                          })
+                        }
+                      />
+                    );
+                  })}
+                </ListGroup>
+              </View>
+            )}
+
+            <ListGroup>
+              <ListRow
+                title="Historial"
+                subtitle={`${completedThisMonth} completado${completedThisMonth === 1 ? '' : 's'} este mes`}
+                onPress={() => navigation.navigate('History')}
+              />
+            </ListGroup>
           </>
         )}
-
-        <NotificationStatusCard
-          isDark={isDark}
-          status={notificationStatus}
-          onTestNotification={handleTestNotification}
-          onOpenTroubleshooting={() => navigation.navigate('NotificationTroubleshooting')}
-        />
-
-        <HistorySummaryCard
-          isDark={isDark}
-          history={history}
-          onOpenHistory={() => navigation.navigate('History')}
-        />
-
-        {!loadError && (
-          <CompaniesSummaryCard
-            isDark={isDark}
-            companiesCount={companiesCount}
-            onOpenCompanies={() => navigation.navigate('Companies')}
-          />
-        )}
-
-        <AppearanceCard />
       </ScrollView>
 
-      {/* Modal de confirmación de cierre de sesión */}
       <StyledModal
-        visible={showSignOutModal}
-        onClose={() => setShowSignOutModal(false)}
-        title="Cerrar sesión"
-        message="¿Estás seguro de que deseas cerrar sesión?"
-        buttons={[
-          {
-            text: 'Cancelar',
-            style: 'cancel',
-            onPress: () => setShowSignOutModal(false),
-          },
-          {
-            text: 'Cerrar sesión',
-            style: 'destructive',
-            onPress: confirmSignOut,
-          },
-        ]}
-      />
-
-      {/* Modal de notificaciones de prueba */}
-      <StyledModal
-        visible={showTestNotificationModal}
-        onClose={() => setShowTestNotificationModal(false)}
-        title={testNotificationMessage.title}
-        message={testNotificationMessage.message}
-        buttons={[
-          {
-            text: 'Entendido',
-            onPress: () => setShowTestNotificationModal(false),
-          },
-        ]}
+        visible={showError}
+        onClose={() => setShowError(false)}
+        title={errorMessage.title}
+        message={errorMessage.message}
+        buttons={[{ text: 'Entendido', onPress: () => setShowError(false) }]}
       />
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  content: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 32 },
+  section: { marginBottom: 24 },
+  sectionHeader: { minHeight: 40 },
+});

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { flushPendingNavigation, navigationRef } from './notificationNavigation';
-import { StackCardInterpolationProps, createStackNavigator } from '@react-navigation/stack';
+import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { View } from 'react-native';
@@ -22,12 +22,12 @@ import CompaniesScreen from '../screens/CompaniesScreen';
 import NotificationTroubleshootingScreen from '../screens/NotificationTroubleshootingScreen';
 import SearchScreen from '../screens/SearchScreen';
 import HistoryScreen from '../screens/HistoryScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 import NotificationSync from '../components/NotificationSync';
 import { MainTabParamList, RootStackParamList } from './types';
 import WidgetSync from '../components/WidgetSync';
 import OfflineBanner from '../components/OfflineBanner';
 import { SnackbarProvider } from '../context/SnackbarContext';
-import LoadingScreen from '../components/LoadingScreen';
 import {
   renderCalendarTabIcon,
   renderCompaniesTabIcon,
@@ -120,7 +120,6 @@ function AppNavigatorContent() {
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState<boolean | null>(null);
   const [isFirstLaunch, setIsFirstLaunch] = useState<boolean | null>(null);
   const [showPermissions, setShowPermissions] = useState(false);
-  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
     checkOnboardingStatus();
@@ -166,62 +165,12 @@ function AppNavigatorContent() {
     }
   };
 
-  const handleSplashFinish = () => {
-    setShowSplash(false);
-  };
-
-  const { isDark } = useTheme();
-
   if (loading || hasCompletedOnboarding === null || isFirstLaunch === null) {
-    return <LoadingScreen isDark={isDark} message="Cargando..." />;
+    return <SplashScreen />;
   }
 
-  // Configuración de transiciones animadas
-  const screenOptions = {
-    headerShown: false,
-    cardStyleInterpolator: ({ current, layouts }: StackCardInterpolationProps) => {
-      return {
-        cardStyle: {
-          transform: [
-            {
-              translateX: current.progress.interpolate({
-                inputRange: [0, 1],
-                outputRange: [layouts.screen.width, 0],
-              }),
-            },
-          ],
-          opacity: current.progress.interpolate({
-            inputRange: [0, 0.5, 1],
-            outputRange: [0, 0.5, 1],
-          }),
-        },
-      };
-    },
-    transitionSpec: {
-      open: {
-        animation: 'spring' as const,
-        config: {
-          stiffness: 1000,
-          damping: 500,
-          mass: 3,
-          overshootClamping: true,
-          restDisplacementThreshold: 0.01,
-          restSpeedThreshold: 0.01,
-        },
-      },
-      close: {
-        animation: 'spring' as const,
-        config: {
-          stiffness: 1000,
-          damping: 500,
-          mass: 3,
-          overshootClamping: true,
-          restDisplacementThreshold: 0.01,
-          restSpeedThreshold: 0.01,
-        },
-      },
-    },
-  };
+  // Transiciones nativas de cada plataforma (en Android, las del sistema)
+  const screenOptions = { headerShown: false };
 
   return (
     <NavigationContainer
@@ -231,17 +180,7 @@ function AppNavigatorContent() {
       onStateChange={flushPendingNavigation}
     >
       <Stack.Navigator screenOptions={screenOptions}>
-        {showSplash ? (
-          // Mostrar splash screen primero
-          <Stack.Screen name="Splash">
-            {(props) => (
-              <SplashScreen
-                {...props}
-                onFinish={handleSplashFinish}
-              />
-            )}
-          </Stack.Screen>
-        ) : !hasCompletedOnboarding ? (
+        {!hasCompletedOnboarding ? (
           // Mostrar onboarding primero (antes del login)
           <Stack.Screen name="Onboarding">
             {(props) => (
@@ -278,6 +217,7 @@ function AppNavigatorContent() {
             />
             <Stack.Screen name="Search" component={SearchScreen} />
             <Stack.Screen name="History" component={HistoryScreen} />
+            <Stack.Screen name="Settings" component={SettingsScreen} />
           </>
         )}
       </Stack.Navigator>

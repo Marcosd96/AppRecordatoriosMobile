@@ -8,7 +8,6 @@ import { onlineManager, useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../config/queryClient';
 import { remindersService } from '../services/remindersService';
 import { companiesService } from '../services/companiesService';
-import { dashboardService } from '../services/dashboardService';
 import { personalTasksService } from '../services/personalTasksService';
 
 export const useRemindersQuery = () =>
@@ -16,9 +15,6 @@ export const useRemindersQuery = () =>
 
 export const useCompaniesQuery = () =>
   useQuery({ queryKey: queryKeys.companies, queryFn: () => companiesService.getAll() });
-
-export const useDashboardQuery = () =>
-  useQuery({ queryKey: queryKeys.dashboard, queryFn: () => dashboardService.getDashboard() });
 
 export const usePersonalTasksQuery = () =>
   useQuery({ queryKey: queryKeys.personalTasks, queryFn: () => personalTasksService.getAll() });

@@ -24,7 +24,6 @@ export type MainTabParamList = {
 };
 
 export type RootStackParamList = {
-  Splash: undefined;
   Onboarding: undefined;
   Login: undefined;
   WelcomePermissions: undefined;
@@ -32,6 +31,7 @@ export type RootStackParamList = {
   NotificationTroubleshooting: undefined;
   Search: undefined;
   History: undefined;
+  Settings: undefined;
 };
 
 export type RootStackScreenProps<T extends keyof RootStackParamList> = StackScreenProps<
