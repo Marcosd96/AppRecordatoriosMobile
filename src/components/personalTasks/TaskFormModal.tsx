@@ -9,7 +9,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import AnimatedButton from '../AnimatedButton';
+import Button from '../Button';
 import FormSheet, { FormField, inputClassName, placeholderColor } from '../FormSheet';
 import Segmented from '../SegmentedControl';
 import { RecurrenceType, TaskPriority } from '../../types';
@@ -114,17 +114,13 @@ export default function TaskFormModal({
       closeDisabled={submitting}
       onClose={onClose}
       footer={
-        <AnimatedButton
+        <Button
+          label={isEditing ? 'Guardar cambios' : 'Crear tarea'}
           onPress={onSubmit}
-          disabled={submitting}
-          accessibilityState={{ disabled: submitting, busy: submitting }}
-        >
-          <View className={`py-3.5 rounded-xl bg-blue-600 ${submitting ? 'opacity-60' : ''}`}>
-            <Text className="text-white text-center font-semibold text-base">
-              {submitting ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Crear tarea'}
-            </Text>
-          </View>
-        </AnimatedButton>
+          size="large"
+          busy={submitting}
+          fullWidth
+        />
       }
     >
       <FormField isDark={isDark} label="Título" required>

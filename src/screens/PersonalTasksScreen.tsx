@@ -1,37 +1,53 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
-  Text,
   FlatList,
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AnimatedButton from '../components/AnimatedButton';
+import Button from '../components/Button';
 import { FilterChipOption } from '../components/FilterChips';
 import EmptyState from '../components/EmptyState';
+import ErrorState from '../components/ErrorState';
 import { SearchIcon } from '../components/icons/ActionIcons';
 import { TasksIcon } from '../components/icons/TabIcons';
 import StyledModal from '../components/StyledModal';
 import LoadingScreen from '../components/LoadingScreen';
 import ScreenHeader from '../components/ScreenHeader';
 import TaskCard from '../components/personalTasks/TaskCard';
+import ActionSheet, { SheetActionGroup } from '../components/ActionSheet';
+import {
+  diagnoseTaskNotification,
+  rescheduleTaskNotification,
+  scheduleTaskQuickTestNotification,
+  scheduleTaskTestNotification,
+} from '../components/personalTasks/taskNotificationTools';
 import TaskFilters from '../components/personalTasks/TaskFilters';
 import TaskFormModal from '../components/personalTasks/TaskFormModal';
 import {
   FormMessage,
   StatusFilter,
   TaskFormState,
+  TaskStatusAction,
   createInitialFormState,
   formStateFromTask,
   serializeTaskForm,
   validateTaskForm,
 } from '../components/personalTasks/taskForm';
 import { useTheme } from '../context/ThemeContext';
+import { useSnackbar } from '../context/SnackbarContext';
 import { useResponsive } from '../hooks/useResponsive';
 import { usePersonalTasks } from '../hooks/usePersonalTasks';
 import { useHighlightItem } from '../hooks/useHighlightItem';
 import { PersonalTask } from '../types';
 import { MainTabScreenProps } from '../navigation/types';
+
+const statusChangeMessages: Record<TaskStatusAction, string> = {
+  complete: 'Tarea completada',
+  pause: 'Tarea pausada',
+  resume: 'Tarea reanudada',
+  cancel: 'Tarea cancelada',
+};
 
 export default function PersonalTasksScreen({ route }: MainTabScreenProps<'PersonalTasks'>) {
   const { isDark } = useTheme();
@@ -57,11 +73,18 @@ export default function PersonalTasksScreen({ route }: MainTabScreenProps<'Perso
     loading,
     refreshing,
     stats,
+    busyTaskIds,
+    loadError,
+    retrying,
+    retry,
     onRefresh,
     saveTask,
     updateTaskStatus,
     deleteTask,
-  } = usePersonalTasks(showMessage);
+  } = usePersonalTasks();
+  const { showSnackbar } = useSnackbar();
+  // Tarea cuyas acciones secundarias están abiertas en la hoja
+  const [actionsTask, setActionsTask] = useState<PersonalTask | null>(null);
 
   // Al abrir desde una notificación: quitar filtros, ir hasta la tarea y resaltarla
   const highlightTaskId: string | undefined = route?.params?.taskId;
@@ -140,22 +163,87 @@ export default function PersonalTasksScreen({ route }: MainTabScreenProps<'Perso
     }
 
     setSubmitting(true);
-    const saved = await saveTask(serializeTaskForm(formState), editingTask);
+    const result = await saveTask(serializeTaskForm(formState), editingTask);
     setSubmitting(false);
 
-    if (saved) {
-      setShowFormModal(false);
-      setEditingTask(null);
-      setFormState(createInitialFormState());
+    // Si falla, la hoja sigue abierta con lo que se escribió
+    if (!result.ok) {
+      showMessage(result.error);
+      return;
     }
+    showSnackbar({ message: editingTask ? 'Cambios guardados' : 'Tarea creada' });
+    setShowFormModal(false);
+    setEditingTask(null);
+    setFormState(createInitialFormState());
   };
+
+  const changeStatus = useCallback(
+    async (task: PersonalTask, action: TaskStatusAction) => {
+      const result = await updateTaskStatus(task.id, action);
+      if (!result.ok) {
+        showMessage(result.error);
+        return;
+      }
+      // Pausar y reanudar se pueden deshacer; completar y cancelar no tienen vuelta atrás en la API
+      const undoAction = action === 'pause' ? 'resume' : action === 'resume' ? 'pause' : null;
+      showSnackbar({
+        message: statusChangeMessages[action],
+        ...(undoAction && {
+          actionLabel: 'Deshacer',
+          onAction: async () => {
+            const undo = await updateTaskStatus(task.id, undoAction);
+            if (!undo.ok) {
+              showMessage(undo.error);
+            }
+          },
+        }),
+      });
+    },
+    [updateTaskStatus, showMessage, showSnackbar],
+  );
 
   const confirmDeleteTask = async () => {
     if (!taskToDelete) return;
     const id = taskToDelete;
     setTaskToDelete(null);
-    await deleteTask(id);
+    const result = await deleteTask(id);
+    if (result.ok) {
+      showSnackbar({ message: 'Tarea eliminada' });
+    } else {
+      showMessage(result.error);
+    }
   };
+
+  const runTool = (tool: (task: PersonalTask) => Promise<FormMessage>, task: PersonalTask) => async () =>
+    showMessage(await tool(task));
+
+  const actionGroups = (task: PersonalTask): SheetActionGroup[] => [
+    {
+      actions: [
+        { key: 'edit', label: 'Editar', onPress: () => openEditModal(task) },
+        ...(task.status === 'active'
+          ? [{ key: 'pause', label: 'Pausar', onPress: () => changeStatus(task, 'pause') }]
+          : []),
+        ...(task.status !== 'cancelled' && task.status !== 'completed'
+          ? [{ key: 'cancel', label: 'Cancelar tarea', onPress: () => changeStatus(task, 'cancel') }]
+          : []),
+        { key: 'delete', label: 'Eliminar', destructive: true, onPress: () => setTaskToDelete(task.id) },
+      ],
+    },
+    {
+      // Herramientas para cuando un aviso no llega: fuera de la tarjeta, pero disponibles
+      title: 'Diagnóstico del aviso',
+      actions:
+        task.status === 'active' && task.reminderEnabled
+          ? [
+              { key: 'diagnose', label: 'Comprobar aviso', onPress: runTool(diagnoseTaskNotification, task) },
+              { key: 'reschedule', label: 'Reprogramar aviso', onPress: runTool(rescheduleTaskNotification, task) },
+              { key: 'test', label: 'Aviso de prueba en 2 minutos', onPress: runTool(scheduleTaskTestNotification, task) },
+              { key: 'quick-test', label: 'Aviso de prueba en 10 segundos', onPress: runTool(scheduleTaskQuickTestNotification, task) },
+            ]
+          : [],
+    },
+  ];
 
   if (loading) {
     return <LoadingScreen isDark={isDark} message="Cargando tareas personales..." />;
@@ -171,19 +259,7 @@ export default function PersonalTasksScreen({ route }: MainTabScreenProps<'Perso
         title="Tareas"
         subtitle="Organiza tus pendientes diarios"
         right={
-          <AnimatedButton onPress={openCreateModal} accessibilityLabel="Nueva tarea">
-            <View
-              className="rounded-xl bg-blue-600"
-              style={{
-                paddingHorizontal: responsive.spacing.md,
-                paddingVertical: responsive.spacing.sm,
-              }}
-            >
-              <Text className="font-semibold text-white" style={{ fontSize: responsive.fontSize.sm }}>
-                + Nueva
-              </Text>
-            </View>
-          </AnimatedButton>
+          <Button label="Nueva tarea" onPress={openCreateModal} />
         }
       />
 
@@ -192,6 +268,7 @@ export default function PersonalTasksScreen({ route }: MainTabScreenProps<'Perso
         className="flex-1"
         data={filteredTasks}
         keyExtractor={task => task.id}
+        extraData={busyTaskIds}
         keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -215,33 +292,43 @@ export default function PersonalTasksScreen({ route }: MainTabScreenProps<'Perso
           <View style={{ paddingHorizontal: responsive.spacing.lg }}>
             <TaskCard
               task={task}
+              onPress={openEditModal}
+              onStatusChange={changeStatus}
+              onOpenActions={setActionsTask}
               highlighted={highlightedId === task.id}
-              isDark={isDark}
-              onEdit={openEditModal}
-              onStatusChange={updateTaskStatus}
-              onDelete={setTaskToDelete}
-              onShowMessage={showMessage}
+              busy={busyTaskIds.has(task.id)}
             />
           </View>
         )}
         ListEmptyComponent={
           <View style={{ paddingHorizontal: responsive.spacing.lg }}>
-            <EmptyState
-              isDark={isDark}
-              renderIcon={color =>
-                tasks.length === 0 ? <TasksIcon color={color} size={28} /> : <SearchIcon color={color} size={28} />
-              }
-              title={tasks.length === 0 ? 'Aún no tienes tareas' : 'No hay tareas con estos filtros'}
-              message={
-                tasks.length === 0
-                  ? 'Crea una tarea y te recordaremos cuando toque.'
-                  : 'Prueba con otra búsqueda o cambia el filtro.'
-              }
-              actionLabel={tasks.length === 0 ? 'Crear mi primera tarea' : 'Nueva tarea'}
-              onAction={openCreateModal}
-            />
+            {loadError ? (
+              <ErrorState message={loadError} onRetry={retry} retrying={retrying} />
+            ) : (
+              <EmptyState
+                isDark={isDark}
+                renderIcon={color =>
+                  tasks.length === 0 ? <TasksIcon color={color} size={28} /> : <SearchIcon color={color} size={28} />
+                }
+                title={tasks.length === 0 ? 'Aún no tienes tareas' : 'No hay tareas con estos filtros'}
+                message={
+                  tasks.length === 0
+                    ? 'Crea una tarea y te recordaremos cuando toque.'
+                    : 'Prueba con otra búsqueda o cambia el filtro.'
+                }
+                actionLabel={tasks.length === 0 ? 'Crear mi primera tarea' : 'Nueva tarea'}
+                onAction={openCreateModal}
+              />
+            )}
           </View>
         }
+      />
+
+      <ActionSheet
+        visible={actionsTask !== null}
+        title={actionsTask?.title ?? ''}
+        groups={actionsTask ? actionGroups(actionsTask) : []}
+        onClose={() => setActionsTask(null)}
       />
 
       <TaskFormModal
@@ -262,7 +349,7 @@ export default function PersonalTasksScreen({ route }: MainTabScreenProps<'Perso
         message={message.message}
         buttons={[
           {
-            text: 'Aceptar',
+            text: 'Entendido',
             onPress: () => setShowMessageModal(false),
           },
         ]}

@@ -162,3 +162,28 @@ export const isTaskOverdue = (task: PersonalTask, now: Date = new Date()): boole
   const due = new Date(task.nextOccurrence || task.startDate).getTime();
   return !isNaN(due) && due < now.getTime();
 };
+
+const recurrenceUnits: Partial<Record<RecurrenceType, [string, string]>> = {
+  daily: ['día', 'días'],
+  weekly: ['semana', 'semanas'],
+  monthly: ['mes', 'meses'],
+};
+
+/** "Cada semana", "Cada 2 meses"… o null si la tarea no se repite */
+export const formatRecurrence = (task: PersonalTask): string | null => {
+  if (!task.isRecurring) return null;
+  const units = task.recurrenceType ? recurrenceUnits[task.recurrenceType] : undefined;
+  if (!units) return 'Se repite';
+  const interval = task.recurrenceInterval ?? 1;
+  return interval <= 1
+    ? `Cada ${units[0]}`
+    : `Cada ${interval} ${units[1]}`;
+};
+
+/** "Aviso 15 min antes", "Aviso 2 h antes" o "Sin aviso" */
+export const formatReminderLead = (task: PersonalTask): string => {
+  if (!task.reminderEnabled) return 'Sin aviso';
+  const minutes = task.reminderMinutes;
+  if (minutes >= 60 && minutes % 60 === 0) return `Aviso ${minutes / 60} h antes`;
+  return `Aviso ${minutes} min antes`;
+};

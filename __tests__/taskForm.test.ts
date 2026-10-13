@@ -5,6 +5,8 @@
 import {
   createInitialFormState,
   formStateFromTask,
+  formatRecurrence,
+  formatReminderLead,
   getNextRoundedHour,
   isTaskOverdue,
   serializeTaskForm,
@@ -128,5 +130,37 @@ describe('isTaskOverdue', () => {
         NOW,
       ),
     ).toBe(false);
+  });
+});
+
+describe('formatRecurrence y formatReminderLead', () => {
+  const base = {
+    id: 't',
+    userId: 'u',
+    title: 'Revisar',
+    isRecurring: true,
+    recurrenceType: 'weekly' as const,
+    recurrenceInterval: 1,
+    startDate: '2026-10-12T10:00:00Z',
+    status: 'active' as const,
+    priority: 'medium' as const,
+    reminderEnabled: true,
+    reminderMinutes: 60,
+    createdAt: '2026-10-01T00:00:00Z',
+    updatedAt: '2026-10-01T00:00:00Z',
+  };
+
+  it('usa singular con intervalo 1 y plural con más', () => {
+    expect(formatRecurrence(base)).toBe('Cada semana');
+    expect(formatRecurrence({ ...base, recurrenceType: 'monthly', recurrenceInterval: 3 })).toBe(
+      'Cada 3 meses',
+    );
+    expect(formatRecurrence({ ...base, isRecurring: false })).toBeNull();
+  });
+
+  it('expresa la antelación del aviso en horas cuando es exacta', () => {
+    expect(formatReminderLead(base)).toBe('Aviso 1 h antes');
+    expect(formatReminderLead({ ...base, reminderMinutes: 15 })).toBe('Aviso 15 min antes');
+    expect(formatReminderLead({ ...base, reminderEnabled: false })).toBe('Sin aviso');
   });
 });

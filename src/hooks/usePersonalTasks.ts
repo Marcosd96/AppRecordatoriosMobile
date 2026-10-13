@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   CreatePersonalTaskPayload,
@@ -8,41 +8,31 @@ import {
 
 import { queryKeys } from '../config/queryClient';
 import { PersonalTask } from '../types';
-import { FormMessage, TaskStatusAction } from '../components/personalTasks/taskForm';
+import { TaskStatusAction } from '../components/personalTasks/taskForm';
+import { ActionResult, failure } from './actionResult';
 import { usePersonalTasksQuery, useRefetchOnFocus } from './queries';
 
 /**
  * Datos y acciones de las tareas personales, desde la caché (también sin conexión).
  * Tras cada cambio se recargan las tareas y NotificationSync reprograma sus notificaciones.
- * Los errores se notifican con `onError` para que la pantalla decida cómo mostrarlos.
+ * Las acciones devuelven un `ActionResult` para que la pantalla decida cómo mostrarlo; el
+ * error de carga se expone en `loadError`.
  */
-export function usePersonalTasks(onError: (error: FormMessage) => void) {
+export function usePersonalTasks() {
   const queryClient = useQueryClient();
   const tasksQuery = usePersonalTasksQuery();
   const [refreshing, setRefreshing] = useState(false);
 
   useRefetchOnFocus([tasksQuery]);
 
-  const onErrorRef = useRef(onError);
-  onErrorRef.current = onError;
 
-  // Avisar del error solo si no hay datos guardados que mostrar
+  // Error de carga solo si no hay datos guardados que mostrar: la pantalla lo muestra en su
+  // sitio con "Reintentar". Con caché se siguen viendo los datos y basta el aviso sin conexión
   const { error, data } = tasksQuery;
-  const lastReportedError = useRef<unknown>(null);
-  useEffect(() => {
-    if (error && !data && lastReportedError.current !== error) {
-      lastReportedError.current = error;
-      console.error('Error al cargar tareas personales:', error);
-      onErrorRef.current({
-        title: 'Error',
-        message:
-          (error as Error).message ||
-          'No se pudieron cargar las tareas personales. Intenta nuevamente.',
-      });
-    }
-  }, [error, data]);
-
-  
+  const loadError =
+    error && !data
+      ? (error as Error).message || 'No se pudieron cargar las tareas personales.'
+      : null;
 
   const tasks = useMemo(() => data ?? [], [data]);
 
@@ -69,10 +59,12 @@ export function usePersonalTasks(onError: (error: FormMessage) => void) {
 
   /**
    * Crea o actualiza una tarea.
-   * @returns true si se guardó correctamente
    */
   const saveTask = useCallback(
-    async (payload: CreatePersonalTaskPayload, editingTask: PersonalTask | null) => {
+    async (
+      payload: CreatePersonalTaskPayload,
+      editingTask: PersonalTask | null,
+    ): Promise<ActionResult> => {
       try {
         if (editingTask) {
           await personalTasksService.update(
@@ -83,21 +75,33 @@ export function usePersonalTasks(onError: (error: FormMessage) => void) {
           await personalTasksService.create(payload);
         }
         await reloadTasks();
-        return true;
-      } catch (saveError: any) {
+        return { ok: true };
+      } catch (saveError) {
         console.error('Error al guardar tarea:', saveError);
-        onErrorRef.current({
-          title: 'Error',
-          message: saveError?.message || 'No se pudo guardar la tarea. Intenta nuevamente.',
-        });
-        return false;
+        return failure('No se pudo guardar la tarea', saveError, 'Inténtalo de nuevo.');
       }
     },
     [reloadTasks],
   );
 
+  // Tareas con un cambio de estado en curso. Sin esto, dos pulsaciones seguidas en "Completar"
+  // de una tarea recurrente completarían dos ocurrencias
+  const pendingUpdates = useRef(new Set<string>());
+  const [busyTaskIds, setBusyTaskIds] = useState<ReadonlySet<string>>(new Set());
+
+  const setTaskBusy = useCallback((id: string, isBusy: boolean) => {
+    if (isBusy) {
+      pendingUpdates.current.add(id);
+    } else {
+      pendingUpdates.current.delete(id);
+    }
+    setBusyTaskIds(new Set(pendingUpdates.current));
+  }, []);
+
   const updateTaskStatus = useCallback(
-    async (id: string, action: TaskStatusAction) => {
+    async (id: string, action: TaskStatusAction): Promise<ActionResult> => {
+      if (pendingUpdates.current.has(id)) return { ok: true };
+      setTaskBusy(id, true);
       try {
         if (action === 'complete') {
           // Si es recurrente, el backend calcula la próxima ocurrencia
@@ -110,33 +114,33 @@ export function usePersonalTasks(onError: (error: FormMessage) => void) {
           await personalTasksService.cancel(id);
         }
         await reloadTasks();
-      } catch (statusError: any) {
+        return { ok: true };
+      } catch (statusError) {
         console.error('Error al actualizar tarea:', statusError);
-        onErrorRef.current({
-          title: 'Error',
-          message:
-            statusError?.message ||
-            'No se pudo actualizar el estado de la tarea. Intenta nuevamente.',
-        });
+        return failure('No se pudo actualizar la tarea', statusError, 'Inténtalo de nuevo.');
+      } finally {
+        setTaskBusy(id, false);
       }
     },
-    [reloadTasks],
+    [reloadTasks, setTaskBusy],
   );
 
   const deleteTask = useCallback(
-    async (id: string) => {
+    async (id: string): Promise<ActionResult> => {
+      if (pendingUpdates.current.has(id)) return { ok: true };
+      setTaskBusy(id, true);
       try {
         await personalTasksService.remove(id);
         await reloadTasks();
-      } catch (deleteError: any) {
+        return { ok: true };
+      } catch (deleteError) {
         console.error('Error al eliminar tarea:', deleteError);
-        onErrorRef.current({
-          title: 'Error',
-          message: deleteError?.message || 'No se pudo eliminar la tarea. Intenta nuevamente.',
-        });
+        return failure('No se pudo eliminar la tarea', deleteError, 'Inténtalo de nuevo.');
+      } finally {
+        setTaskBusy(id, false);
       }
     },
-    [reloadTasks],
+    [reloadTasks, setTaskBusy],
   );
 
   return {
@@ -145,6 +149,12 @@ export function usePersonalTasks(onError: (error: FormMessage) => void) {
     loading: tasksQuery.isPending && tasksQuery.fetchStatus === 'fetching',
     refreshing,
     stats,
+    /** Tareas con una acción en curso: sus botones no admiten otra pulsación */
+    busyTaskIds,
+    loadError,
+    /** Reintento tras un error de carga en curso */
+    retrying: tasksQuery.isFetching,
+    retry: tasksQuery.refetch,
     onRefresh,
     saveTask,
     updateTaskStatus,

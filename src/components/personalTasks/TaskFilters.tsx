@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, TextInput } from 'react-native';
+import { View } from 'react-native';
 import FilterChips, { FilterChipOption } from '../FilterChips';
+import SearchField from '../SearchField';
 import { StatusFilter } from './taskForm';
 
 interface TaskFiltersProps {
@@ -22,18 +23,10 @@ export default function TaskFilters({
 }: TaskFiltersProps) {
   return (
     <View>
-      <TextInput
-        className={`border rounded-xl px-4 py-3 ${
-          isDark
-            ? 'bg-gray-800 border-gray-700 text-white'
-            : 'bg-white border-gray-200 text-gray-900'
-        }`}
-        placeholder="Buscar por título o descripción"
-        placeholderTextColor="#9ca3af"
+      <SearchField
         value={searchQuery}
         onChangeText={onChangeSearch}
-        returnKeyType="search"
-        clearButtonMode="while-editing"
+        placeholder="Buscar por título o descripción"
         accessibilityLabel="Buscar tareas"
       />
 
