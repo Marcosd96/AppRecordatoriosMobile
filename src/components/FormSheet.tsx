@@ -3,13 +3,14 @@ import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
   Modal,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
 } from 'react-native';
 import { useResponsive } from '../hooks/useResponsive';
+import IconButton from './IconButton';
+import { CloseIcon } from './icons/ActionIcons';
 
 interface FormSheetProps {
   visible: boolean;
@@ -87,24 +88,12 @@ export default function FormSheet({
                   </Text>
                 ) : null}
               </View>
-              <TouchableOpacity
-                onPress={onClose}
-                accessibilityRole="button"
+              <IconButton
                 accessibilityLabel="Cerrar"
+                onPress={onClose}
                 disabled={closeDisabled}
-                hitSlop={8}
-                className={`h-9 w-9 rounded-full items-center justify-center ${
-                  isDark ? 'bg-gray-800' : 'bg-gray-100'
-                }`}
-              >
-                <Text
-                  className={`text-base ${isDark ? 'text-gray-300' : 'text-gray-600'}`}
-                  // El texto es solo un icono: la etiqueta la pone el botón
-                  importantForAccessibility="no"
-                >
-                  ✕
-                </Text>
-              </TouchableOpacity>
+                renderIcon={color => <CloseIcon color={color} />}
+              />
             </View>
 
             <ScrollView

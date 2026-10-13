@@ -11,6 +11,7 @@ import { CalendarType, CALENDAR_CONFIGS } from '../config/calendarTypes';
 import { useTheme } from '../context/ThemeContext';
 import StyledModal from './StyledModal';
 import Button from './Button';
+import { CheckIcon } from './icons/ActionIcons';
 
 interface CalendarSelectorProps {
   company: Company;
@@ -166,9 +167,7 @@ export default function CalendarSelector({
                             isSelected ? checkboxStyles.selected : checkboxStyles.unselected,
                           ]}
                        >
-                         {isSelected && (
-                            <Text style={styles.checkmarkText}>✓</Text>
-                         )}
+                         {isSelected && <CheckIcon color="#ffffff" size={14} />}
                        </View>
                        <View className="flex-1">
                          <Text
@@ -242,11 +241,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  checkmarkText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: 'bold',
   },
   buttonRowGap: {
     gap: 12,

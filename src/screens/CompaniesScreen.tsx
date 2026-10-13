@@ -1,10 +1,5 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  RefreshControl,
-} from 'react-native';
+import { Text, FlatList, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Company } from '../types';
 import { useTheme } from '../context/ThemeContext';
@@ -21,6 +16,7 @@ import { CompaniesIcon } from '../components/icons/TabIcons';
 import CalendarSelector from '../components/CalendarSelector';
 import AddCompanyModal from '../components/companies/AddCompanyModal';
 import CompanyCard from '../components/companies/CompanyCard';
+import ActionSheet from '../components/ActionSheet';
 import { getCompanyStats } from '../components/companies/companyStats';
 import { CalendarType } from '../config/calendarTypes';
 import { MainTabScreenProps } from '../navigation/types';
@@ -36,6 +32,8 @@ export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Comp
   const [selectedCompanyForCalendars, setSelectedCompanyForCalendars] =
     useState<Company | null>(null);
   const [showCalendarSelector, setShowCalendarSelector] = useState(false);
+  // Empresa cuyas acciones secundarias están abiertas en la hoja
+  const [actionsCompany, setActionsCompany] = useState<Company | null>(null);
 
   const showMessage = (message: CompaniesMessage) => {
     setModalMessage(message);
@@ -93,6 +91,9 @@ export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Comp
     showSnackbar({ message: await saveCalendars(selectedCompanyForCalendars, selectedCalendars) });
   };
 
+  const openReminders = (company: Company) =>
+    navigation.navigate('Reminders', { companyId: company.id });
+
   const openCalendars = (company: Company) => {
     setSelectedCompanyForCalendars(company);
     setShowCalendarSelector(true);
@@ -120,23 +121,29 @@ export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Comp
         }
       />
 
-      <ScrollView
+      <FlatList
         className="flex-1"
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        contentContainerStyle={{ paddingBottom: responsive.spacing.lg }}
-      >
-        {/* Lista de empresas */}
-        <View
-          style={{
-            paddingHorizontal: responsive.spacing.lg,
-            paddingVertical: responsive.spacing.md,
-          }}
-        >
-          {loadError ? (
+        data={loadError ? [] : companies}
+        keyExtractor={company => company.id}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        contentContainerStyle={{
+          paddingHorizontal: responsive.spacing.lg,
+          paddingTop: responsive.spacing.md,
+          paddingBottom: responsive.spacing.lg,
+        }}
+        renderItem={({ item: company }) => (
+          <CompanyCard
+            company={company}
+            stats={getCompanyStats(reminders, company.id)}
+            onOpenReminders={openReminders}
+            onOpenCalendars={openCalendars}
+            onOpenActions={setActionsCompany}
+          />
+        )}
+        ListEmptyComponent={
+          loadError ? (
             <ErrorState message={loadError} onRetry={retry} retrying={retrying} />
-          ) : companies.length === 0 ? (
+          ) : (
             <EmptyState
               isDark={isDark}
               renderIcon={color => <CompaniesIcon color={color} size={28} />}
@@ -145,41 +152,44 @@ export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Comp
               actionLabel="Agregar primera empresa"
               onAction={() => setShowAddForm(true)}
             />
-          ) : (
-            <View>
-              {companies.map(company => (
-                <CompanyCard
-                  key={company.id}
-                  company={company}
-                  stats={getCompanyStats(reminders, company.id)}
-                  isDark={isDark}
-                  onDelete={setCompanyToDelete}
-                  onOpenCalendars={openCalendars}
-                  onOpenReminders={companyId =>
-                    navigation.navigate('Reminders', { companyId })
-                  }
-                />
-              ))}
-            </View>
-          )}
-        </View>
+          )
+        }
+        // En el estado vacío ya se explica
+        ListFooterComponent={
+          companies.length > 0 && !loadError ? (
+            <Text
+              className={`text-xs text-center mx-6 mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
+            >
+              Los recordatorios se generan según los calendarios de la DIAN. Ajusta los de cada
+              empresa en «Más acciones» › Calendarios.
+            </Text>
+          ) : null
+        }
+      />
 
-        {/* Información (en el estado vacío ya se explica) */}
-        {companies.length > 0 && (
-          <Text
-            className={`text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}
-            style={{
-              marginHorizontal: responsive.spacing.xl,
-              marginBottom: responsive.spacing.md,
-              fontSize: responsive.fontSize.xs,
-              lineHeight: responsive.fontSize.xs * 1.5,
-            }}
-          >
-            Los recordatorios se generan automáticamente según los calendarios
-            de la DIAN. Ajusta los de cada empresa con «Calendarios».
-          </Text>
-        )}
-      </ScrollView>
+      <ActionSheet
+        visible={actionsCompany !== null}
+        title={actionsCompany?.name ?? ''}
+        groups={
+          actionsCompany
+            ? [
+                {
+                  actions: [
+                    { key: 'reminders', label: 'Ver recordatorios', onPress: () => openReminders(actionsCompany) },
+                    { key: 'calendars', label: 'Calendarios', onPress: () => openCalendars(actionsCompany) },
+                    {
+                      key: 'delete',
+                      label: 'Eliminar empresa',
+                      destructive: true,
+                      onPress: () => setCompanyToDelete(actionsCompany.id),
+                    },
+                  ],
+                },
+              ]
+            : []
+        }
+        onClose={() => setActionsCompany(null)}
+      />
 
       <AddCompanyModal
         visible={showAddForm}
@@ -193,8 +203,10 @@ export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Comp
       <StyledModal
         visible={companyToDelete !== null}
         onClose={() => setCompanyToDelete(null)}
-        title="Confirmar eliminación"
-        message="¿Estás seguro de que deseas eliminar esta empresa? Se eliminarán todos sus recordatorios."
+        title="Eliminar empresa"
+        message={`Se eliminarán ${
+          companies.find(c => c.id === companyToDelete)?.name ?? 'la empresa'
+        } y todos sus recordatorios. No se puede deshacer.`}
         buttons={[
           {
             text: 'Cancelar',
@@ -202,7 +214,7 @@ export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Comp
             onPress: () => setCompanyToDelete(null),
           },
           {
-            text: 'Eliminar',
+            text: 'Eliminar empresa',
             style: 'destructive',
             onPress: confirmDeleteCompany,
           },
