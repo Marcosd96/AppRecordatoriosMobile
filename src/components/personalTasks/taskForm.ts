@@ -99,7 +99,7 @@ export const validateTaskForm = (
 
   if (formState.startDate > oneYearFromNow) {
     return {
-      title: '⚠️ Fecha muy lejana',
+      title: 'Fecha muy lejana',
       message: `La fecha seleccionada es: ${formState.startDate.toLocaleString('es-CO', {
         year: 'numeric',
         month: 'long',

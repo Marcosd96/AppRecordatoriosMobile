@@ -12,8 +12,8 @@ export const ITEM_ACTIONS_CATEGORY = 'item-actions';
 
 // Sin `launchActivity`: la acción se resuelve en segundo plano, sin abrir la app
 export const androidItemActions: AndroidAction[] = [
-  { title: '✅ Completar', pressAction: { id: ACTION_COMPLETE } },
-  { title: '⏰ Posponer 1 h', pressAction: { id: ACTION_SNOOZE } },
+  { title: 'Completar', pressAction: { id: ACTION_COMPLETE } },
+  { title: 'Posponer 1 h', pressAction: { id: ACTION_SNOOZE } },
 ];
 
 export const iosItemActionsCategory: IOSNotificationCategory = {

@@ -38,7 +38,7 @@ function minutesBefore(date: Date, minutes: number): Date {
 async function sendImmediatePersonalTaskNotification(task: PersonalTask): Promise<void> {
   try {
     await notifee.displayNotification({
-      title: `⚠️ Recordatorio: ${task.title}`,
+      title: `Recordatorio: ${task.title}`,
       body: `Este recordatorio estaba pendiente. ${task.description || ''}`,
       data: {
         taskId: task.id,
@@ -113,13 +113,13 @@ export async function schedulePersonalTaskNotification(task: PersonalTask): Prom
 
     await createNotificationChannel();
 
-    const { color, emoji } = taskPriorityStyle(task.priority);
+    const { color, titlePrefix } = taskPriorityStyle(task.priority);
     const notificationId = `personal_task_${task.id}`;
 
     await notifee.createTriggerNotification(
       {
         id: notificationId,
-        title: `${emoji} Tarea: ${task.title}`,
+        title: `${titlePrefix}: ${task.title}`,
         body: task.description
           ? task.description.substring(0, 100)
           : `Tarea programada para ${formatTaskDate(targetDate)}`,

@@ -69,7 +69,7 @@ describe('taskForm', () => {
       title: 'Algo',
       startDate: new Date('2027-06-01T10:00:00'),
     };
-    expect(validateTaskForm(form, NOW)?.title).toBe('⚠️ Fecha muy lejana');
+    expect(validateTaskForm(form, NOW)?.title).toBe('Fecha muy lejana');
   });
 
   it('acepta un formulario válido', () => {

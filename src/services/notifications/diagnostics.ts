@@ -21,7 +21,7 @@ export async function displayTestNotification(): Promise<void> {
     await createNotificationChannel();
 
     await notifee.displayNotification({
-      title: '🔔 Notificación de Prueba',
+      title: 'Notificación de prueba',
       body: 'El sistema de notificaciones está funcionando correctamente',
       android: {
         channelId: REMINDERS_CHANNEL_ID,
@@ -84,7 +84,7 @@ export async function scheduleTestNotificationForTask(
     await createNotificationChannel();
     await logPersonalTasksChannelState();
 
-    const { color, emoji } = taskPriorityStyle(task.priority);
+    const { color, titlePrefix } = taskPriorityStyle(task.priority);
     const notificationId = `personal_task_${task.id}_test`;
     const android = { ...androidOptions(PERSONAL_TASKS_CHANNEL_ID, color), showTimestamp: true };
 
@@ -95,7 +95,7 @@ export async function scheduleTestNotificationForTask(
         const inForeground = Platform.OS === 'android' && AppState.currentState === 'active';
         await notifee.displayNotification({
           id: `${notificationId}_immediate`,
-          title: `${emoji} [INMEDIATA] Tarea: ${task.title}`,
+          title: `[INMEDIATA] ${titlePrefix}: ${task.title}`,
           body: 'Esta es una notificación inmediata para verificar que el sistema funciona. La notificación programada llegará en breve.',
           data: {
             taskId: task.id,
@@ -115,7 +115,7 @@ export async function scheduleTestNotificationForTask(
     await notifee.createTriggerNotification(
       {
         id: notificationId,
-        title: `${emoji} [PRUEBA] Tarea: ${task.title}`,
+        title: `[PRUEBA] ${titlePrefix}: ${task.title}`,
         body: task.description
           ? `${task.description.substring(0, 80)}... (Notificación de prueba)`
           : `Tarea programada para ${formatTaskDate(testNotificationDate)} (Notificación de prueba)`,

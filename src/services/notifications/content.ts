@@ -37,25 +37,25 @@ export function iosOptions(sound?: string) {
 // Índice = días que faltan para el vencimiento (0 a 3)
 const REMINDER_STYLES = [
   {
-    title: '📅 Recordatorio Fiscal - Vence Hoy',
-    dueText: '⚠️ Vence hoy',
+    title: 'Recordatorio fiscal · vence hoy',
+    dueText: 'Vence hoy',
     immediateSuffix: '¡Acción requerida!',
     color: '#dc2626', // Rojo para urgencia
   },
   {
-    title: '⏰ Recordatorio Fiscal - Mañana',
+    title: 'Recordatorio fiscal · vence mañana',
     dueText: 'Vence mañana',
     immediateSuffix: '¡No olvides completarlo!',
     color: '#f59e0b', // Amarillo/naranja
   },
   {
-    title: '⏰ Recordatorio Fiscal',
+    title: 'Recordatorio fiscal',
     dueText: 'Vence en 2 días',
     immediateSuffix: 'Recuerda prepararlo',
     color: '#f59e0b',
   },
   {
-    title: '⏰ Recordatorio Fiscal',
+    title: 'Recordatorio fiscal',
     dueText: 'Vence en 3 días',
     immediateSuffix: 'Nuevo recordatorio',
     color: '#2563eb', // Azul
@@ -76,11 +76,13 @@ export function reminderContent(reminder: Reminder, daysUntilDue: number, immedi
   };
 }
 
-const TASK_PRIORITY_STYLES: Record<string, { color: string; emoji: string }> = {
-  urgent: { color: '#dc2626', emoji: '🚨' }, // Rojo
-  high: { color: '#f59e0b', emoji: '⚠️' }, // Naranja
-  medium: { color: '#2563eb', emoji: '📋' }, // Azul
-  low: { color: '#10b981', emoji: '✓' }, // Verde
+// Sin emojis: cada fabricante los dibuja distinto y TalkBack los lee en voz alta.
+// La prioridad se nota en el color y, si es urgente, en el título
+const TASK_PRIORITY_STYLES: Record<string, { color: string; titlePrefix: string }> = {
+  urgent: { color: '#dc2626', titlePrefix: 'Tarea urgente' }, // Rojo
+  high: { color: '#f59e0b', titlePrefix: 'Tarea' }, // Naranja
+  medium: { color: '#2563eb', titlePrefix: 'Tarea' }, // Azul
+  low: { color: '#10b981', titlePrefix: 'Tarea' }, // Verde
 };
 
 export function taskPriorityStyle(priority: string) {

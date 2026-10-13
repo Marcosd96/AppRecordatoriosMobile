@@ -27,16 +27,15 @@ export async function diagnoseTaskNotification(task: PersonalTask): Promise<Form
       n => n.notification?.data?.taskId === task.id
     );
 
-    let message = `📊 DIAGNÓSTICO DE NOTIFICACIONES\n\n`;
-    message += `🔔 Estado general:\n`;
-    message += `• Permisos: ${status.hasPermission ? '✅' : '❌'}\n`;
+    let message = `Estado general\n`;
+    message += `• Permisos: ${status.hasPermission ? 'concedidos' : 'no concedidos'}\n`;
     message += `• Total programadas: ${status.scheduledCount}\n\n`;
 
-    message += `📋 Tarea: "${task.title}"\n`;
+    message += `Tarea "${task.title}"\n`;
     message += `• Fecha tarea: ${new Date(taskDate).toLocaleString('es-CO')}\n`;
     message += `• Recordatorio: ${task.reminderMinutes} min antes\n`;
     message += `• Fecha notificación esperada:\n  ${expectedNotificationDate.toLocaleString('es-CO')}\n`;
-    message += `• Estado: ${isInPast ? '❌ YA PASÓ' : '✅ Futura'}\n\n`;
+    message += `• Estado: ${isInPast ? 'ya pasó' : 'pendiente'}\n\n`;
 
     if (taskNotification) {
       const trigger = taskNotification.trigger as any;
@@ -44,18 +43,18 @@ export async function diagnoseTaskNotification(task: PersonalTask): Promise<Form
       const minutesUntil = Math.round((triggerDate.getTime() - now.getTime()) / 1000 / 60);
       const daysUntil = Math.round(minutesUntil / 60 / 24);
 
-      message += `✅ Notificación programada:\n`;
+      message += `Notificación programada\n`;
       message += `• ID: ${taskNotification.notification?.id}\n`;
       message += `• Fecha: ${triggerDate.toLocaleString('es-CO')}\n`;
 
       if (daysUntil > 30) {
-        message += `• ⚠️ En ${daysUntil} días (${Math.floor(daysUntil / 365)} años)\n`;
-        message += `\n❌ PROBLEMA DETECTADO:\n`;
+        message += `• En ${daysUntil} días (${Math.floor(daysUntil / 365)} años)\n`;
+        message += `\nProblema detectado\n`;
         message += `La notificación está programada para más de 30 días.\n`;
-        message += `Probablemente el AÑO está incorrecto.\n\n`;
-        message += `💡 Solución:\n`;
+        message += `Probablemente el año es incorrecto.\n\n`;
+        message += `Solución\n`;
         message += `1. Edita la tarea\n`;
-        message += `2. Verifica que el AÑO sea ${now.getFullYear()}\n`;
+        message += `2. Comprueba que el año sea ${now.getFullYear()}\n`;
         message += `3. Guarda\n\n`;
       } else if (minutesUntil > 0) {
         message += `• En: ${minutesUntil} minutos`;
@@ -64,10 +63,10 @@ export async function diagnoseTaskNotification(task: PersonalTask): Promise<Form
         }
         message += `\n\n`;
       } else {
-        message += `• ❌ En el pasado (hace ${Math.abs(minutesUntil)} minutos)\n\n`;
+        message += `• En el pasado (hace ${Math.abs(minutesUntil)} minutos)\n\n`;
       }
     } else {
-      message += `❌ NO HAY NOTIFICACIÓN PROGRAMADA\n\n`;
+      message += `No hay ninguna notificación programada para esta tarea.\n\n`;
       message += `Posibles causas:\n`;
       if (isInPast) {
         message += `• La fecha de notificación ya pasó\n`;
@@ -76,24 +75,24 @@ export async function diagnoseTaskNotification(task: PersonalTask): Promise<Form
         message += `• No hay permisos de notificación\n`;
       }
       message += `• La tarea se creó antes de tener permisos\n`;
-      message += `\n💡 Solución: Edita la tarea y cambia la fecha a una futura\n`;
+      message += `\nSolución: edita la tarea y cambia la fecha a una futura.\n`;
     }
 
     if (nextNotification.exists) {
-      message += `\n⏰ Próxima notificación global:\n`;
+      message += `\nPróxima notificación de la app\n`;
       message += `• ${nextNotification.title}\n`;
       message += `• ${nextNotification.date?.toLocaleString('es-CO')}\n`;
     }
 
     return {
-      title: '🔍 Diagnóstico de Notificaciones',
+      title: 'Comprobación del aviso',
       message: message,
     };
   } catch (error: any) {
     console.error('Error en diagnóstico:', error);
     return {
-      title: '❌ Error',
-      message: `No se pudo completar el diagnóstico: ${error?.message}`,
+      title: 'No se pudo comprobar el aviso',
+      message: error?.message || 'Inténtalo de nuevo.',
     };
   }
 }
@@ -102,7 +101,7 @@ export async function scheduleTaskTestNotification(task: PersonalTask): Promise<
   try {
     // Verificar estado de notificaciones antes de programar
     const status = await notificationsService.getNotificationStatus();
-    console.log('📊 Estado de notificaciones:', {
+    console.log('Estado de notificaciones:', {
       hasPermission: status.hasPermission,
       scheduledCount: status.scheduledCount,
       authorizationStatus: status.authorizationStatus,
@@ -115,17 +114,17 @@ export async function scheduleTaskTestNotification(task: PersonalTask): Promise<
     const nextNotification = await notificationsService.getNextNotification();
     const notificationDetails = nextNotification.exists
       ? `\n\nPróxima notificación: ${nextNotification.title}\nFecha: ${nextNotification.date?.toLocaleString('es-CO')}`
-      : '\n\n⚠️ No se encontró la notificación programada. Revisa los logs.';
+      : '\n\nNo se encontró la notificación programada.';
 
     return {
-      title: '✅ Notificación de prueba programada',
-      message: `Recibirás una notificación en 2 minutos.${notificationDetails}\n\nRevisa la consola para más detalles.`,
+      title: 'Aviso de prueba programado',
+      message: `Recibirás una notificación en 2 minutos.${notificationDetails}`,
     };
   } catch (error: any) {
-    console.error('❌ Error al programar notificación de prueba:', error);
+    console.error('Error al programar notificación de prueba:', error);
     return {
-      title: '❌ Error',
-      message: error?.message || 'No se pudo programar la notificación de prueba. Revisa los logs en la consola.',
+      title: 'No se pudo programar el aviso de prueba',
+      message: error?.message || 'Inténtalo de nuevo.',
     };
   }
 }
@@ -136,14 +135,18 @@ export async function scheduleTaskQuickTestNotification(task: PersonalTask): Pro
     await notificationsService.scheduleTestNotificationForTask(task, 10 / 60);
 
     return {
-      title: '⚡ Notificación rápida programada',
-      message: 'IMPORTANTE: Deberías ver una notificación INMEDIATA ahora. Si no la ves, minimiza la app (presiona el botón Home) y espera 10 segundos. La notificación programada llegará entonces.\n\nSi aún no ves notificaciones, verifica:\n1. Permisos de notificación en Configuración\n2. El canal "Tareas Personales" no está bloqueado\n3. Modo de ahorro de energía desactivado para esta app',
+      title: 'Aviso de prueba en 10 segundos',
+      message:
+        'Deberías ver una notificación ahora mismo. Si no aparece, sal de la app y espera 10 segundos.\n\n' +
+        'Si sigue sin llegar, comprueba:\n1. El permiso de notificaciones en los ajustes del sistema\n' +
+        '2. Que el canal "Tareas Personales" no esté bloqueado\n' +
+        '3. Que el ahorro de batería esté desactivado para esta app',
     };
   } catch (error: any) {
-    console.error('❌ Error al programar notificación rápida:', error);
+    console.error('Error al programar notificación rápida:', error);
     return {
-      title: '❌ Error',
-      message: error?.message || 'No se pudo programar la notificación rápida.',
+      title: 'No se pudo programar el aviso de prueba',
+      message: error?.message || 'Inténtalo de nuevo.',
     };
   }
 }
@@ -153,8 +156,8 @@ export async function rescheduleTaskNotification(task: PersonalTask): Promise<Fo
     const status = await notificationsService.getNotificationStatus();
     if (!status.hasPermission) {
       return {
-        title: '⚠️ Sin permisos',
-        message: 'Necesitas conceder permisos de notificación primero.',
+        title: 'Falta el permiso de notificaciones',
+        message: 'Concede el permiso de notificaciones para poder programar el aviso.',
       };
     }
 
@@ -174,17 +177,15 @@ export async function rescheduleTaskNotification(task: PersonalTask): Promise<Fo
       const minutesUntil = Math.round((triggerDate.getTime() - Date.now()) / 1000 / 60);
 
       return {
-        title: '✅ Notificación Reprogramada',
-        message: `La notificación se ha reprogramado exitosamente.\n\n` +
-          `📅 Tarea: ${new Date(task.nextOccurrence || task.startDate).toLocaleString('es-CO')}\n\n` +
-          `🔔 Notificación programada para:\n${triggerDate.toLocaleString('es-CO')}\n\n` +
-          `⏰ Llegará en ${minutesUntil} minutos.\n\n` +
-          `💡 Minimiza la app para recibir la notificación.`,
+        title: 'Aviso reprogramado',
+        message:
+          `Tarea: ${new Date(task.nextOccurrence || task.startDate).toLocaleString('es-CO')}\n` +
+          `Aviso: ${triggerDate.toLocaleString('es-CO')} (en ${minutesUntil} minutos)`,
       };
     }
 
     return {
-      title: '⚠️ Advertencia',
+      title: 'No se pudo comprobar el aviso',
       message: 'No se pudo verificar la notificación programada. ' +
         'Es posible que la fecha de la tarea ya haya pasado o que la fecha de ' +
         'notificación (tarea - recordatorio) esté en el pasado.\n\n' +
@@ -193,8 +194,8 @@ export async function rescheduleTaskNotification(task: PersonalTask): Promise<Fo
   } catch (error: any) {
     console.error('Error al reprogramar:', error);
     return {
-      title: '❌ Error',
-      message: error?.message || 'No se pudo reprogramar la notificación.',
+      title: 'No se pudo reprogramar el aviso',
+      message: error?.message || 'Inténtalo de nuevo.',
     };
   }
 }
