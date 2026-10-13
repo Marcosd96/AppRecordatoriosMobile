@@ -4,7 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Company } from '../types';
 import { useTheme } from '../context/ThemeContext';
 import { useResponsive } from '../hooks/useResponsive';
-import { CompaniesMessage, useCompanies } from '../hooks/useCompanies';
+import { useCompanies } from '../hooks/useCompanies';
+import { UserMessage } from '../hooks/actionResult';
 import StyledModal from '../components/StyledModal';
 import Button from '../components/Button';
 import LoadingScreen from '../components/LoadingScreen';
@@ -27,7 +28,7 @@ export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Comp
   const [showAddForm, setShowAddForm] = useState(false);
   const [companyToDelete, setCompanyToDelete] = useState<string | null>(null);
   // El mensaje se conserva al cerrar para que no se vacíe durante la animación de salida
-  const [modalMessage, setModalMessage] = useState<CompaniesMessage>({ title: '', message: '' });
+  const [modalMessage, setModalMessage] = useState<UserMessage>({ title: '', message: '' });
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [selectedCompanyForCalendars, setSelectedCompanyForCalendars] =
     useState<Company | null>(null);
@@ -35,7 +36,7 @@ export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Comp
   // Empresa cuyas acciones secundarias están abiertas en la hoja
   const [actionsCompany, setActionsCompany] = useState<Company | null>(null);
 
-  const showMessage = (message: CompaniesMessage) => {
+  const showMessage = (message: UserMessage) => {
     setModalMessage(message);
     setShowMessageModal(true);
   };
@@ -63,32 +64,33 @@ export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Comp
       return false;
     }
 
-    const { created, message } = await createCompany(name, nit);
-    if (created) {
+    const result = await createCompany(name, nit);
+    if (result.ok) {
       setShowAddForm(false);
-      showSnackbar({ message: message.message });
+      showSnackbar({ message: 'Empresa creada. Elige sus calendarios para generar los recordatorios.' });
     } else {
-      showMessage(message);
+      showMessage(result.error);
     }
-    return created;
+    return result.ok;
   };
 
   const confirmDeleteCompany = async () => {
     if (!companyToDelete) return;
     const companyId = companyToDelete;
     setCompanyToDelete(null);
-    const { ok, message } = await deleteCompany(companyId);
-    if (ok) {
-      showSnackbar({ message: message.message });
+    const result = await deleteCompany(companyId);
+    if (result.ok) {
+      showSnackbar({ message: 'Empresa eliminada y sus avisos cancelados' });
     } else {
-      showMessage(message);
+      showMessage(result.error);
     }
   };
 
   const handleSaveCalendars = async (selectedCalendars: CalendarType[]) => {
     if (!selectedCompanyForCalendars) return;
     // Si falla, saveCalendars lanza el error y el selector lo muestra sin cerrarse
-    showSnackbar({ message: await saveCalendars(selectedCompanyForCalendars, selectedCalendars) });
+    await saveCalendars(selectedCompanyForCalendars, selectedCalendars);
+    showSnackbar({ message: 'Calendarios guardados. Los recordatorios se regeneraron.' });
   };
 
   const openReminders = (company: Company) =>

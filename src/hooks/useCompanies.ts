@@ -6,6 +6,7 @@ import { remindersService } from '../services/remindersService';
 import { notificationsService } from '../services/notificationsService';
 import { CalendarType } from '../config/calendarTypes';
 import { queryKeys } from '../config/queryClient';
+import { ActionResult, failure } from './actionResult';
 import {
   useCalendarsQuery,
   useCompaniesQuery,
@@ -13,21 +14,12 @@ import {
   useRemindersQuery,
 } from './queries';
 
-export interface CompaniesMessage {
-  title: string;
-  message: string;
-}
-
-export interface CompaniesResult {
-  ok: boolean;
-  message: CompaniesMessage;
-}
 
 /**
  * Empresas del usuario y sus recordatorios, desde la caché (también sin conexión).
  * Las notificaciones las sincroniza NotificationSync al cambiar los recordatorios.
- * El error de carga se expone en `loadError`. Las acciones devuelven si salieron bien y el
- * mensaje: los éxitos se confirman con un snackbar y los errores con un diálogo.
+ * El error de carga se expone en `loadError`. Crear y eliminar devuelven un `ActionResult`;
+ * guardar calendarios lanza el error para que el selector lo muestre sin cerrarse.
  */
 export function useCompanies() {
   const queryClient = useQueryClient();
@@ -72,7 +64,7 @@ export function useCompanies() {
    * @returns el mensaje a mostrar y si se creó
    */
   const createCompany = useCallback(
-    async (name: string, nit: string): Promise<{ created: boolean; message: CompaniesMessage }> => {
+    async (name: string, nit: string): Promise<ActionResult> => {
       setCreating(true);
       try {
         const result = await companiesService.create({
@@ -82,10 +74,7 @@ export function useCompanies() {
         });
 
         if (!result.success || !result.company) {
-          return {
-            created: false,
-            message: { title: 'No se pudo crear la empresa', message: 'Inténtalo de nuevo.' },
-          };
+          return failure('No se pudo crear la empresa', null, 'Inténtalo de nuevo.');
         }
 
         // Si el backend asignó calendarios por defecto, limpiarlos
@@ -106,22 +95,10 @@ export function useCompanies() {
 
         await refreshAfterChange();
 
-        return {
-          created: true,
-          message: {
-            title: 'Empresa creada',
-            message: 'Empresa creada. Elige sus calendarios para generar los recordatorios.',
-          },
-        };
-      } catch (error: any) {
+        return { ok: true };
+      } catch (error) {
         console.error('Error al crear empresa:', error);
-        return {
-          created: false,
-          message: {
-            title: 'No se pudo crear la empresa',
-            message: error.message || 'Inténtalo de nuevo.',
-          },
-        };
+        return failure('No se pudo crear la empresa', error, 'Inténtalo de nuevo.');
       } finally {
         setCreating(false);
       }
@@ -130,26 +107,17 @@ export function useCompanies() {
   );
 
   const deleteCompany = useCallback(
-    async (companyId: string): Promise<CompaniesResult> => {
+    async (companyId: string): Promise<ActionResult> => {
       try {
         await companiesService.delete(companyId);
         // Al recargar, la empresa y sus recordatorios desaparecen y NotificationSync
         // cancela sus notificaciones
         await refreshAfterChange();
 
-        return {
-          ok: true,
-          message: { title: 'Empresa eliminada', message: 'Empresa eliminada y sus avisos cancelados.' },
-        };
-      } catch (error: any) {
+        return { ok: true };
+      } catch (error) {
         console.error('Error al eliminar empresa:', error);
-        return {
-          ok: false,
-          message: {
-            title: 'No se pudo eliminar la empresa',
-            message: error.message || 'Inténtalo de nuevo.',
-          },
-        };
+        return failure('No se pudo eliminar la empresa', error, 'Inténtalo de nuevo.');
       }
     },
     [refreshAfterChange],
@@ -159,7 +127,7 @@ export function useCompanies() {
    * Guarda los calendarios de una empresa. Lanza el error para que el selector lo muestre.
    */
   const saveCalendars = useCallback(
-    async (company: Company, selectedCalendars: CalendarType[]): Promise<string> => {
+    async (company: Company, selectedCalendars: CalendarType[]): Promise<void> => {
       try {
         await companiesService.update(company.id, {
           name: company.name,
@@ -181,8 +149,7 @@ export function useCompanies() {
           queryClient.invalidateQueries({ queryKey: queryKeys.dashboard }),
         ]);
 
-        return 'Calendarios guardados. Los recordatorios se regeneraron.';
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error al guardar calendarios:', error);
         throw error;
       }
