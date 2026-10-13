@@ -2,9 +2,9 @@
  * Herramientas de diagnóstico y prueba de notificaciones para una tarea personal.
  * Cada función devuelve el mensaje que la pantalla debe mostrar al usuario.
  */
-import { PersonalTask } from '../../types';
-import { notificationsService } from '../../services/notificationsService';
-import { FormMessage } from './taskForm';
+import { PersonalTask } from '../types';
+import { notificationsService } from '../services/notificationsService';
+import { FormMessage } from '../components/personalTasks/taskForm';
 
 export async function diagnoseTaskNotification(task: PersonalTask): Promise<FormMessage> {
   try {

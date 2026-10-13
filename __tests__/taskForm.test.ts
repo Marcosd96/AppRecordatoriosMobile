@@ -4,6 +4,7 @@
 
 import {
   createInitialFormState,
+  filterTasks,
   formStateFromTask,
   formatRecurrence,
   formatReminderLead,
@@ -60,7 +61,10 @@ describe('taskForm', () => {
 
   it('exige título', () => {
     const form = { ...createInitialFormState(), title: '   ' };
-    expect(validateTaskForm(form, NOW)?.message).toBe('El título es obligatorio.');
+    expect(validateTaskForm(form, NOW)).toMatchObject({
+      field: 'title',
+      message: 'El título es obligatorio.',
+    });
   });
 
   it('avisa de fechas a más de un año', () => {
@@ -69,7 +73,7 @@ describe('taskForm', () => {
       title: 'Algo',
       startDate: new Date('2027-06-01T10:00:00'),
     };
-    expect(validateTaskForm(form, NOW)?.title).toBe('Fecha muy lejana');
+    expect(validateTaskForm(form, NOW)).toMatchObject({ field: 'startDate', title: 'Fecha muy lejana' });
   });
 
   it('acepta un formulario válido', () => {
@@ -162,5 +166,30 @@ describe('formatRecurrence y formatReminderLead', () => {
     expect(formatReminderLead(base)).toBe('Aviso 1 h antes');
     expect(formatReminderLead({ ...base, reminderMinutes: 15 })).toBe('Aviso 15 min antes');
     expect(formatReminderLead({ ...base, reminderEnabled: false })).toBe('Sin aviso');
+  });
+});
+
+describe('filterTasks', () => {
+  const make = (id: string, status: PersonalTask['status'], date: string, description = '') => ({
+    ...task,
+    id,
+    title: id,
+    status,
+    description,
+    nextOccurrence: null,
+    startDate: date,
+  });
+  const tasks = [
+    make('later', 'active', '2026-03-10T10:00:00'),
+    make('sooner', 'active', '2026-03-05T10:00:00', 'Llamar al CONTADOR'),
+    make('paused', 'paused', '2026-03-01T10:00:00'),
+  ];
+
+  it('filtra por estado y ordena por fecha', () => {
+    expect(filterTasks(tasks, 'active', '').map(t => t.id)).toEqual(['sooner', 'later']);
+  });
+
+  it('busca en título y descripción sin distinguir mayúsculas', () => {
+    expect(filterTasks(tasks, 'all', ' contador ').map(t => t.id)).toEqual(['sooner']);
   });
 });

@@ -24,6 +24,14 @@ export interface FormMessage {
   message: string;
 }
 
+/** Campos del formulario que pueden tener un error de validación */
+export type TaskFormField = 'title' | 'startDate';
+
+/** Error de validación: se muestra bajo el campo indicado, no en un diálogo */
+export interface TaskFormError extends FormMessage {
+  field: TaskFormField;
+}
+
 export const priorityLabels: Record<TaskPriority, string> = {
   low: 'Baja',
   medium: 'Media',
@@ -86,10 +94,11 @@ export const formStateFromTask = (task: PersonalTask): TaskFormState => {
 export const validateTaskForm = (
   formState: TaskFormState,
   now: Date = new Date(),
-): FormMessage | null => {
+): TaskFormError | null => {
   if (!formState.title.trim()) {
     return {
-      title: 'Validación',
+      field: 'title',
+      title: 'Falta el título',
       message: 'El título es obligatorio.',
     };
   }
@@ -99,14 +108,9 @@ export const validateTaskForm = (
 
   if (formState.startDate > oneYearFromNow) {
     return {
+      field: 'startDate',
       title: 'Fecha muy lejana',
-      message: `La fecha seleccionada es: ${formState.startDate.toLocaleString('es-CO', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })}\n\n¿Estás seguro? Esta fecha es más de 1 año en el futuro.\n\nVerifica que el año sea correcto.`,
+      message: 'Es más de un año en el futuro. Revisa que el año sea correcto.',
     };
   }
 
@@ -186,4 +190,23 @@ export const formatReminderLead = (task: PersonalTask): string => {
   const minutes = task.reminderMinutes;
   if (minutes >= 60 && minutes % 60 === 0) return `Aviso ${minutes / 60} h antes`;
   return `Aviso ${minutes} min antes`;
+};
+
+/** Tareas que cumplen el filtro de estado y la búsqueda, por fecha de la próxima ejecución */
+export const filterTasks = (
+  tasks: PersonalTask[],
+  statusFilter: StatusFilter,
+  search: string,
+): PersonalTask[] => {
+  const query = search.trim().toLowerCase();
+  const time = (task: PersonalTask) => new Date(task.nextOccurrence || task.startDate).getTime();
+  return tasks
+    .filter(
+      task =>
+        (statusFilter === 'all' || task.status === statusFilter) &&
+        (!query ||
+          task.title.toLowerCase().includes(query) ||
+          (task.description || '').toLowerCase().includes(query)),
+    )
+    .sort((a, b) => time(a) - time(b));
 };

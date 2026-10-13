@@ -131,11 +131,13 @@ interface FormFieldProps {
   required?: boolean;
   optional?: boolean;
   hint?: string;
+  /** Error de validación: sustituye a la ayuda y se anuncia a los lectores de pantalla */
+  error?: string;
   children: React.ReactNode;
 }
 
 /** Etiqueta + control + ayuda opcional, con el mismo espaciado en todos los formularios */
-export function FormField({ isDark, label, required, optional, hint, children }: FormFieldProps) {
+export function FormField({ isDark, label, required, optional, hint, error, children }: FormFieldProps) {
   return (
     <View className="mb-5">
       <Text className={`text-sm font-semibold mb-2 ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
@@ -146,7 +148,14 @@ export function FormField({ isDark, label, required, optional, hint, children }:
         ) : null}
       </Text>
       {children}
-      {hint ? (
+      {error ? (
+        <Text
+          accessibilityLiveRegion="polite"
+          className={`text-sm mt-1.5 ${isDark ? 'text-red-300' : 'text-red-600'}`}
+        >
+          {error}
+        </Text>
+      ) : hint ? (
         <Text className="text-xs mt-1.5 text-gray-500">{hint}</Text>
       ) : null}
     </View>
@@ -154,10 +163,10 @@ export function FormField({ isDark, label, required, optional, hint, children }:
 }
 
 /** Clases de un TextInput de formulario según el tema */
-export const inputClassName = (isDark: boolean) =>
+export const inputClassName = (isDark: boolean, hasError = false) =>
   `border rounded-xl px-4 py-3 text-base ${
-    isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'
-  }`;
+    isDark ? 'bg-gray-800 text-white' : 'bg-gray-50 text-gray-900'
+  } ${hasError ? (isDark ? 'border-red-300' : 'border-red-600') : isDark ? 'border-gray-700' : 'border-gray-200'}`;
 
 export const placeholderColor = (isDark: boolean) => (isDark ? '#6b7280' : '#9ca3af');
 

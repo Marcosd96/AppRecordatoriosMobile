@@ -13,7 +13,7 @@ import Button from '../Button';
 import FormSheet, { FormField, inputClassName, placeholderColor } from '../FormSheet';
 import Segmented from '../SegmentedControl';
 import { RecurrenceType, TaskPriority } from '../../types';
-import { TaskFormState, priorityLabels } from './taskForm';
+import { TaskFormField, TaskFormState, priorityLabels } from './taskForm';
 
 interface TaskFormModalProps {
   visible: boolean;
@@ -22,6 +22,8 @@ interface TaskFormModalProps {
   formState: TaskFormState;
   setFormState: React.Dispatch<React.SetStateAction<TaskFormState>>;
   submitting: boolean;
+  /** Errores de validación por campo */
+  errors?: Partial<Record<TaskFormField, string>>;
   onClose: () => void;
   onSubmit: () => void;
 }
@@ -87,11 +89,14 @@ export default function TaskFormModal({
   formState,
   setFormState,
   submitting,
+  errors,
   onClose,
   onSubmit,
 }: TaskFormModalProps) {
-  const pickerButtonClass = `flex-1 py-3 rounded-xl border ${
-    isDark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'
+  const pickerButtonClass = `flex-1 py-3 rounded-xl border ${isDark ? 'bg-gray-800' : 'bg-gray-50'} ${
+    errors?.startDate
+      ? isDark ? 'border-red-300' : 'border-red-600'
+      : isDark ? 'border-gray-700' : 'border-gray-200'
   }`;
   const pickerLabelClass = `text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`;
   const pickerValueClass = `text-base font-semibold mt-0.5 ${isDark ? 'text-white' : 'text-gray-900'}`;
@@ -123,9 +128,11 @@ export default function TaskFormModal({
         />
       }
     >
-      <FormField isDark={isDark} label="Título" required>
+      <FormField isDark={isDark} label="Título" required error={errors?.title}>
         <TextInput
-          className={inputClassName(isDark)}
+          className={inputClassName(isDark, !!errors?.title)}
+          accessibilityLabel="Título"
+          accessibilityHint={errors?.title}
           placeholder="Ej: Revisar documentos importantes"
           placeholderTextColor={placeholderColor(isDark)}
           value={formState.title}
@@ -162,6 +169,7 @@ export default function TaskFormModal({
         isDark={isDark}
         label="Fecha y hora"
         hint="El recordatorio se envía antes de esta fecha y hora."
+        error={errors?.startDate}
       >
         <View className="flex-row gap-2">
           <TouchableOpacity

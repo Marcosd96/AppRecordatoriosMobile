@@ -1,9 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import {
-  View,
-  FlatList,
-  RefreshControl,
-} from 'react-native';
+import { View, FlatList, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '../components/Button';
 import { FilterChipOption } from '../components/FilterChips';
@@ -15,29 +11,27 @@ import StyledModal from '../components/StyledModal';
 import LoadingScreen from '../components/LoadingScreen';
 import ScreenHeader from '../components/ScreenHeader';
 import TaskCard from '../components/personalTasks/TaskCard';
-import ActionSheet, { SheetActionGroup } from '../components/ActionSheet';
+import ActionSheet from '../components/ActionSheet';
+import { buildTaskActionGroups } from '../components/personalTasks/taskActions';
 import {
   diagnoseTaskNotification,
   rescheduleTaskNotification,
   scheduleTaskQuickTestNotification,
   scheduleTaskTestNotification,
-} from '../components/personalTasks/taskNotificationTools';
+} from '../hooks/taskNotificationTools';
 import TaskFilters from '../components/personalTasks/TaskFilters';
 import TaskFormModal from '../components/personalTasks/TaskFormModal';
 import {
   FormMessage,
   StatusFilter,
-  TaskFormState,
   TaskStatusAction,
-  createInitialFormState,
-  formStateFromTask,
-  serializeTaskForm,
-  validateTaskForm,
+  filterTasks,
 } from '../components/personalTasks/taskForm';
 import { useTheme } from '../context/ThemeContext';
 import { useSnackbar } from '../context/SnackbarContext';
 import { useResponsive } from '../hooks/useResponsive';
 import { usePersonalTasks } from '../hooks/usePersonalTasks';
+import { useTaskForm } from '../hooks/useTaskForm';
 import { useHighlightItem } from '../hooks/useHighlightItem';
 import { PersonalTask } from '../types';
 import { MainTabScreenProps } from '../navigation/types';
@@ -54,10 +48,6 @@ export default function PersonalTasksScreen({ route }: MainTabScreenProps<'Perso
   const responsive = useResponsive();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [showFormModal, setShowFormModal] = useState(false);
-  const [formState, setFormState] = useState<TaskFormState>(createInitialFormState);
-  const [editingTask, setEditingTask] = useState<PersonalTask | null>(null);
-  const [submitting, setSubmitting] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
   // El mensaje se conserva al cerrar para que no se vacíe durante la animación de salida
   const [message, setMessage] = useState<FormMessage>({ title: '', message: '' });
@@ -82,6 +72,7 @@ export default function PersonalTasksScreen({ route }: MainTabScreenProps<'Perso
     updateTaskStatus,
     deleteTask,
   } = usePersonalTasks();
+  const taskForm = useTaskForm(saveTask);
   const { showSnackbar } = useSnackbar();
   // Tarea cuyas acciones secundarias están abiertas en la hoja
   const [actionsTask, setActionsTask] = useState<PersonalTask | null>(null);
@@ -107,27 +98,10 @@ export default function PersonalTasksScreen({ route }: MainTabScreenProps<'Perso
     [stats],
   );
 
-  const filteredTasks = useMemo(() => {
-    return tasks
-      .filter(task => {
-        if (statusFilter !== 'all' && task.status !== statusFilter) {
-          return false;
-        }
-        if (!searchQuery.trim()) return true;
-        const query = searchQuery.toLowerCase();
-        return (
-          task.title.toLowerCase().includes(query) ||
-          (task.description || '').toLowerCase().includes(query)
-        );
-      })
-      .sort((a, b) => {
-        const dateA = a.nextOccurrence || a.startDate;
-        const dateB = b.nextOccurrence || b.startDate;
-        return (
-          new Date(dateA || '').getTime() - new Date(dateB || '').getTime()
-        );
-      });
-  }, [tasks, statusFilter, searchQuery]);
+  const filteredTasks = useMemo(
+    () => filterTasks(tasks, statusFilter, searchQuery),
+    [tasks, statusFilter, searchQuery],
+  );
 
   const { listRef, highlightedId, onScrollToIndexFailed } = useHighlightItem(
     highlightTaskId,
@@ -136,45 +110,17 @@ export default function PersonalTasksScreen({ route }: MainTabScreenProps<'Perso
     filteredTasks,
   );
 
-  const openCreateModal = () => {
-    setEditingTask(null);
-    setFormState(createInitialFormState());
-    setShowFormModal(true);
-  };
-
-  const openEditModal = (task: PersonalTask) => {
-    setEditingTask(task);
-    setFormState(formStateFromTask(task));
-    setShowFormModal(true);
-  };
-
-  const closeFormModal = () => {
-    if (submitting) return;
-    setShowFormModal(false);
-    setEditingTask(null);
-    setFormState(createInitialFormState());
-  };
-
   const handleSubmit = async () => {
-    const validationError = validateTaskForm(formState);
-    if (validationError) {
-      showMessage(validationError);
-      return;
+    const wasEditing = taskForm.isEditing;
+    const result = await taskForm.submit();
+    if (!result) {
+      return; // Error de validación: ya se ve junto al campo
     }
-
-    setSubmitting(true);
-    const result = await saveTask(serializeTaskForm(formState), editingTask);
-    setSubmitting(false);
-
-    // Si falla, la hoja sigue abierta con lo que se escribió
-    if (!result.ok) {
+    if (result.ok) {
+      showSnackbar({ message: wasEditing ? 'Cambios guardados' : 'Tarea creada' });
+    } else {
       showMessage(result.error);
-      return;
     }
-    showSnackbar({ message: editingTask ? 'Cambios guardados' : 'Tarea creada' });
-    setShowFormModal(false);
-    setEditingTask(null);
-    setFormState(createInitialFormState());
   };
 
   const changeStatus = useCallback(
@@ -217,33 +163,17 @@ export default function PersonalTasksScreen({ route }: MainTabScreenProps<'Perso
   const runTool = (tool: (task: PersonalTask) => Promise<FormMessage>, task: PersonalTask) => async () =>
     showMessage(await tool(task));
 
-  const actionGroups = (task: PersonalTask): SheetActionGroup[] => [
-    {
-      actions: [
-        { key: 'edit', label: 'Editar', onPress: () => openEditModal(task) },
-        ...(task.status === 'active'
-          ? [{ key: 'pause', label: 'Pausar', onPress: () => changeStatus(task, 'pause') }]
-          : []),
-        ...(task.status !== 'cancelled' && task.status !== 'completed'
-          ? [{ key: 'cancel', label: 'Cancelar tarea', onPress: () => changeStatus(task, 'cancel') }]
-          : []),
-        { key: 'delete', label: 'Eliminar', destructive: true, onPress: () => setTaskToDelete(task.id) },
-      ],
-    },
-    {
-      // Herramientas para cuando un aviso no llega: fuera de la tarjeta, pero disponibles
-      title: 'Diagnóstico del aviso',
-      actions:
-        task.status === 'active' && task.reminderEnabled
-          ? [
-              { key: 'diagnose', label: 'Comprobar aviso', onPress: runTool(diagnoseTaskNotification, task) },
-              { key: 'reschedule', label: 'Reprogramar aviso', onPress: runTool(rescheduleTaskNotification, task) },
-              { key: 'test', label: 'Aviso de prueba en 2 minutos', onPress: runTool(scheduleTaskTestNotification, task) },
-              { key: 'quick-test', label: 'Aviso de prueba en 10 segundos', onPress: runTool(scheduleTaskQuickTestNotification, task) },
-            ]
-          : [],
-    },
-  ];
+  const actionGroups = (task: PersonalTask) =>
+    buildTaskActionGroups(task, {
+      edit: () => taskForm.openEdit(task),
+      pause: () => changeStatus(task, 'pause'),
+      cancel: () => changeStatus(task, 'cancel'),
+      remove: () => setTaskToDelete(task.id),
+      diagnose: runTool(diagnoseTaskNotification, task),
+      reschedule: runTool(rescheduleTaskNotification, task),
+      testIn2Minutes: runTool(scheduleTaskTestNotification, task),
+      testIn10Seconds: runTool(scheduleTaskQuickTestNotification, task),
+    });
 
   if (loading) {
     return <LoadingScreen isDark={isDark} message="Cargando tareas personales..." />;
@@ -259,7 +189,7 @@ export default function PersonalTasksScreen({ route }: MainTabScreenProps<'Perso
         title="Tareas"
         subtitle="Organiza tus pendientes diarios"
         right={
-          <Button label="Nueva tarea" onPress={openCreateModal} />
+          <Button label="Nueva tarea" onPress={taskForm.openCreate} />
         }
       />
 
@@ -292,7 +222,7 @@ export default function PersonalTasksScreen({ route }: MainTabScreenProps<'Perso
           <View style={{ paddingHorizontal: responsive.spacing.lg }}>
             <TaskCard
               task={task}
-              onPress={openEditModal}
+              onPress={taskForm.openEdit}
               onStatusChange={changeStatus}
               onOpenActions={setActionsTask}
               highlighted={highlightedId === task.id}
@@ -317,7 +247,7 @@ export default function PersonalTasksScreen({ route }: MainTabScreenProps<'Perso
                     : 'Prueba con otra búsqueda o cambia el filtro.'
                 }
                 actionLabel={tasks.length === 0 ? 'Crear mi primera tarea' : 'Nueva tarea'}
-                onAction={openCreateModal}
+                onAction={taskForm.openCreate}
               />
             )}
           </View>
@@ -332,13 +262,14 @@ export default function PersonalTasksScreen({ route }: MainTabScreenProps<'Perso
       />
 
       <TaskFormModal
-        visible={showFormModal}
-        isEditing={editingTask !== null}
+        visible={taskForm.visible}
+        isEditing={taskForm.isEditing}
         isDark={isDark}
-        formState={formState}
-        setFormState={setFormState}
-        submitting={submitting}
-        onClose={closeFormModal}
+        formState={taskForm.formState}
+        setFormState={taskForm.setFormState}
+        submitting={taskForm.submitting}
+        errors={taskForm.errors}
+        onClose={taskForm.close}
         onSubmit={handleSubmit}
       />
 
