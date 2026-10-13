@@ -12,10 +12,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { ReminderFilter } from '../types';
 import { useReminders } from '../hooks/useReminders';
+import { useCompleteReminder } from '../hooks/useCompleteReminder';
 import { UserMessage } from '../hooks/actionResult';
 import { highlightStyle, useHighlightItem } from '../hooks/useHighlightItem';
 import { useTheme } from '../context/ThemeContext';
-import { useSnackbar } from '../context/SnackbarContext';
 import { useResponsive } from '../hooks/useResponsive';
 import StyledModal from '../components/StyledModal';
 import FilterChips, { FilterChipOption } from '../components/FilterChips';
@@ -56,7 +56,6 @@ const animateLayout = () => {
 export default function RemindersScreen({ route }: MainTabScreenProps<'Reminders'>) {
   const { isDark } = useTheme();
   const responsive = useResponsive();
-  const { showSnackbar } = useSnackbar();
   const {
     reminders,
     companies,
@@ -118,29 +117,7 @@ export default function RemindersScreen({ route }: MainTabScreenProps<'Reminders
     setShowErrorModal(true);
   }, []);
 
-  // Completar es la acción más frecuente y es reversible: se aplica al momento y se ofrece
-  // "Deshacer" en lugar de pedir confirmación
-  const handleToggle = useCallback(
-    async (id: string) => {
-      const completing = reminders.find(r => r.id === id)?.status !== 'completed';
-      const result = await toggleReminder(id);
-      if (!result.ok) {
-        showError(result.error);
-      } else if (completing) {
-        showSnackbar({
-          message: 'Recordatorio completado',
-          actionLabel: 'Deshacer',
-          onAction: async () => {
-            const undo = await toggleReminder(id);
-            if (!undo.ok) {
-              showError(undo.error);
-            }
-          },
-        });
-      }
-    },
-    [reminders, toggleReminder, showError, showSnackbar],
-  );
+  const handleToggle = useCompleteReminder(reminders, toggleReminder, showError);
 
   if (loading) {
     return <LoadingScreen isDark={isDark} message="Cargando recordatorios..." />;
