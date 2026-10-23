@@ -12,7 +12,8 @@ export interface CreateCompanyData {
 export interface UpdateCompanyData {
   name: string;
   nit: string;
-  cityId?: string;
+  /** null quita la ciudad; si se omite, queda sin cambios */
+  cityId?: string | null;
   calendarTypes?: CalendarType[];
 }
 

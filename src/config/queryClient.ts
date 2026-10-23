@@ -21,6 +21,7 @@ export const queryKeys = {
   dashboard: ['dashboard'] as const,
   personalTasks: ['personalTasks'] as const,
   calendars: ['calendars'] as const,
+  cities: ['cities'] as const,
 };
 
 /**

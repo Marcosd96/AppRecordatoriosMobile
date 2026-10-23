@@ -11,6 +11,8 @@ import { CompanyStats } from './companyStats';
 
 interface CompanyCardProps {
   company: Company;
+  /** Nombre de su ciudad, si tiene */
+  cityName?: string;
   stats: CompanyStats;
   /** Tocar la tarjeta: ver los recordatorios de la empresa */
   onOpenReminders: (company: Company) => void;
@@ -23,11 +25,12 @@ const plural = (count: number, singular: string, pluralForm: string) =>
   `${count} ${count === 1 ? singular : pluralForm}`;
 
 /**
- * Empresa en la lista: nombre, NIT y estado de sus recordatorios en una línea. Tocarla abre
+ * Empresa en la lista: nombre, NIT (y ciudad) y estado de sus recordatorios en una línea. Tocarla abre
  * sus recordatorios; calendarios y eliminar están en ⋮ (eliminar ya no queda a un toque).
  */
 export default function CompanyCard({
   company,
+  cityName,
   stats,
   onOpenReminders,
   onOpenCalendars,
@@ -47,6 +50,7 @@ export default function CompanyCard({
   const accessibilityLabel = [
     company.name,
     `NIT ${company.nit}`,
+    cityName ?? null,
     stats.overdue > 0 ? plural(stats.overdue, 'vencido', 'vencidos') : null,
     hasReminders ? summary : 'sin recordatorios, elige sus calendarios',
   ]
@@ -91,6 +95,7 @@ export default function CompanyCard({
             </Text>
             <Text className={`text-sm mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
               NIT {company.nit}
+              {cityName ? ` · ${cityName}` : ''}
             </Text>
           </View>
           <IconButton

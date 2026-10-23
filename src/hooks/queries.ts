@@ -27,6 +27,14 @@ export const useCalendarsQuery = () =>
     staleTime: 24 * 60 * 60 * 1000,
   });
 
+export const useCitiesQuery = () =>
+  useQuery({
+    queryKey: queryKeys.cities,
+    queryFn: () => companiesService.getCities(),
+    // Las ciudades las agrega un administrador muy de vez en cuando
+    staleTime: 24 * 60 * 60 * 1000,
+  });
+
 /**
  * Las pestañas siguen montadas al cambiar de una a otra, así que la caché no se entera de que
  * la pantalla vuelve a verse. Al recuperar el foco se refrescan las consultas que estén viejas.

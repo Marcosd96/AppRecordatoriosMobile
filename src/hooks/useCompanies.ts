@@ -9,6 +9,7 @@ import { queryKeys } from '../config/queryClient';
 import { ActionResult, failure } from './actionResult';
 import {
   useCalendarsQuery,
+  useCitiesQuery,
   useCompaniesQuery,
   useRefetchOnFocus,
   useRemindersQuery,
@@ -18,7 +19,8 @@ import {
 /**
  * Empresas del usuario y sus recordatorios, desde la caché (también sin conexión).
  * Las notificaciones las sincroniza NotificationSync al cambiar los recordatorios.
- * El error de carga se expone en `loadError`. Crear y eliminar devuelven un `ActionResult`;
+ * El error de carga se expone en `loadError`. Crear, cambiar la ciudad y eliminar devuelven un
+ * `ActionResult`;
  * guardar calendarios lanza el error para que el selector lo muestre sin cerrarse.
  */
 export function useCompanies() {
@@ -26,8 +28,10 @@ export function useCompanies() {
   const companiesQuery = useCompaniesQuery();
   const remindersQuery = useRemindersQuery();
   const calendarsQuery = useCalendarsQuery();
+  const citiesQuery = useCitiesQuery();
   const [refreshing, setRefreshing] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [savingCity, setSavingCity] = useState(false);
 
   useRefetchOnFocus([companiesQuery, remindersQuery]);
 
@@ -60,16 +64,18 @@ export function useCompanies() {
   }, [companiesQuery, remindersQuery]);
 
   /**
-   * Crea una empresa sin calendarios preseleccionados.
+   * Crea una empresa sin calendarios preseleccionados. La ciudad (opcional) decide qué
+   * calendarios municipales podrá recibir.
    * @returns el mensaje a mostrar y si se creó
    */
   const createCompany = useCallback(
-    async (name: string, nit: string): Promise<ActionResult> => {
+    async (name: string, nit: string, cityId: string | null): Promise<ActionResult> => {
       setCreating(true);
       try {
         const result = await companiesService.create({
           name,
           nit,
+          cityId: cityId ?? undefined,
           calendarTypes: [], // No preseleccionar calendarios
         });
 
@@ -101,6 +107,31 @@ export function useCompanies() {
         return failure('No se pudo crear la empresa', error, 'Inténtalo de nuevo.');
       } finally {
         setCreating(false);
+      }
+    },
+    [refreshAfterChange],
+  );
+
+  /**
+   * Cambia o quita (null) la ciudad. El backend regenera los recordatorios municipales.
+   */
+  const changeCity = useCallback(
+    async (company: Company, cityId: string | null): Promise<ActionResult> => {
+      setSavingCity(true);
+      try {
+        await companiesService.update(company.id, {
+          name: company.name,
+          nit: company.nit,
+          cityId,
+        });
+        await refreshAfterChange();
+
+        return { ok: true };
+      } catch (error) {
+        console.error('Error al cambiar la ciudad:', error);
+        return failure('No se pudo cambiar la ciudad', error, 'Inténtalo de nuevo.');
+      } finally {
+        setSavingCity(false);
       }
     },
     [refreshAfterChange],
@@ -170,9 +201,12 @@ export function useCompanies() {
     },
     refreshing,
     creating,
+    savingCity,
     availableCalendars: calendarsQuery.data ?? [],
+    cities: citiesQuery.data ?? [],
     onRefresh,
     createCompany,
+    changeCity,
     deleteCompany,
     saveCalendars,
   };

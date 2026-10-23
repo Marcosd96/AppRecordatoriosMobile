@@ -1,26 +1,33 @@
 import React, { useRef, useState } from 'react';
 import { View, TextInput } from 'react-native';
+import { City } from '../../types';
 import Button from '../Button';
+import FilterChips from '../FilterChips';
 import FormSheet, { FormField, inputClassName, placeholderColor } from '../FormSheet';
+import { NO_CITY_KEY, cityIdFromKey, cityOptions } from './cityOptions';
 
 interface AddCompanyModalProps {
   visible: boolean;
   isDark: boolean;
   creating: boolean;
+  /** Catálogo de ciudades; si está vacío, el campo no se muestra */
+  cities: City[];
   onClose: () => void;
   /** Devuelve true si la empresa se creó, para limpiar el formulario */
-  onSubmit: (name: string, nit: string) => Promise<boolean>;
+  onSubmit: (name: string, nit: string, cityId: string | null) => Promise<boolean>;
 }
 
 export default function AddCompanyModal({
   visible,
   isDark,
   creating,
+  cities,
   onClose,
   onSubmit,
 }: AddCompanyModalProps) {
   const [name, setName] = useState('');
   const [nit, setNit] = useState('');
+  const [cityKey, setCityKey] = useState(NO_CITY_KEY);
   const nitInputRef = useRef<TextInput>(null);
 
   const isValid = name.trim().length > 0 && nit.trim().length > 0;
@@ -29,6 +36,7 @@ export default function AddCompanyModal({
   const resetForm = () => {
     setName('');
     setNit('');
+    setCityKey(NO_CITY_KEY);
   };
 
   const handleClose = () => {
@@ -38,7 +46,7 @@ export default function AddCompanyModal({
 
   const handleSubmit = async () => {
     if (submitDisabled) return;
-    if (await onSubmit(name.trim(), nit.trim())) {
+    if (await onSubmit(name.trim(), nit.trim(), cityIdFromKey(cityKey))) {
       resetForm();
     }
   };
@@ -103,6 +111,22 @@ export default function AddCompanyModal({
           onSubmitEditing={handleSubmit}
         />
       </FormField>
+
+      {cities.length > 0 && (
+        <FormField
+          isDark={isDark}
+          label="Ciudad"
+          optional
+          hint="Define qué calendarios municipales puede recibir."
+        >
+          <FilterChips
+            isDark={isDark}
+            options={cityOptions(cities)}
+            selected={cityKey}
+            onSelect={setCityKey}
+          />
+        </FormField>
+      )}
     </FormSheet>
   );
 }

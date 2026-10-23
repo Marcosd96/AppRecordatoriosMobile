@@ -127,7 +127,7 @@ no con otra caja con fondo y borde.
 ### Problemas actuales a corregir al tocar cada archivo
 
 `ReminderCard`, `TaskCard` y `CompanyCard` siguen esta anatomía. En `CompanyCard`, tocar abre
-los recordatorios de la empresa y ⋮ ofrece Calendarios y Eliminar; la única acción a la
+los recordatorios de la empresa y ⋮ ofrece Calendarios, Ciudad y Eliminar; la única acción a la
 vista es "Elegir calendarios" cuando la empresa aún no tiene recordatorios.
 
 ---

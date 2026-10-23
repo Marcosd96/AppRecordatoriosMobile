@@ -17,6 +17,8 @@ import { CompaniesIcon } from '../components/icons/TabIcons';
 import CalendarSelector from '../components/CalendarSelector';
 import AddCompanyModal from '../components/companies/AddCompanyModal';
 import CompanyCard from '../components/companies/CompanyCard';
+import CityFormSheet from '../components/companies/CityFormSheet';
+import { cityName } from '../components/companies/cityOptions';
 import ActionSheet from '../components/ActionSheet';
 import { getCompanyStats } from '../components/companies/companyStats';
 import { CalendarType } from '../config/calendarTypes';
@@ -35,6 +37,7 @@ export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Comp
   const [showCalendarSelector, setShowCalendarSelector] = useState(false);
   // Empresa cuyas acciones secundarias están abiertas en la hoja
   const [actionsCompany, setActionsCompany] = useState<Company | null>(null);
+  const [cityCompany, setCityCompany] = useState<Company | null>(null);
 
   const showMessage = (message: UserMessage) => {
     setModalMessage(message);
@@ -47,9 +50,12 @@ export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Comp
     loading,
     refreshing,
     creating,
+    savingCity,
     availableCalendars,
+    cities,
     onRefresh,
     createCompany,
+    changeCity,
     deleteCompany,
     saveCalendars,
     loadError,
@@ -58,13 +64,13 @@ export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Comp
   } = useCompanies();
   const { showSnackbar } = useSnackbar();
 
-  const handleAddCompany = async (name: string, nit: string) => {
+  const handleAddCompany = async (name: string, nit: string, cityId: string | null) => {
     if (!name || !nit) {
       showMessage({ title: 'Faltan datos', message: 'Escribe el nombre y el NIT de la empresa.' });
       return false;
     }
 
-    const result = await createCompany(name, nit);
+    const result = await createCompany(name, nit, cityId);
     if (result.ok) {
       setShowAddForm(false);
       showSnackbar({ message: 'Empresa creada. Elige sus calendarios para generar los recordatorios.' });
@@ -84,6 +90,22 @@ export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Comp
     } else {
       showMessage(result.error);
     }
+  };
+
+  const handleChangeCity = async (company: Company, cityId: string | null) => {
+    const result = await changeCity(company, cityId);
+    if (result.ok) {
+      setCityCompany(null);
+      const name = cityName(cities, cityId);
+      showSnackbar({
+        message: name
+          ? `Ciudad cambiada a ${name}. Los recordatorios se regeneraron.`
+          : 'Ciudad quitada. Solo recibirá calendarios nacionales.',
+      });
+    } else {
+      showMessage(result.error);
+    }
+    return result.ok;
   };
 
   const handleSaveCalendars = async (selectedCalendars: CalendarType[]) => {
@@ -136,6 +158,7 @@ export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Comp
         renderItem={({ item: company }) => (
           <CompanyCard
             company={company}
+            cityName={cityName(cities, company.cityId)}
             stats={getCompanyStats(reminders, company.id)}
             onOpenReminders={openReminders}
             onOpenCalendars={openCalendars}
@@ -179,6 +202,10 @@ export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Comp
                   actions: [
                     { key: 'reminders', label: 'Ver recordatorios', onPress: () => openReminders(actionsCompany) },
                     { key: 'calendars', label: 'Calendarios', onPress: () => openCalendars(actionsCompany) },
+                    // Sin catálogo de ciudades no hay nada que elegir
+                    ...(cities.length > 0
+                      ? [{ key: 'city', label: 'Ciudad', onPress: () => setCityCompany(actionsCompany) }]
+                      : []),
                     {
                       key: 'delete',
                       label: 'Eliminar empresa',
@@ -197,8 +224,18 @@ export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Comp
         visible={showAddForm}
         isDark={isDark}
         creating={creating}
+        cities={cities}
         onClose={() => setShowAddForm(false)}
         onSubmit={handleAddCompany}
+      />
+
+      <CityFormSheet
+        company={cityCompany}
+        isDark={isDark}
+        cities={cities}
+        saving={savingCity}
+        onClose={() => setCityCompany(null)}
+        onSubmit={handleChangeCity}
       />
 
       {/* Modal de confirmación de eliminación */}
