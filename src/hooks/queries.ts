@@ -27,13 +27,10 @@ export const useCalendarsQuery = () =>
     staleTime: 24 * 60 * 60 * 1000,
   });
 
+// Sin staleTime largo: cada ciudad trae sus impuestos municipales, que el administrador va
+// cargando, y una lista vieja dejaría a la empresa sin poder elegirlos
 export const useCitiesQuery = () =>
-  useQuery({
-    queryKey: queryKeys.cities,
-    queryFn: () => companiesService.getCities(),
-    // Las ciudades las agrega un administrador muy de vez en cuando
-    staleTime: 24 * 60 * 60 * 1000,
-  });
+  useQuery({ queryKey: queryKeys.cities, queryFn: () => companiesService.getCities() });
 
 /**
  * Las pestañas siguen montadas al cambiar de una a otra, así que la caché no se entera de que

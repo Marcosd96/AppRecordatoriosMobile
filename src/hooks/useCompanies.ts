@@ -33,7 +33,7 @@ export function useCompanies() {
   const [creating, setCreating] = useState(false);
   const [savingCity, setSavingCity] = useState(false);
 
-  useRefetchOnFocus([companiesQuery, remindersQuery]);
+  useRefetchOnFocus([companiesQuery, remindersQuery, citiesQuery]);
 
   // Error de carga solo si no hay datos guardados: la pantalla lo muestra con "Reintentar"
   const loadErrorSource = companiesQuery.error ?? remindersQuery.error;
@@ -59,9 +59,9 @@ export function useCompanies() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([companiesQuery.refetch(), remindersQuery.refetch()]);
+    await Promise.all([companiesQuery.refetch(), remindersQuery.refetch(), citiesQuery.refetch()]);
     setRefreshing(false);
-  }, [companiesQuery, remindersQuery]);
+  }, [companiesQuery, remindersQuery, citiesQuery]);
 
   /**
    * Crea una empresa sin calendarios preseleccionados. La ciudad (opcional) decide qué
