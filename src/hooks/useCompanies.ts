@@ -4,7 +4,7 @@ import { Company } from '../types';
 import { companiesService } from '../services/companiesService';
 import { remindersService } from '../services/remindersService';
 import { notificationsService } from '../services/notificationsService';
-import { CalendarType } from '../config/calendarTypes';
+import { CalendarSelection } from '../components/companies/calendarSelection';
 import { queryKeys } from '../config/queryClient';
 import { ActionResult, failure } from './actionResult';
 import {
@@ -155,16 +155,21 @@ export function useCompanies() {
   );
 
   /**
-   * Guarda los calendarios de una empresa. Lanza el error para que el selector lo muestre.
+   * Guarda los calendarios (y los subtipos municipales) de una empresa. Lanza el error para que
+   * el selector lo muestre.
    */
   const saveCalendars = useCallback(
-    async (company: Company, selectedCalendars: CalendarType[]): Promise<void> => {
+    async (company: Company, selection: CalendarSelection): Promise<void> => {
       try {
         await companiesService.update(company.id, {
           name: company.name,
           nit: company.nit,
           cityId: company.cityId,
-          calendarTypes: selectedCalendars,
+          calendarTypes: selection.calendarTypes,
+          // Solo se envía si hay subtipos que elegir: si no, se conserva lo guardado
+          ...(selection.municipalSubtypeIds !== undefined && {
+            municipalSubtypeIds: selection.municipalSubtypeIds,
+          }),
         });
 
         // El backend regenera los recordatorios: pedirlos ya y programarlos con avisos

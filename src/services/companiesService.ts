@@ -15,6 +15,8 @@ export interface UpdateCompanyData {
   /** null quita la ciudad; si se omite, queda sin cambios */
   cityId?: string | null;
   calendarTypes?: CalendarType[];
+  /** Subtipos municipales: null = todos los de la ciudad; si se omite, quedan sin cambios */
+  municipalSubtypeIds?: string[] | null;
 }
 
 export const companiesService = {

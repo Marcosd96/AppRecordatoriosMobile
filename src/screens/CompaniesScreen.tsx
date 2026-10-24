@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Text, FlatList, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Company } from '../types';
+import { Company, MunicipalSubtype } from '../types';
 import { useTheme } from '../context/ThemeContext';
 import { useResponsive } from '../hooks/useResponsive';
 import { useCompanies } from '../hooks/useCompanies';
@@ -21,8 +21,11 @@ import CityFormSheet from '../components/companies/CityFormSheet';
 import { cityName } from '../components/companies/cityOptions';
 import ActionSheet from '../components/ActionSheet';
 import { getCompanyStats } from '../components/companies/companyStats';
-import { CalendarType } from '../config/calendarTypes';
+import { CalendarSelection } from '../components/companies/calendarSelection';
 import { MainTabScreenProps } from '../navigation/types';
+
+// Referencia estable: el selector reinicia su selección cuando cambia la lista
+const NO_SUBTYPES: MunicipalSubtype[] = [];
 
 export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Companies'>) {
   const { isDark } = useTheme();
@@ -108,10 +111,10 @@ export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Comp
     return result.ok;
   };
 
-  const handleSaveCalendars = async (selectedCalendars: CalendarType[]) => {
+  const handleSaveCalendars = async (selection: CalendarSelection) => {
     if (!selectedCompanyForCalendars) return;
     // Si falla, saveCalendars lanza el error y el selector lo muestra sin cerrarse
-    await saveCalendars(selectedCompanyForCalendars, selectedCalendars);
+    await saveCalendars(selectedCompanyForCalendars, selection);
     showSnackbar({ message: 'Calendarios guardados. Los recordatorios se regeneraron.' });
   };
 
@@ -279,6 +282,10 @@ export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Comp
         <CalendarSelector
           company={selectedCompanyForCalendars}
           availableCalendars={availableCalendars}
+          municipalSubtypes={
+            cities.find(city => city.id === selectedCompanyForCalendars.cityId)?.municipalSubtypes ??
+            NO_SUBTYPES
+          }
           visible={showCalendarSelector}
           onClose={() => {
             setShowCalendarSelector(false);

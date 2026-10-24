@@ -9,13 +9,24 @@ export interface Company {
   name: string;
   nit: string;
   cityId?: string;
-    calendarTypes?: CalendarType[];
+  calendarTypes?: CalendarType[];
+  /** Subtipos municipales elegidos; sin definir = todos los de su ciudad */
+  municipalSubtypeIds?: string[];
   createdAt: Date | string;
 }
 
 export interface City {
   id: string;
   name: string;
+  /** Impuestos municipales de la ciudad (los backends antiguos no los envían) */
+  municipalSubtypes?: MunicipalSubtype[];
+}
+
+/** Calendario municipal concreto de una ciudad (ICA, predial…) */
+export interface MunicipalSubtype {
+  id: string;
+  name: string;
+  description?: string;
 }
 
 export interface Reminder {
