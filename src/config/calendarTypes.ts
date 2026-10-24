@@ -17,6 +17,7 @@ export type CalendarType =
   | 'NOMINA_ELECTRONICA'
   | 'NOMINA_QUINCENAL'
   | 'NOMINA_MENSUAL'
+  | 'SEGURIDAD_SOCIAL'
   | 'IMPUESTOS_MUNICIPALES';
 
 /**
@@ -174,6 +175,17 @@ export const CALENDAR_CONFIGS: Record<CalendarType, CalendarConfig> = {
     usesLastDigit: false,
     variableName: 'nominaMensualCalendar',
   },
+  SEGURIDAD_SOCIAL: {
+    id: 'SEGURIDAD_SOCIAL',
+    name: 'Aportes a Seguridad Social (PILA)',
+    description:
+      'Pago mensual de salud, pensión, riesgos laborales y parafiscales, del 2.º al 16.º día hábil según los dos últimos dígitos del NIT',
+    expectedPeriods: 12,
+    periodType: 'mensual',
+    usesLastDigit: false,
+    usesLastTwoDigits: true,
+    variableName: 'seguridadSocialCalendar',
+  },
   IMPUESTOS_MUNICIPALES: {
     id: 'IMPUESTOS_MUNICIPALES',
     name: 'Impuestos Municipales',
@@ -186,3 +198,6 @@ export const CALENDAR_CONFIGS: Record<CalendarType, CalendarConfig> = {
   },
 };
 
+/** Si la app conoce el tipo: el backend puede ofrecer calendarios añadidos después de esta versión */
+export const isKnownCalendarType = (type: string): type is CalendarType =>
+  Object.prototype.hasOwnProperty.call(CALENDAR_CONFIGS, type);

@@ -1,3 +1,4 @@
+import { isKnownCalendarType } from '../src/config/calendarTypes';
 import {
   MUNICIPAL_CALENDAR,
   buildCalendarSelection,
@@ -62,5 +63,17 @@ describe('buildCalendarSelection', () => {
     expect(buildCalendarSelection([MUNICIPAL_CALENDAR], ['borrado'], subtypes)).toEqual({
       calendarTypes: [],
     });
+  });
+});
+
+describe('isKnownCalendarType', () => {
+  it('reconoce los tipos de la app, incluida la seguridad social', () => {
+    expect(isKnownCalendarType('SEGURIDAD_SOCIAL')).toBe(true);
+    expect(isKnownCalendarType('IVA_BIMESTRAL')).toBe(true);
+  });
+
+  it('descarta los tipos que esta versión no conoce', () => {
+    expect(isKnownCalendarType('CALENDARIO_FUTURO')).toBe(false);
+    expect(isKnownCalendarType('toString')).toBe(false);
   });
 });

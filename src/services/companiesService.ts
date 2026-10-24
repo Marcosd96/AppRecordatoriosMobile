@@ -1,6 +1,6 @@
 import fetchAPI, { API_ENDPOINTS } from '../config/api';
 import { Company, City } from '../types';
-import { CalendarType } from '../config/calendarTypes';
+import { CalendarType, isKnownCalendarType } from '../config/calendarTypes';
 
 export interface CreateCompanyData {
   name: string;
@@ -67,10 +67,12 @@ export const companiesService = {
    */
   async getAvailableCalendars(): Promise<CalendarType[]> {
     try {
-      const response = await fetchAPI<{ availableTypes: CalendarType[] }>(
-        API_ENDPOINTS.calendars
+      // v=2: la app ya admite los calendarios que la 1.7.x no conocía (seguridad social)
+      const response = await fetchAPI<{ availableTypes: string[] }>(
+        `${API_ENDPOINTS.calendars}?v=2`
       );
-      return response.availableTypes || [];
+      // Un tipo que esta versión no conoce no tiene nombre ni descripción: se omite
+      return (response.availableTypes || []).filter(isKnownCalendarType);
     } catch (error) {
       console.error('Error al obtener calendarios disponibles:', error);
       return [];
