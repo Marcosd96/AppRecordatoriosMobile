@@ -26,10 +26,10 @@ Cada entrada indica su estado:
 | `FilterChips` | Existe | `components/FilterChips.tsx` | Filtrar una lista por una dimensión, con recuento |
 | `SegmentedControl` | Existe | `components/SegmentedControl.tsx` | 2–4 opciones excluyentes dentro de un formulario o ajuste |
 | `StatusBadge` | Existe | `components/StatusBadge.tsx` | Insignia de estado o categoría, con tonos por rol |
-| `FormSheet` + `FormField` | Existe | `components/FormSheet.tsx` | Crear/editar. Hoja inferior en móvil, diálogo centrado en tablet, acciones fijas al pie |
+| `FormSheet` + `FormField` | Existe | `components/FormSheet.tsx` | Crear/editar. Hoja inferior en móvil (se cierra también arrastrándola hacia abajo desde el asa o la cabecera, `useSheetDrag`), diálogo centrado en tablet, acciones fijas al pie |
 | `inputClassName` / `placeholderColor` | Existe | `components/FormSheet.tsx` | Estilo de `TextInput` en formularios |
 | `StyledModal` | Existe | `components/StyledModal.tsx` | Diálogo M3: confirmaciones destructivas y errores que bloquean |
-| `ActionSheet` | Existe | `components/ActionSheet.tsx` | Acciones secundarias de un elemento (⋮): hoja inferior con filas de 56 dp, agrupables con título. La acción se ejecuta al terminar de cerrarse |
+| `ActionSheet` | Existe | `components/ActionSheet.tsx` | Acciones secundarias de un elemento (⋮): hoja inferior con filas de 56 dp, agrupables con título; se cierra arrastrándola hacia abajo. La acción se ejecuta al terminar de cerrarse |
 | `Snackbar` | Existe | `context/SnackbarContext.tsx` | Confirmar un éxito y ofrecer "Deshacer": `useSnackbar().showSnackbar({ message, actionLabel?, onAction? })`. Disponible en las pestañas (`SnackbarProvider` en `MainTabs`) |
 | `EmptyState` | Existe | `components/EmptyState.tsx` | Lista sin elementos o sin resultados por filtro |
 | `ErrorState` | Existe | `components/ErrorState.tsx` | Error de carga sin caché: mensaje + "Reintentar", en el lugar de la lista |

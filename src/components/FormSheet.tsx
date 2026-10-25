@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  Animated,
   View,
   Text,
   ScrollView,
@@ -10,6 +11,7 @@ import {
 } from 'react-native';
 import { useResponsive } from '../hooks/useResponsive';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useSheetDrag } from '../hooks/useSheetDrag';
 import IconButton from './IconButton';
 import { CloseIcon } from './icons/ActionIcons';
 
@@ -28,7 +30,8 @@ interface FormSheetProps {
 
 /**
  * Hoja inferior para formularios (en tablet, centrada): cabecera con título y botón
- * de cerrar, contenido desplazable y acciones fijas al pie.
+ * de cerrar, contenido desplazable y acciones fijas al pie. En móvil se cierra también
+ * arrastrándola hacia abajo desde el asa o la cabecera.
  */
 export default function FormSheet({
   visible,
@@ -44,6 +47,13 @@ export default function FormSheet({
   const { isTablet } = responsive;
   // La hoja sube desde abajo; con "Reducir movimiento", solo se funde
   const reduceMotion = useReducedMotion();
+  // Mientras se guarda (closeDisabled) se puede arrastrar, pero vuelve a su sitio
+  const { sheetStyle, dragHandlers, onLayout } = useSheetDrag({
+    visible,
+    onClose,
+    disabled: closeDisabled,
+    enabled: !isTablet,
+  });
 
   return (
     <Modal
@@ -57,51 +67,56 @@ export default function FormSheet({
         className="flex-1"
       >
         <View className={`flex-1 bg-black/50 ${isTablet ? 'justify-center px-8' : 'justify-end'}`}>
-          <View
+          <Animated.View
             className={`w-full self-center ${isTablet ? 'rounded-3xl' : 'rounded-t-3xl'} ${
               isDark ? 'bg-gray-900' : 'bg-white'
             }`}
             style={[
               styles.sheet,
               isTablet && { maxWidth: Math.min(responsive.width * 0.8, 640) },
+              sheetStyle,
             ]}
+            onLayout={onLayout}
           >
-            {/* Asa: indica que es una hoja */}
-            {!isTablet && (
-              <View className="items-center pt-2">
-                <View className={`h-1 w-10 rounded-full ${isDark ? 'bg-gray-700' : 'bg-gray-300'}`} />
-              </View>
-            )}
+            {/* Asa y cabecera: desde aquí se arrastra la hoja (el contenido se desplaza) */}
+            <View {...dragHandlers}>
+              {/* Asa: indica que la hoja se puede bajar */}
+              {!isTablet && (
+                <View className="items-center pt-2">
+                  <View className={`h-1 w-10 rounded-full ${isDark ? 'bg-gray-700' : 'bg-gray-300'}`} />
+                </View>
+              )}
 
-            <View
-              className={`flex-row items-start border-b ${
-                isDark ? 'border-gray-800' : 'border-gray-100'
-              }`}
-              style={{
-                paddingHorizontal: responsive.spacing.lg,
-                paddingTop: responsive.spacing.md,
-                paddingBottom: responsive.spacing.md,
-              }}
-            >
-              <View className="flex-1 pr-4">
-                <Text
-                  accessibilityRole="header"
-                  className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}
-                >
-                  {title}
-                </Text>
-                {subtitle ? (
-                  <Text className={`text-sm mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    {subtitle}
+              <View
+                className={`flex-row items-start border-b ${
+                  isDark ? 'border-gray-800' : 'border-gray-100'
+                }`}
+                style={{
+                  paddingHorizontal: responsive.spacing.lg,
+                  paddingTop: responsive.spacing.md,
+                  paddingBottom: responsive.spacing.md,
+                }}
+              >
+                <View className="flex-1 pr-4">
+                  <Text
+                    accessibilityRole="header"
+                    className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}
+                  >
+                    {title}
                   </Text>
-                ) : null}
+                  {subtitle ? (
+                    <Text className={`text-sm mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      {subtitle}
+                    </Text>
+                  ) : null}
+                </View>
+                <IconButton
+                  accessibilityLabel="Cerrar"
+                  onPress={onClose}
+                  disabled={closeDisabled}
+                  renderIcon={color => <CloseIcon color={color} />}
+                />
               </View>
-              <IconButton
-                accessibilityLabel="Cerrar"
-                onPress={onClose}
-                disabled={closeDisabled}
-                renderIcon={color => <CloseIcon color={color} />}
-              />
             </View>
 
             <ScrollView
@@ -126,7 +141,7 @@ export default function FormSheet({
             >
               {footer}
             </View>
-          </View>
+          </Animated.View>
         </View>
       </KeyboardAvoidingView>
     </Modal>

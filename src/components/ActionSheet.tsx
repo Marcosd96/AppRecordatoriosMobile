@@ -1,9 +1,10 @@
 import React from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { useThemeColors } from '../theme/colors';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useSheetDrag } from '../hooks/useSheetDrag';
 import { useFocusRing } from '../hooks/useFocusRing';
 import FocusRing from './FocusRing';
 
@@ -68,6 +69,8 @@ export default function ActionSheet({ visible, title, groups, onClose }: ActionS
   const insets = useSafeAreaInsets();
   // La hoja sube desde abajo; con "Reducir movimiento", solo se funde
   const reduceMotion = useReducedMotion();
+  // También se cierra arrastrándola hacia abajo desde el asa o el título
+  const { sheetStyle, dragHandlers, onLayout } = useSheetDrag({ visible, onClose });
 
   const select = (action: SheetAction) => {
     onClose();
@@ -89,21 +92,25 @@ export default function ActionSheet({ visible, title, groups, onClose }: ActionS
           accessibilityRole="button"
           accessibilityLabel="Cerrar"
         />
-        <View
+        <Animated.View
           accessibilityViewIsModal
           className={`w-full self-center rounded-t-3xl pt-2 ${isDark ? 'bg-gray-900' : 'bg-white'}`}
-          style={[styles.sheet, { paddingBottom: insets.bottom + 8 }]}
+          style={[styles.sheet, { paddingBottom: insets.bottom + 8 }, sheetStyle]}
+          onLayout={onLayout}
         >
-          <View className="items-center mb-2">
-            <View className={`h-1 w-10 rounded-full ${isDark ? 'bg-gray-700' : 'bg-gray-300'}`} />
+          {/* Asa y título: desde aquí se arrastra la hoja */}
+          <View {...dragHandlers}>
+            <View className="items-center mb-2">
+              <View className={`h-1 w-10 rounded-full ${isDark ? 'bg-gray-700' : 'bg-gray-300'}`} />
+            </View>
+            <Text
+              accessibilityRole="header"
+              numberOfLines={2}
+              className={`px-6 pt-2 pb-3 text-base font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}
+            >
+              {title}
+            </Text>
           </View>
-          <Text
-            accessibilityRole="header"
-            numberOfLines={2}
-            className={`px-6 pt-2 pb-3 text-base font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}
-          >
-            {title}
-          </Text>
 
           {groups
             .filter(group => group.actions.length > 0)
@@ -122,7 +129,7 @@ export default function ActionSheet({ visible, title, groups, onClose }: ActionS
                 ))}
               </View>
             ))}
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
