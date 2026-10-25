@@ -2,6 +2,7 @@ import {
   filterReminders,
   getReminderState,
   getReminderStats,
+  summarizeReminders,
   toggledReminder,
 } from '../src/components/reminders/reminderFilters';
 import { Reminder } from '../src/types';
@@ -96,6 +97,17 @@ describe('getReminderStats', () => {
   it('cuenta como vencido un pendiente con la fecha pasada', () => {
     const items = [...list, reminder({ id: 'late-date', dueDate: daysFromNow(-1) })];
     expect(getReminderStats(items, now)).toEqual({ total: 5, pending: 2, overdue: 2, upcoming: 1 });
+  });
+});
+
+describe('summarizeReminders', () => {
+  it('resume vencidos y pendientes, o "Todo al día"', () => {
+    expect(summarizeReminders({ total: 4, pending: 2, overdue: 1, upcoming: 1 })).toBe(
+      '1 vencido · 2 pendientes',
+    );
+    expect(summarizeReminders({ total: 3, pending: 1, overdue: 0, upcoming: 1 })).toBe('1 pendiente');
+    expect(summarizeReminders({ total: 3, pending: 0, overdue: 0, upcoming: 0 })).toBe('Todo al día');
+    expect(summarizeReminders({ total: 0, pending: 0, overdue: 0, upcoming: 0 })).toBeUndefined();
   });
 });
 

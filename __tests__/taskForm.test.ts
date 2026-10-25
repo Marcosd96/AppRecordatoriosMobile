@@ -10,6 +10,8 @@ import {
   formatRecurrence,
   formatReminderLead,
   getNextRoundedHour,
+  isPresetLead,
+  summarizeTasks,
   isTaskOverdue,
   serializeTaskForm,
   validateTaskForm,
@@ -168,6 +170,12 @@ describe('formatRecurrence y formatReminderLead', () => {
     expect(formatReminderLead({ ...base, reminderMinutes: 15 })).toBe('Aviso 15 min antes');
     expect(formatReminderLead({ ...base, reminderEnabled: false })).toBe('Sin aviso');
   });
+
+  it('expresa la antelación en días cuando es exacta', () => {
+    expect(formatReminderLead({ ...base, reminderMinutes: 1440 })).toBe('Aviso 1 día antes');
+    expect(formatReminderLead({ ...base, reminderMinutes: 4320 })).toBe('Aviso 3 días antes');
+    expect(formatReminderLead({ ...base, reminderMinutes: 90 })).toBe('Aviso 90 min antes');
+  });
 });
 
 describe('filterTasks', () => {
@@ -222,5 +230,38 @@ describe('completedTaskPreview', () => {
     expect(new Date(preview.nextOccurrence!).getTime()).toBe(
       new Date('2026-05-05T09:00:00.000Z').getTime(),
     );
+  });
+});
+
+describe('isPresetLead', () => {
+  it('reconoce las antelaciones de un toque', () => {
+    expect(isPresetLead('15')).toBe(true);
+    expect(isPresetLead('1440')).toBe(true);
+    expect(isPresetLead('90')).toBe(false);
+    expect(isPresetLead('')).toBe(false);
+  });
+});
+
+describe('summarizeTasks', () => {
+  const at = (id: string, status: PersonalTask['status'], startDate: string) => ({
+    ...task,
+    id,
+    status,
+    startDate,
+    nextOccurrence: null,
+  });
+
+  it('cuenta activas y atrasadas', () => {
+    const tasks = [
+      at('a', 'active', '2026-03-01T10:00:00'),
+      at('b', 'active', '2026-03-10T10:00:00'),
+      at('c', 'completed', '2026-02-01T10:00:00'),
+    ];
+    expect(summarizeTasks(tasks, NOW)).toBe('2 activas · 1 atrasada');
+  });
+
+  it('sin tareas no hay subtítulo; sin activas, lo dice', () => {
+    expect(summarizeTasks([], NOW)).toBeUndefined();
+    expect(summarizeTasks([at('c', 'completed', '2026-02-01T10:00:00')], NOW)).toBe('Sin tareas activas');
   });
 });

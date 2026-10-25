@@ -185,12 +185,43 @@ export const formatRecurrence = (task: PersonalTask): string | null => {
     : `Cada ${interval} ${units[1]}`;
 };
 
-/** "Aviso 15 min antes", "Aviso 2 h antes" o "Sin aviso" */
-export const formatReminderLead = (task: PersonalTask): string => {
-  if (!task.reminderEnabled) return 'Sin aviso';
-  const minutes = task.reminderMinutes;
-  if (minutes >= 60 && minutes % 60 === 0) return `Aviso ${minutes / 60} h antes`;
-  return `Aviso ${minutes} min antes`;
+const MINUTES_PER_DAY = 24 * 60;
+
+/** Antelación en texto corto: "15 min", "2 h", "1 día", "3 días" */
+export const formatLeadTime = (minutes: number): string => {
+  if (minutes >= MINUTES_PER_DAY && minutes % MINUTES_PER_DAY === 0) {
+    const days = minutes / MINUTES_PER_DAY;
+    return `${days} día${days === 1 ? '' : 's'}`;
+  }
+  if (minutes >= 60 && minutes % 60 === 0) return `${minutes / 60} h`;
+  return `${minutes} min`;
+};
+
+/** "Aviso 15 min antes", "Aviso 1 día antes" o "Sin aviso" */
+export const formatReminderLead = (task: PersonalTask): string =>
+  task.reminderEnabled ? `Aviso ${formatLeadTime(task.reminderMinutes)} antes` : 'Sin aviso';
+
+/**
+ * Antelaciones habituales del aviso, a un toque en el formulario. Un contador piensa en
+ * "un día antes", no en 1440 minutos; el resto se escribe en "Otro".
+ */
+export const REMINDER_LEAD_PRESETS = [15, 60, MINUTES_PER_DAY] as const;
+
+export const isPresetLead = (minutes: string): boolean =>
+  (REMINDER_LEAD_PRESETS as readonly number[]).includes(Number(minutes));
+
+/**
+ * Subtítulo de la pestaña: tareas activas y atrasadas. Sin tareas no hay subtítulo (el
+ * estado vacío ya lo explica).
+ */
+export const summarizeTasks = (tasks: PersonalTask[], now: Date = new Date()): string | undefined => {
+  if (tasks.length === 0) return undefined;
+  const active = tasks.filter(task => task.status === 'active').length;
+  const overdue = tasks.filter(task => isTaskOverdue(task, now)).length;
+  if (active === 0) return 'Sin tareas activas';
+  const parts = [`${active} activa${active === 1 ? '' : 's'}`];
+  if (overdue > 0) parts.push(`${overdue} atrasada${overdue === 1 ? '' : 's'}`);
+  return parts.join(' · ');
 };
 
 const isClosed = (task: PersonalTask) => task.status === 'completed' || task.status === 'cancelled';

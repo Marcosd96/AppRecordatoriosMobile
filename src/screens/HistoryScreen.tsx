@@ -1,11 +1,13 @@
 import React, { useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { usePersonalTasksQuery, useRemindersQuery } from '../hooks/queries';
 import { HISTORY_MONTHS, HistoryEntry, buildHistory } from '../components/history/historyStats';
 import MonthlyChart, { LATE_COLOR, ON_TIME_COLOR } from '../components/history/MonthlyChart';
 import EmptyState from '../components/EmptyState';
+import ListGroup from '../components/ListGroup';
+import ListRow from '../components/ListRow';
 import LoadingScreen from '../components/LoadingScreen';
 import { CheckIcon } from '../components/icons/ActionIcons';
 import StackHeader from '../components/StackHeader';
@@ -29,35 +31,15 @@ function StatTile({ isDark, value, label }: { isDark: boolean; value: string; la
   );
 }
 
-function EntryRow({ isDark, entry, onPress }: { isDark: boolean; entry: HistoryEntry; onPress: () => void }) {
-  const badge =
-    entry.onTime === undefined
-      ? null
-      : { label: entry.onTime ? 'A tiempo' : 'Tarde', color: entry.onTime ? ON_TIME_COLOR : LATE_COLOR };
-
+/** "A tiempo" / "Tarde" a la derecha de la fila, con el color de la gráfica */
+function OnTimeBadge({ isDark, onTime }: { isDark: boolean; onTime: boolean }) {
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      accessibilityRole="button"
-      className={`flex-row items-center p-3 rounded-xl mb-2 border ${
-        isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-      }`}
-    >
-      <View className="flex-1">
-        <Text className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`} numberOfLines={1}>
-          {entry.title}
-        </Text>
-        <Text className={`text-xs mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} numberOfLines={1}>
-          {entry.kind === 'task' ? 'Tarea' : entry.subtitle} · {dayFormat.format(entry.completedAt)}
-        </Text>
-      </View>
-      {badge && (
-        <View className="flex-row items-center ml-3">
-          <View style={[styles.dot, { backgroundColor: badge.color }]} />
-          <Text className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>{badge.label}</Text>
-        </View>
-      )}
-    </TouchableOpacity>
+    <View className="flex-row items-center">
+      <View style={[styles.dot, { backgroundColor: onTime ? ON_TIME_COLOR : LATE_COLOR }]} />
+      <Text className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+        {onTime ? 'A tiempo' : 'Tarde'}
+      </Text>
+    </View>
   );
 }
 
@@ -148,18 +130,25 @@ export default function HistoryScreen({ navigation }: RootStackScreenProps<'Hist
             </View>
 
             {groups.map(group => (
-              <View key={group.title}>
-                <Text className="text-xs font-bold mb-3 mt-2 uppercase tracking-wide text-gray-500">
-                  {group.title}
-                </Text>
-                {group.entries.map(entry => (
-                  <EntryRow
-                    key={`${entry.kind}-${entry.id}-${entry.completedAt.getTime()}`}
-                    isDark={isDark}
-                    entry={entry}
-                    onPress={() => openEntry(entry)}
-                  />
-                ))}
+              <View key={group.title} style={styles.group}>
+                <ListGroup title={group.title}>
+                  {group.entries.map((entry, index) => (
+                    <ListRow
+                      key={`${entry.kind}-${entry.id}-${entry.completedAt.getTime()}`}
+                      divider={index > 0}
+                      title={entry.title}
+                      subtitle={`${entry.kind === 'task' ? 'Tarea' : entry.subtitle} · ${dayFormat.format(
+                        entry.completedAt,
+                      )}`}
+                      trailing={
+                        entry.onTime === undefined ? null : (
+                          <OnTimeBadge isDark={isDark} onTime={entry.onTime} />
+                        )
+                      }
+                      onPress={() => openEntry(entry)}
+                    />
+                  ))}
+                </ListGroup>
               </View>
             ))}
           </>
@@ -173,5 +162,6 @@ const styles = StyleSheet.create({
   content: { padding: 16, paddingBottom: 32 },
   tiles: { gap: 8, marginBottom: 12 },
   chartCard: { marginBottom: 16 },
+  group: { marginBottom: 16 },
   dot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
 });

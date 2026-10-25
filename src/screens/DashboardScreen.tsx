@@ -10,6 +10,7 @@ import Button from '../components/Button';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import IconButton from '../components/IconButton';
+import ListGroup from '../components/ListGroup';
 import ListRow from '../components/ListRow';
 import LoadingScreen from '../components/LoadingScreen';
 import ScreenHeader from '../components/ScreenHeader';
@@ -52,19 +53,6 @@ function SectionHeader({
       {actionLabel && onAction ? (
         <Button label={actionLabel} onPress={onAction} variant="text" />
       ) : null}
-    </View>
-  );
-}
-
-function ListGroup({ children }: { children: React.ReactNode }) {
-  const { isDark } = useTheme();
-  return (
-    <View
-      className={`rounded-2xl border overflow-hidden ${
-        isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-      }`}
-    >
-      {children}
     </View>
   );
 }

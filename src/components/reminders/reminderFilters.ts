@@ -96,6 +96,24 @@ export function getReminderStats(reminders: Reminder[], now: Date = new Date()):
   };
 }
 
+const count = (n: number, singular: string, pluralForm: string) =>
+  `${n} ${n === 1 ? singular : pluralForm}`;
+
+/**
+ * Subtítulo de la pestaña: el estado, no una descripción. Sin recordatorios no hay
+ * subtítulo (el estado vacío ya lo explica).
+ */
+export function summarizeReminders(stats: ReminderStats): string | undefined {
+  if (stats.total === 0) {
+    return undefined;
+  }
+  const parts = [
+    stats.overdue > 0 ? count(stats.overdue, 'vencido', 'vencidos') : null,
+    stats.pending > 0 ? count(stats.pending, 'pendiente', 'pendientes') : null,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(' · ') : 'Todo al día';
+}
+
 /**
  * Estado que tendrá el recordatorio al alternarlo, para mostrarlo antes de que responda el
  * servidor. Al reabrir uno con la fecha pasada queda vencido.

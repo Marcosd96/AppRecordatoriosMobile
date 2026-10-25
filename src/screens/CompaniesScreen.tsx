@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Text, FlatList, RefreshControl } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Text, View, FlatList, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Company, MunicipalSubtype } from '../types';
 import { useTheme } from '../context/ThemeContext';
@@ -20,7 +20,14 @@ import CompanyCard from '../components/companies/CompanyCard';
 import CityFormSheet from '../components/companies/CityFormSheet';
 import { cityName } from '../components/companies/cityOptions';
 import ActionSheet from '../components/ActionSheet';
-import { getCompanyStats } from '../components/companies/companyStats';
+import {
+  COMPANY_SEARCH_MIN,
+  filterCompanies,
+  getCompanyStats,
+  summarizeCompanies,
+} from '../components/companies/companyStats';
+import SearchField from '../components/SearchField';
+import { SearchIcon } from '../components/icons/ActionIcons';
 import { CalendarSelection } from '../components/companies/calendarSelection';
 import { MainTabScreenProps } from '../navigation/types';
 
@@ -41,6 +48,7 @@ export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Comp
   // Empresa cuyas acciones secundarias están abiertas en la hoja
   const [actionsCompany, setActionsCompany] = useState<Company | null>(null);
   const [cityCompany, setCityCompany] = useState<Company | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const showMessage = (message: UserMessage) => {
     setModalMessage(message);
@@ -66,6 +74,12 @@ export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Comp
     retry,
   } = useCompanies();
   const { showSnackbar } = useSnackbar();
+
+  const visibleCompanies = useMemo(
+    () => filterCompanies(companies, reminders, searchQuery),
+    [companies, reminders, searchQuery],
+  );
+  const showSearch = companies.length >= COMPANY_SEARCH_MIN || searchQuery !== '';
 
   const handleAddCompany = async (name: string, nit: string, cityId: string | null) => {
     if (!name || !nit) {
@@ -138,11 +152,7 @@ export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Comp
       <ScreenHeader
         isDark={isDark}
         title="Empresas"
-        subtitle={
-          companies.length > 0
-            ? `${companies.length} cliente${companies.length === 1 ? '' : 's'}`
-            : 'Gestiona tus clientes'
-        }
+        subtitle={summarizeCompanies(companies, reminders)}
         right={
           <Button label="Nueva empresa" onPress={() => setShowAddForm(true)} />
         }
@@ -150,14 +160,28 @@ export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Comp
 
       <FlatList
         className="flex-1"
-        data={loadError ? [] : companies}
+        data={loadError ? [] : visibleCompanies}
         keyExtractor={company => company.id}
+        keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         contentContainerStyle={{
           paddingHorizontal: responsive.spacing.lg,
           paddingTop: responsive.spacing.md,
           paddingBottom: responsive.spacing.lg,
         }}
+        // Es un elemento, no un componente: así el buscador no pierde el foco al escribir
+        ListHeaderComponent={
+          showSearch && !loadError ? (
+            <View style={{ marginBottom: responsive.spacing.md }}>
+              <SearchField
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Buscar por nombre o NIT"
+                accessibilityLabel="Buscar empresas"
+              />
+            </View>
+          ) : null
+        }
         renderItem={({ item: company }) => (
           <CompanyCard
             company={company}
@@ -171,6 +195,15 @@ export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Comp
         ListEmptyComponent={
           loadError ? (
             <ErrorState message={loadError} onRetry={retry} retrying={retrying} />
+          ) : companies.length > 0 ? (
+            <EmptyState
+              isDark={isDark}
+              renderIcon={color => <SearchIcon color={color} size={28} />}
+              title="Ninguna empresa coincide"
+              message={`No hay empresas con "${searchQuery.trim()}" en el nombre o el NIT.`}
+              actionLabel="Limpiar búsqueda"
+              onAction={() => setSearchQuery('')}
+            />
           ) : (
             <EmptyState
               isDark={isDark}
@@ -184,7 +217,7 @@ export default function CompaniesScreen({ navigation }: MainTabScreenProps<'Comp
         }
         // En el estado vacío ya se explica
         ListFooterComponent={
-          companies.length > 0 && !loadError ? (
+          visibleCompanies.length > 0 && !loadError ? (
             <Text
               className={`text-xs text-center mx-6 mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
             >

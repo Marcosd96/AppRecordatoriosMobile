@@ -36,6 +36,7 @@ Cada entrada indica su estado:
 | `LoadingScreen` | Existe | `components/LoadingScreen.tsx` | Carga inicial sin caché |
 | `OfflineBanner` | Existe | `components/OfflineBanner.tsx` | Modo sin conexión (montado en `MainTabs`) |
 | `ListRow` | Existe | `components/ListRow.tsx` | Fila de lista (56 dp): título, subtítulo, chevron o contenido a la derecha; `destructive` y `divider`. Ajustes, enlaces de Inicio |
+| `ListGroup` | Existe | `components/ListGroup.tsx` | Contenedor con borde para un grupo de `ListRow` con divisores, con título de sección opcional. Inicio, Búsqueda, Historial |
 | `ReminderCard` | Existe | `components/reminders/ReminderCard.tsx` | Elemento de lista de recordatorios |
 | `TaskCard` | Existe | `components/personalTasks/TaskCard.tsx` | Elemento de lista de tareas: una acción visible + ⋮; tocarla edita |
 | `CompanyCard` | Existe | `components/companies/CompanyCard.tsx` | Elemento de lista de empresas: tocarla abre sus recordatorios; resto en ⋮ |

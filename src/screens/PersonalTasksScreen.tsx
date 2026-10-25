@@ -26,6 +26,7 @@ import {
   StatusFilter,
   TaskStatusAction,
   filterTasks,
+  summarizeTasks,
 } from '../components/personalTasks/taskForm';
 import { useTheme } from '../context/ThemeContext';
 import { useSnackbar } from '../context/SnackbarContext';
@@ -50,6 +51,8 @@ export default function PersonalTasksScreen({ route }: MainTabScreenProps<'Perso
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
+  // Se conserva al cerrar para que el texto no cambie durante la animación de salida
+  const [deleteTitle, setDeleteTitle] = useState('');
   // El mensaje se conserva al cerrar para que no se vacíe durante la animación de salida
   const [message, setMessage] = useState<FormMessage>({ title: '', message: '' });
   const [showMessageModal, setShowMessageModal] = useState(false);
@@ -176,7 +179,10 @@ export default function PersonalTasksScreen({ route }: MainTabScreenProps<'Perso
       edit: () => taskForm.openEdit(task),
       pause: () => changeStatus(task, 'pause'),
       cancel: () => changeStatus(task, 'cancel'),
-      remove: () => setTaskToDelete(task.id),
+      remove: () => {
+        setDeleteTitle(task.title);
+        setTaskToDelete(task.id);
+      },
       diagnose: runTool(diagnoseTaskNotification, task),
       reschedule: runTool(rescheduleTaskNotification, task),
       testIn2Minutes: runTool(scheduleTaskTestNotification, task),
@@ -195,7 +201,7 @@ export default function PersonalTasksScreen({ route }: MainTabScreenProps<'Perso
       <ScreenHeader
         isDark={isDark}
         title="Tareas"
-        subtitle="Organiza tus pendientes diarios"
+        subtitle={summarizeTasks(tasks)}
         right={
           <Button label="Nueva tarea" onPress={taskForm.openCreate} />
         }
@@ -299,7 +305,7 @@ export default function PersonalTasksScreen({ route }: MainTabScreenProps<'Perso
         visible={taskToDelete !== null}
         onClose={() => setTaskToDelete(null)}
         title="Eliminar tarea"
-        message="¿Estás seguro de que deseas eliminar esta tarea? Esta acción no se puede deshacer."
+        message={`Se eliminará «${deleteTitle}» y dejarás de recibir sus avisos. No se puede deshacer.`}
         buttons={[
           {
             text: 'Cancelar',
@@ -307,7 +313,7 @@ export default function PersonalTasksScreen({ route }: MainTabScreenProps<'Perso
             onPress: () => setTaskToDelete(null),
           },
           {
-            text: 'Eliminar',
+            text: 'Eliminar tarea',
             style: 'destructive',
             onPress: confirmDeleteTask,
           },

@@ -15,7 +15,11 @@ import FilterChips, { FilterChipOption } from '../components/FilterChips';
 import LoadingScreen from '../components/LoadingScreen';
 import ScreenHeader from '../components/ScreenHeader';
 import ReminderCard from '../components/reminders/ReminderCard';
-import { filterReminders, getReminderStats } from '../components/reminders/reminderFilters';
+import {
+  filterReminders,
+  getReminderStats,
+  summarizeReminders,
+} from '../components/reminders/reminderFilters';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import SearchField from '../components/SearchField';
@@ -139,11 +143,7 @@ export default function RemindersScreen({ route }: MainTabScreenProps<'Reminders
       <ScreenHeader
         isDark={isDark}
         title="Recordatorios"
-        subtitle={
-          stats.overdue > 0
-            ? `${stats.overdue} vencido${stats.overdue === 1 ? '' : 's'} · ${stats.pending} pendiente${stats.pending === 1 ? '' : 's'}`
-            : 'Gestiona tus obligaciones fiscales'
-        }
+        subtitle={summarizeReminders(stats)}
       />
 
       <FlatList

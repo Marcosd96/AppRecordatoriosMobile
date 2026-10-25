@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,15 @@ import Button from '../Button';
 import FormSheet, { FormField, inputClassName, placeholderColor } from '../FormSheet';
 import Segmented from '../SegmentedControl';
 import { RecurrenceType, TaskPriority } from '../../types';
-import { TaskFormField, TaskFormState, priorityLabels } from './taskForm';
+import { useThemeColors } from '../../theme/colors';
+import {
+  REMINDER_LEAD_PRESETS,
+  TaskFormField,
+  TaskFormState,
+  formatLeadTime,
+  isPresetLead,
+  priorityLabels,
+} from './taskForm';
 
 interface TaskFormModalProps {
   visible: boolean;
@@ -28,12 +36,16 @@ interface TaskFormModalProps {
   onSubmit: () => void;
 }
 
+// Los mismos roles que la insignia de prioridad de TaskCard (neutral, primary, warning, error),
+// en el tono más oscuro de cada uno para que el texto blanco contraste
 const priorityActiveStyles: Record<TaskPriority, string> = {
-  low: 'bg-emerald-600 border-emerald-600',
+  low: 'bg-gray-600 border-gray-600',
   medium: 'bg-blue-600 border-blue-600',
-  high: 'bg-orange-500 border-orange-500',
+  high: 'bg-amber-700 border-amber-700',
   urgent: 'bg-red-600 border-red-600',
 };
+
+const CUSTOM_LEAD = 'custom';
 
 const recurrenceLabels: Record<'daily' | 'weekly' | 'monthly', string> = {
   daily: 'Diaria',
@@ -61,6 +73,7 @@ function SwitchRow({
   value: boolean;
   onChange: (value: boolean) => void;
 }) {
+  const colors = useThemeColors();
   return (
     <View className="flex-row items-center justify-between">
       <View className="flex-1 pr-4">
@@ -75,8 +88,8 @@ function SwitchRow({
         value={value}
         onValueChange={onChange}
         accessibilityLabel={title}
-        trackColor={{ false: isDark ? '#374151' : '#e5e7eb', true: '#3b82f6' }}
-        thumbColor={value ? '#ffffff' : '#f3f4f6'}
+        trackColor={{ false: colors.outline, true: colors.primary }}
+        thumbColor={value ? colors.onPrimary : undefined}
       />
     </View>
   );
@@ -93,6 +106,16 @@ export default function TaskFormModal({
   onClose,
   onSubmit,
 }: TaskFormModalProps) {
+  const colors = useThemeColors();
+  // "Otro" se elige a mano; al abrir el formulario se deduce de la antelación guardada
+  const [customLead, setCustomLead] = useState(false);
+  useEffect(() => {
+    if (visible) {
+      setCustomLead(!isPresetLead(formState.reminderMinutes));
+    }
+    // Solo al abrir: después manda lo que elija el usuario
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
   const pickerButtonClass = `flex-1 py-3 rounded-xl border ${isDark ? 'bg-gray-800' : 'bg-gray-50'} ${
     errors?.startDate
       ? isDark ? 'border-red-300' : 'border-red-600'
@@ -100,9 +123,8 @@ export default function TaskFormModal({
   }`;
   const pickerLabelClass = `text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`;
   const pickerValueClass = `text-base font-semibold mt-0.5 ${isDark ? 'text-white' : 'text-gray-900'}`;
-  const sectionClass = `rounded-2xl border p-4 mb-5 ${
-    isDark ? 'border-gray-800' : 'border-gray-200'
-  }`;
+  // Bloques separados por un divisor, no por otra caja dentro de la hoja
+  const sectionClass = `border-t pt-4 mb-5 ${isDark ? 'border-gray-800' : 'border-gray-200'}`;
   const recurrenceKey =
     formState.recurrenceType === 'daily' ||
     formState.recurrenceType === 'weekly' ||
@@ -210,29 +232,50 @@ export default function TaskFormModal({
         <SwitchRow
           isDark={isDark}
           title="Recordatorio"
-          description="Notificar antes de la tarea"
+          description="Cuánto antes de la tarea quieres el aviso"
           value={formState.reminderEnabled}
           onChange={value => setFormState(prev => ({ ...prev, reminderEnabled: value }))}
         />
         {formState.reminderEnabled && (
-          <View className="flex-row items-center mt-3">
-            <TextInput
-              keyboardType="number-pad"
-              className={`${inputClassName(isDark)} w-24 text-center`}
-              placeholder="60"
-              placeholderTextColor={placeholderColor(isDark)}
-              value={formState.reminderMinutes}
-              accessibilityLabel="Minutos de antelación"
-              onChangeText={text =>
-                setFormState(prev => ({
-                  ...prev,
-                  reminderMinutes: text.replace(/[^0-9]/g, ''),
-                }))
-              }
+          <View className="mt-3">
+            <Segmented
+              isDark={isDark}
+              options={[
+                ...REMINDER_LEAD_PRESETS.map(minutes => ({
+                  key: String(minutes),
+                  label: formatLeadTime(minutes),
+                })),
+                { key: CUSTOM_LEAD, label: 'Otro' },
+              ]}
+              selected={customLead ? CUSTOM_LEAD : formState.reminderMinutes}
+              onSelect={key => {
+                setCustomLead(key === CUSTOM_LEAD);
+                if (key !== CUSTOM_LEAD) {
+                  setFormState(prev => ({ ...prev, reminderMinutes: key }));
+                }
+              }}
             />
-            <Text className={`ml-3 text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-              minutos antes
-            </Text>
+            {customLead && (
+              <View className="flex-row items-center mt-3">
+                <TextInput
+                  keyboardType="number-pad"
+                  className={`${inputClassName(isDark)} w-24 text-center`}
+                  placeholder="60"
+                  placeholderTextColor={placeholderColor(isDark)}
+                  value={formState.reminderMinutes}
+                  accessibilityLabel="Minutos de antelación"
+                  onChangeText={text =>
+                    setFormState(prev => ({
+                      ...prev,
+                      reminderMinutes: text.replace(/[^0-9]/g, ''),
+                    }))
+                  }
+                />
+                <Text className={`ml-3 text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                  minutos antes
+                </Text>
+              </View>
+            )}
           </View>
         )}
       </View>
@@ -258,7 +301,6 @@ export default function TaskFormModal({
               options={(['daily', 'weekly', 'monthly'] as const).map(type => ({
                 key: type,
                 label: recurrenceLabels[type],
-                activeClass: 'bg-purple-600 border-purple-600',
               }))}
               selected={recurrenceKey}
               onSelect={type =>
@@ -330,7 +372,7 @@ export default function TaskFormModal({
           }
         }}
         minimumDate={new Date()} // No permitir fechas pasadas
-        textColor={isDark ? '#ffffff' : '#000000'}
+        textColor={colors.onSurface}
       />
     )}
 
@@ -373,7 +415,7 @@ export default function TaskFormModal({
             }));
           }
         }}
-        textColor={isDark ? '#ffffff' : '#000000'}
+        textColor={colors.onSurface}
       />
     )}
     </>

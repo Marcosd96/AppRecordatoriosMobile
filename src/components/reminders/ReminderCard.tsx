@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleProp, ViewStyle } from 'react-native';
+import { AccessibilityActionEvent, View, Text, StyleProp, ViewStyle } from 'react-native';
 import { Reminder } from '../../types';
 import { formatDaysLabel, getDaysUntil } from '../dashboard/dashboardFormat';
 import Button from '../Button';
@@ -7,12 +7,9 @@ import StatusBadge, { BadgeTone } from '../StatusBadge';
 import { CheckIcon } from '../icons/ActionIcons';
 import { getReminderState } from './reminderFilters';
 
-const formatDate = (date: Date | string): string =>
-  new Intl.DateTimeFormat('es-CO', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  }).format(new Date(date));
+// En la tarjeta, corta para que fecha y días quepan en una línea; TalkBack lee la larga
+const shortDate = new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
+const longDate = new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
 
 interface ReminderCardProps {
   reminder: Reminder;
@@ -72,10 +69,36 @@ export default function ReminderCard({
     : 'normal';
   const styles = toneStyles(isDark)[tone];
   const isIva = reminder.type === 'IVA';
+  const dueDate = new Date(reminder.dueDate);
+  const daysLabel = formatDaysLabel(daysUntil).toLowerCase();
+  const actionLabel = isCompleted ? 'Marcar como pendiente' : 'Marcar como completado';
+
+  // TalkBack lee la tarjeta como un solo elemento; el botón se ofrece como acción
+  const accessibilityLabel = [
+    badges[tone].label,
+    reminder.type,
+    reminder.description,
+    reminder.companyName,
+    `vence el ${longDate.format(dueDate)}`,
+    isCompleted ? null : daysLabel,
+  ]
+    .filter(Boolean)
+    .join(', ');
+
+  const onAccessibilityAction = ({ nativeEvent }: AccessibilityActionEvent) => {
+    if (nativeEvent.actionName === 'toggle' && !busy) {
+      onToggleStatus(reminder.id);
+    }
+  };
 
   return (
     <View
       style={style}
+      accessible
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ busy }}
+      accessibilityActions={[{ name: 'toggle', label: actionLabel }]}
+      onAccessibilityAction={onAccessibilityAction}
       className={`flex-row rounded-2xl border mb-3 overflow-hidden ${
         isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
       } ${isCompleted ? 'opacity-70' : ''}`}
@@ -100,20 +123,14 @@ export default function ReminderCard({
           {reminder.companyName}
         </Text>
 
-        <View className="flex-row items-end justify-between mt-3">
-          <View className="flex-1 pr-3">
-            <Text className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-              Vencimiento
-            </Text>
-            <Text className={`text-sm font-medium ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
-              {formatDate(reminder.dueDate)}
-            </Text>
+        <View className="flex-row items-center justify-between mt-3">
+          {/* Fecha y días en una línea ("15 nov 2026 · en 3 días"): caben más en pantalla */}
+          <Text className={`flex-1 pr-3 text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+            {shortDate.format(dueDate)}
             {!isCompleted && (
-              <Text className={`text-sm font-bold mt-0.5 ${styles.days}`}>
-                {formatDaysLabel(daysUntil)}
-              </Text>
+              <Text className={`font-bold ${styles.days}`}> · {daysLabel}</Text>
             )}
-          </View>
+          </Text>
 
           {/* Acción de fila: tonal, no rellena (con 20 filas habría 20 acciones principales) */}
           <Button
@@ -122,7 +139,7 @@ export default function ReminderCard({
             variant={isCompleted ? 'secondary' : 'tonal'}
             renderIcon={isCompleted ? undefined : color => <CheckIcon color={color} size={16} />}
             busy={busy}
-            accessibilityLabel={isCompleted ? 'Marcar como pendiente' : 'Marcar como completado'}
+            accessibilityLabel={actionLabel}
           />
         </View>
       </View>
