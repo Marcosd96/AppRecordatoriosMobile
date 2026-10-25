@@ -1,7 +1,7 @@
 import { Reminder, ReminderFilter } from '../../types';
+import { getDaysUntil } from '../dashboard/dashboardFormat';
 
 const UPCOMING_DAYS = 30;
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 export interface ReminderQuery {
   filter: ReminderFilter;
@@ -16,22 +16,36 @@ export interface ReminderStats {
   upcoming: number;
 }
 
-/** Pendiente que vence entre ahora y dentro de 30 días */
+export type ReminderState = 'completed' | 'overdue' | 'pending';
+
+/**
+ * Estado que se muestra y se filtra (DESIGN_SYSTEM §2.2). Un pendiente con la fecha pasada
+ * cuenta como vencido aunque el servidor aún no lo haya marcado: así coinciden el chip
+ * "Vencidos", la insignia de la tarjeta y la sección de Inicio.
+ */
+export function getReminderState(reminder: Reminder, now: Date = new Date()): ReminderState {
+  if (reminder.status === 'completed') {
+    return 'completed';
+  }
+  return reminder.status === 'overdue' || getDaysUntil(reminder.dueDate, now) < 0
+    ? 'overdue'
+    : 'pending';
+}
+
+/** Pendiente que vence entre hoy y dentro de 30 días */
 export function isUpcoming(reminder: Reminder, now: Date = new Date()): boolean {
-  const due = new Date(reminder.dueDate).getTime();
   return (
-    reminder.status === 'pending' &&
-    due >= now.getTime() &&
-    due <= now.getTime() + UPCOMING_DAYS * DAY_MS
+    getReminderState(reminder, now) === 'pending' &&
+    getDaysUntil(reminder.dueDate, now) <= UPCOMING_DAYS
   );
 }
 
 function matchesFilter(reminder: Reminder, filter: ReminderFilter, now: Date): boolean {
   switch (filter) {
     case 'pending':
-      return reminder.status === 'pending';
+      return getReminderState(reminder, now) === 'pending';
     case 'overdue':
-      return reminder.status === 'overdue';
+      return getReminderState(reminder, now) === 'overdue';
     case 'upcoming':
       return isUpcoming(reminder, now);
     case 'all':
@@ -39,7 +53,13 @@ function matchesFilter(reminder: Reminder, filter: ReminderFilter, now: Date): b
   }
 }
 
-/** Recordatorios que cumplen los filtros, ordenados por fecha de vencimiento */
+const dueTime = (reminder: Reminder) => new Date(reminder.dueDate).getTime();
+
+/**
+ * Recordatorios que cumplen los filtros. Primero los abiertos, del que vence antes al que
+ * vence después; los completados van al final, el más reciente primero, para que lo ya hecho
+ * no tape lo urgente.
+ */
 export function filterReminders(
   reminders: Reminder[],
   { filter, companyId, search }: ReminderQuery,
@@ -55,15 +75,23 @@ export function filterReminders(
           reminder.description.toLowerCase().includes(query) ||
           reminder.companyName.toLowerCase().includes(query)),
     )
-    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+    .sort((a, b) => {
+      const aDone = a.status === 'completed';
+      const bDone = b.status === 'completed';
+      if (aDone !== bDone) {
+        return aDone ? 1 : -1;
+      }
+      return aDone ? dueTime(b) - dueTime(a) : dueTime(a) - dueTime(b);
+    });
 }
 
 /** Recuentos para los chips de filtro */
 export function getReminderStats(reminders: Reminder[], now: Date = new Date()): ReminderStats {
+  const states = reminders.map(r => getReminderState(r, now));
   return {
     total: reminders.length,
-    pending: reminders.filter(r => r.status === 'pending').length,
-    overdue: reminders.filter(r => r.status === 'overdue').length,
+    pending: states.filter(state => state === 'pending').length,
+    overdue: states.filter(state => state === 'overdue').length,
     upcoming: reminders.filter(r => isUpcoming(r, now)).length,
   };
 }
@@ -76,6 +104,6 @@ export function toggledReminder(reminder: Reminder, now: Date = new Date()): Rem
   if (reminder.status !== 'completed') {
     return { ...reminder, status: 'completed', completedAt: now.toISOString() };
   }
-  const isPastDue = new Date(reminder.dueDate).getTime() < now.getTime();
+  const isPastDue = getDaysUntil(reminder.dueDate, now) < 0;
   return { ...reminder, status: isPastDue ? 'overdue' : 'pending', completedAt: undefined };
 }

@@ -88,6 +88,113 @@ describe('usePersonalTasks: acciones en curso', () => {
   });
 });
 
+describe('usePersonalTasks: completar con "Deshacer"', () => {
+  const pending = {
+    id: 't3',
+    userId: 'u1',
+    title: 'Enviar soportes',
+    description: null,
+    isRecurring: false,
+    recurrenceType: 'once',
+    startDate: '2026-03-05T09:00:00.000Z',
+    status: 'active',
+    priority: 'medium',
+    reminderEnabled: false,
+    reminderMinutes: 0,
+    createdAt: '2026-03-01T09:00:00.000Z',
+    updatedAt: '2026-03-01T09:00:00.000Z',
+  } as const;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.useFakeTimers();
+    service.getAll.mockResolvedValue([pending]);
+    service.complete.mockResolvedValue(undefined);
+  });
+  afterEach(() => {
+    cleanups.splice(0).forEach(cleanup => cleanup());
+    jest.useRealTimers();
+  });
+
+  async function renderWithTask() {
+    const hook = renderTasksHook();
+    for (let attempt = 0; attempt < 20 && hook.current!.tasks.length === 0; attempt++) {
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(10);
+      });
+    }
+    return hook;
+  }
+
+  it('la muestra completada al momento y la envía al cerrarse el snackbar', async () => {
+    const hook = await renderWithTask();
+
+    let done: Promise<unknown> = Promise.resolve();
+    act(() => {
+      done = hook.current!.completeTask(pending).done;
+    });
+    expect(hook.current!.tasks[0].status).toBe('completed');
+    expect(service.complete).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(6000);
+      await done;
+    });
+    expect(service.complete).toHaveBeenCalledWith('t3');
+    expect(hook.current!.busyTaskIds.has('t3')).toBe(false);
+  });
+
+  it('"Deshacer" no envía nada y la tarea vuelve a estar activa', async () => {
+    const hook = await renderWithTask();
+
+    let action: { undo: () => void; done: Promise<unknown> } | null = null;
+    act(() => {
+      action = hook.current!.completeTask(pending);
+    });
+    await act(async () => {
+      action!.undo();
+      await action!.done;
+      await jest.advanceTimersByTimeAsync(6000);
+    });
+
+    expect(service.complete).not.toHaveBeenCalled();
+    expect(hook.current!.tasks[0].status).toBe('active');
+    expect(hook.current!.busyTaskIds.has('t3')).toBe(false);
+  });
+
+  it('si falla, la tarea vuelve a como estaba y se devuelve el error', async () => {
+    service.complete.mockRejectedValueOnce(new Error('sin red'));
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const hook = await renderWithTask();
+
+    let result: unknown;
+    await act(async () => {
+      const { done } = hook.current!.completeTask(pending);
+      await jest.advanceTimersByTimeAsync(6000);
+      result = await done;
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: { title: 'No se pudo completar la tarea', message: 'sin red' },
+    });
+    expect(hook.current!.tasks[0].status).toBe('active');
+    consoleError.mockRestore();
+  });
+
+  it('se envía ya si se sale de la pantalla antes de que acabe la espera', async () => {
+    const hook = await renderWithTask();
+    act(() => {
+      hook.current!.completeTask(pending);
+    });
+    await act(async () => {
+      cleanups.splice(0).forEach(cleanup => cleanup());
+      await jest.advanceTimersByTimeAsync(0);
+    });
+    expect(service.complete).toHaveBeenCalledWith('t3');
+  });
+});
+
 describe('usePersonalTasks: error de carga', () => {
   afterEach(() => cleanups.splice(0).forEach(cleanup => cleanup()));
 

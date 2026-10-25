@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   CreatePersonalTaskPayload,
@@ -8,7 +9,8 @@ import {
 
 import { queryKeys } from '../config/queryClient';
 import { PersonalTask } from '../types';
-import { TaskStatusAction } from '../components/personalTasks/taskForm';
+import { TaskStatusAction, completedTaskPreview } from '../components/personalTasks/taskForm';
+import { SNACKBAR_WITH_ACTION_DURATION_MS } from '../context/SnackbarContext';
 import { ActionResult, failure } from './actionResult';
 import { usePersonalTasksQuery, useRefetchOnFocus } from './queries';
 
@@ -34,7 +36,15 @@ export function usePersonalTasks() {
       ? (error as Error).message || 'No se pudieron cargar las tareas personales.'
       : null;
 
-  const tasks = useMemo(() => data ?? [], [data]);
+  // Tareas completadas que aún se pueden deshacer: se ven completadas, pero el envío espera
+  // a que se cierre el snackbar (la API no permite deshacer un completado)
+  const [completionPreviews, setCompletionPreviews] = useState<ReadonlyMap<string, PersonalTask>>(
+    new Map(),
+  );
+  const tasks = useMemo(
+    () => (data ?? []).map(task => completionPreviews.get(task.id) ?? task),
+    [data, completionPreviews],
+  );
 
   const reloadTasks = useCallback(
     () => queryClient.invalidateQueries({ queryKey: queryKeys.personalTasks }),
@@ -125,6 +135,82 @@ export function usePersonalTasks() {
     [reloadTasks, setTaskBusy],
   );
 
+  // Envío inmediato de cada completado que aún espera
+  const scheduledCompletions = useRef(new Map<string, () => void>());
+
+  // Si la app pasa a segundo plano o se sale de la pantalla, el completado se envía ya: no se
+  // pierde aunque el sistema cierre la app antes de que acabe la espera
+  useEffect(() => {
+    const flushAll = () => scheduledCompletions.current.forEach(commitNow => commitNow());
+    const subscription = AppState.addEventListener('change', state => {
+      if (state !== 'active') {
+        flushAll();
+      }
+    });
+    return () => {
+      subscription.remove();
+      flushAll();
+    };
+  }, []);
+
+  /**
+   * Completa una tarea dejando unos segundos para deshacerlo. El cambio se ve al momento; el
+   * envío espera lo que dura el snackbar con "Deshacer". `done` se resuelve al terminar (con
+   * error si el servidor lo rechaza, y la tarea vuelve a como estaba).
+   */
+  const completeTask = useCallback(
+    (task: PersonalTask): { undo: () => void; done: Promise<ActionResult> } => {
+      if (pendingUpdates.current.has(task.id)) {
+        return { undo: () => {}, done: Promise.resolve({ ok: true }) };
+      }
+      setTaskBusy(task.id, true);
+      setCompletionPreviews(prev => new Map(prev).set(task.id, completedTaskPreview(task)));
+
+      let decide: (commit: boolean) => void = () => {};
+      const decision = new Promise<boolean>(resolve => {
+        decide = resolve;
+      });
+      const timer = setTimeout(() => decide(true), SNACKBAR_WITH_ACTION_DURATION_MS);
+      scheduledCompletions.current.set(task.id, () => {
+        clearTimeout(timer);
+        decide(true);
+      });
+
+      const done = (async (): Promise<ActionResult> => {
+        const commit = await decision;
+        scheduledCompletions.current.delete(task.id);
+        try {
+          if (commit) {
+            // Si es recurrente, el backend calcula la próxima ocurrencia
+            await personalTasksService.complete(task.id);
+            await reloadTasks();
+          }
+          return { ok: true };
+        } catch (completeError) {
+          console.error('Error al completar tarea:', completeError);
+          return failure('No se pudo completar la tarea', completeError, 'Inténtalo de nuevo.');
+        } finally {
+          // Tras recargar, la caché ya tiene el estado real: quitar la vista previa no parpadea
+          setCompletionPreviews(prev => {
+            const next = new Map(prev);
+            next.delete(task.id);
+            return next;
+          });
+          setTaskBusy(task.id, false);
+        }
+      })();
+
+      return {
+        undo: () => {
+          clearTimeout(timer);
+          decide(false);
+        },
+        done,
+      };
+    },
+    [reloadTasks, setTaskBusy],
+  );
+
   const deleteTask = useCallback(
     async (id: string): Promise<ActionResult> => {
       if (pendingUpdates.current.has(id)) return { ok: true };
@@ -158,6 +244,7 @@ export function usePersonalTasks() {
     onRefresh,
     saveTask,
     updateTaskStatus,
+    completeTask,
     deleteTask,
   };
 }

@@ -1,5 +1,6 @@
 import { PersonalTask, RecurrenceType, TaskPriority, TaskStatus } from '../../types';
 import { CreatePersonalTaskPayload } from '../../services/personalTasksService';
+import { calculateNextValidOccurrence } from '../../services/notifications/recurrence';
 
 export type StatusFilter = TaskStatus | 'all';
 
@@ -192,7 +193,12 @@ export const formatReminderLead = (task: PersonalTask): string => {
   return `Aviso ${minutes} min antes`;
 };
 
-/** Tareas que cumplen el filtro de estado y la búsqueda, por fecha de la próxima ejecución */
+const isClosed = (task: PersonalTask) => task.status === 'completed' || task.status === 'cancelled';
+
+/**
+ * Tareas que cumplen el filtro de estado y la búsqueda. Primero las abiertas, por fecha de la
+ * próxima ejecución; las completadas y canceladas van al final, la más reciente primero.
+ */
 export const filterTasks = (
   tasks: PersonalTask[],
   statusFilter: StatusFilter,
@@ -208,5 +214,32 @@ export const filterTasks = (
           task.title.toLowerCase().includes(query) ||
           (task.description || '').toLowerCase().includes(query)),
     )
-    .sort((a, b) => time(a) - time(b));
+    .sort((a, b) => {
+      if (isClosed(a) !== isClosed(b)) {
+        return isClosed(a) ? 1 : -1;
+      }
+      return isClosed(a) ? time(b) - time(a) : time(a) - time(b);
+    });
+};
+
+/**
+ * Cómo queda una tarea al completarla, para mostrarlo mientras aún se puede deshacer. Una
+ * recurrente pasa a su siguiente ocurrencia (el servidor confirma la fecha al guardar); las
+ * demás quedan completadas.
+ */
+export const completedTaskPreview = (task: PersonalTask): PersonalTask => {
+  const current = new Date(task.nextOccurrence || task.startDate);
+  const next =
+    task.isRecurring && !isNaN(current.getTime())
+      ? calculateNextValidOccurrence(
+          current,
+          task.recurrenceType ?? 'once',
+          task.recurrenceInterval || 1,
+          current,
+          0,
+        )
+      : null;
+  return next
+    ? { ...task, nextOccurrence: next.toISOString() }
+    : { ...task, status: 'completed' };
 };

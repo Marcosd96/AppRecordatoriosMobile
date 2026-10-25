@@ -1,5 +1,6 @@
 import {
   filterReminders,
+  getReminderState,
   getReminderStats,
   toggledReminder,
 } from '../src/components/reminders/reminderFilters';
@@ -30,13 +31,34 @@ const list = [
 const ids = (items: Reminder[]) => items.map(r => r.id);
 
 describe('filterReminders', () => {
-  it('ordena por fecha de vencimiento', () => {
+  it('ordena por fecha de vencimiento, con los completados al final', () => {
     expect(ids(filterReminders(list, { filter: 'all', companyId: null, search: '' }, now))).toEqual([
-      'done',
       'late',
       'soon',
       'far',
+      'done',
     ]);
+  });
+
+  it('los completados van del más reciente al más antiguo', () => {
+    const done = [
+      reminder({ id: 'old', status: 'completed', dueDate: daysFromNow(-40) }),
+      reminder({ id: 'recent', status: 'completed', dueDate: daysFromNow(-2) }),
+    ];
+    expect(ids(filterReminders(done, { filter: 'all', companyId: null, search: '' }, now))).toEqual([
+      'recent',
+      'old',
+    ]);
+  });
+
+  it('un pendiente con la fecha pasada aparece en "Vencidos", no en "Pendientes"', () => {
+    const items = [...list, reminder({ id: 'late-date', dueDate: daysFromNow(-1) })];
+    const query = { companyId: null, search: '' };
+    expect(ids(filterReminders(items, { ...query, filter: 'overdue' }, now))).toEqual([
+      'late',
+      'late-date',
+    ]);
+    expect(ids(filterReminders(items, { ...query, filter: 'pending' }, now))).toEqual(['soon', 'far']);
   });
 
   it('"próximos" son solo pendientes de los siguientes 30 días', () => {
@@ -53,9 +75,27 @@ describe('filterReminders', () => {
   });
 });
 
+describe('getReminderState', () => {
+  it('usa el estado del servidor y, si sigue pendiente, la fecha', () => {
+    expect(getReminderState(list[0], now)).toBe('overdue');
+    expect(getReminderState(list[1], now)).toBe('pending');
+    expect(getReminderState(list[3], now)).toBe('completed');
+    expect(getReminderState(reminder({ dueDate: daysFromNow(-1) }), now)).toBe('overdue');
+  });
+
+  it('lo que vence hoy aún no está vencido', () => {
+    expect(getReminderState(reminder({ dueDate: now.toISOString() }), now)).toBe('pending');
+  });
+});
+
 describe('getReminderStats', () => {
   it('cuenta cada estado', () => {
     expect(getReminderStats(list, now)).toEqual({ total: 4, pending: 2, overdue: 1, upcoming: 1 });
+  });
+
+  it('cuenta como vencido un pendiente con la fecha pasada', () => {
+    const items = [...list, reminder({ id: 'late-date', dueDate: daysFromNow(-1) })];
+    expect(getReminderStats(items, now)).toEqual({ total: 5, pending: 2, overdue: 2, upcoming: 1 });
   });
 });
 

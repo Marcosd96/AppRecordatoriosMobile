@@ -5,6 +5,7 @@ import { formatDaysLabel, getDaysUntil } from '../dashboard/dashboardFormat';
 import Button from '../Button';
 import StatusBadge, { BadgeTone } from '../StatusBadge';
 import { CheckIcon } from '../icons/ActionIcons';
+import { getReminderState } from './reminderFilters';
 
 const formatDate = (date: Date | string): string =>
   new Intl.DateTimeFormat('es-CO', {
@@ -59,11 +60,12 @@ export default function ReminderCard({
   onToggleStatus,
   style,
 }: ReminderCardProps) {
-  const isCompleted = reminder.status === 'completed';
+  const state = getReminderState(reminder);
+  const isCompleted = state === 'completed';
   const daysUntil = getDaysUntil(reminder.dueDate);
   const tone: Tone = isCompleted
     ? 'done'
-    : reminder.status === 'overdue' || daysUntil < 0
+    : state === 'overdue'
     ? 'overdue'
     : daysUntil <= 7
     ? 'urgent'

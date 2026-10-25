@@ -70,6 +70,7 @@ export default function PersonalTasksScreen({ route }: MainTabScreenProps<'Perso
     onRefresh,
     saveTask,
     updateTaskStatus,
+    completeTask,
     deleteTask,
   } = usePersonalTasks();
   const taskForm = useTaskForm(saveTask);
@@ -125,12 +126,26 @@ export default function PersonalTasksScreen({ route }: MainTabScreenProps<'Perso
 
   const changeStatus = useCallback(
     async (task: PersonalTask, action: TaskStatusAction) => {
+      if (action === 'complete') {
+        // Se ve completada al momento y se envía al cerrarse el snackbar, salvo que se deshaga
+        const { undo, done } = completeTask(task);
+        showSnackbar({
+          message: statusChangeMessages.complete,
+          actionLabel: 'Deshacer',
+          onAction: undo,
+        });
+        const completed = await done;
+        if (!completed.ok) {
+          showMessage(completed.error);
+        }
+        return;
+      }
       const result = await updateTaskStatus(task.id, action);
       if (!result.ok) {
         showMessage(result.error);
         return;
       }
-      // Pausar y reanudar se pueden deshacer; completar y cancelar no tienen vuelta atrás en la API
+      // Pausar y reanudar se pueden deshacer; cancelar no tiene vuelta atrás en la API
       const undoAction = action === 'pause' ? 'resume' : action === 'resume' ? 'pause' : null;
       showSnackbar({
         message: statusChangeMessages[action],
@@ -145,7 +160,7 @@ export default function PersonalTasksScreen({ route }: MainTabScreenProps<'Perso
         }),
       });
     },
-    [updateTaskStatus, showMessage, showSnackbar],
+    [updateTaskStatus, completeTask, showMessage, showSnackbar],
   );
 
   const confirmDeleteTask = async () => {

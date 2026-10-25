@@ -3,6 +3,7 @@
  */
 
 import {
+  completedTaskPreview,
   createInitialFormState,
   filterTasks,
   formStateFromTask,
@@ -191,5 +192,35 @@ describe('filterTasks', () => {
 
   it('busca en título y descripción sin distinguir mayúsculas', () => {
     expect(filterTasks(tasks, 'all', ' contador ').map(t => t.id)).toEqual(['sooner']);
+  });
+
+  it('deja al final las cerradas, la más reciente primero', () => {
+    const all = [
+      make('old-done', 'completed', '2026-01-01T10:00:00'),
+      make('later', 'active', '2026-03-10T10:00:00'),
+      make('cancelled', 'cancelled', '2026-02-20T10:00:00'),
+      make('paused', 'paused', '2026-03-01T10:00:00'),
+    ];
+    expect(filterTasks(all, 'all', '').map(t => t.id)).toEqual([
+      'paused',
+      'later',
+      'cancelled',
+      'old-done',
+    ]);
+  });
+});
+
+describe('completedTaskPreview', () => {
+  it('una tarea única queda completada', () => {
+    const once = { ...task, isRecurring: false, recurrenceType: 'once' as const };
+    expect(completedTaskPreview(once).status).toBe('completed');
+  });
+
+  it('una recurrente pasa a su siguiente ocurrencia y sigue activa', () => {
+    const preview = completedTaskPreview(task);
+    expect(preview.status).toBe('active');
+    expect(new Date(preview.nextOccurrence!).getTime()).toBe(
+      new Date('2026-05-05T09:00:00.000Z').getTime(),
+    );
   });
 });

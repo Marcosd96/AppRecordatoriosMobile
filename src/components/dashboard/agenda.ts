@@ -1,5 +1,6 @@
 import { PersonalTask, Reminder } from '../../types';
 import { isTaskOverdue } from '../personalTasks/taskForm';
+import { getReminderState } from '../reminders/reminderFilters';
 import { getDaysUntil } from './dashboardFormat';
 
 /** Lo que vence en esta ventana de días (hoy incluido) cuenta como "esta semana" */
@@ -31,7 +32,7 @@ export function buildAgenda(
   now: Date = new Date(),
 ): Agenda {
   const open = reminders.filter(r => r.status !== 'completed').sort(byDueDate);
-  const overdue = open.filter(r => r.status === 'overdue' || getDaysUntil(r.dueDate, now) < 0);
+  const overdue = open.filter(r => getReminderState(r, now) === 'overdue');
   const upcoming = open.filter(r => !overdue.includes(r));
   const thisWeek = upcoming.filter(r => getDaysUntil(r.dueDate, now) < THIS_WEEK_DAYS);
   const next = upcoming.find(r => !thisWeek.includes(r)) ?? null;
