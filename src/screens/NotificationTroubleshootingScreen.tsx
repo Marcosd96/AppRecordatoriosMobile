@@ -4,11 +4,11 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  LayoutAnimation,
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
+import { useListTransition } from '../hooks/useReducedMotion';
 import { notificationsService } from '../services/notificationsService';
 import Button from '../components/Button';
 import StackHeader from '../components/StackHeader';
@@ -104,6 +104,7 @@ export default function NotificationTroubleshootingScreen({
   navigation,
 }: RootStackScreenProps<'NotificationTroubleshooting'>) {
   const { isDark } = useTheme();
+  const animateLayout = useListTransition();
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<{
     hasPermission: boolean;
@@ -189,7 +190,7 @@ export default function NotificationTroubleshootingScreen({
   };
 
   const toggleAdvice = (title: string) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    animateLayout();
     setExpandedAdvice(current => (current === title ? null : title));
   };
 

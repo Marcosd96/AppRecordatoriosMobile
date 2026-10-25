@@ -9,6 +9,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useResponsive } from '../hooks/useResponsive';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import IconButton from './IconButton';
 import { CloseIcon } from './icons/ActionIcons';
 
@@ -41,9 +42,16 @@ export default function FormSheet({
 }: FormSheetProps) {
   const responsive = useResponsive();
   const { isTablet } = responsive;
+  // La hoja sube desde abajo; con "Reducir movimiento", solo se funde
+  const reduceMotion = useReducedMotion();
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      animationType={reduceMotion ? 'fade' : 'slide'}
+      transparent
+      onRequestClose={onClose}
+    >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         className="flex-1"

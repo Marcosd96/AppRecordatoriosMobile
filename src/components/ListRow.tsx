@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { AccessibilityActionEvent, AccessibilityActionInfo, Pressable, Text, View } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useThemeColors } from '../theme/colors';
 import { ChevronRightIcon } from './icons/ActionIcons';
@@ -16,6 +16,12 @@ interface ListRowProps {
   /** Divisor superior (todas las filas de un grupo salvo la primera) */
   divider?: boolean;
   accessibilityHint?: string;
+  /**
+   * Acciones para TalkBack cuando `trailing` lleva un botón: la fila se lee como un solo
+   * elemento y ese botón no recibe el foco por separado
+   */
+  accessibilityActions?: AccessibilityActionInfo[];
+  onAccessibilityAction?: (event: AccessibilityActionEvent) => void;
 }
 
 /** Fila de lista M3: título, subtítulo opcional y contenido a la derecha. Mínimo 56 dp */
@@ -27,6 +33,8 @@ export default function ListRow({
   destructive = false,
   divider = false,
   accessibilityHint,
+  accessibilityActions,
+  onAccessibilityAction,
 }: ListRowProps) {
   const { isDark } = useTheme();
   const colors = useThemeColors();
@@ -66,6 +74,8 @@ export default function ListRow({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityHint={accessibilityHint}
+      accessibilityActions={accessibilityActions}
+      onAccessibilityAction={onAccessibilityAction}
       android_ripple={{ color: colors.ripple }}
     >
       {content}

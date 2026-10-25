@@ -31,13 +31,14 @@ import { useTheme } from '../context/ThemeContext';
 import { useSnackbar } from '../context/SnackbarContext';
 import { useResponsive } from '../hooks/useResponsive';
 import { usePersonalTasks } from '../hooks/usePersonalTasks';
+import { useCompleteTask } from '../hooks/useCompleteTask';
 import { useTaskForm } from '../hooks/useTaskForm';
 import { useHighlightItem } from '../hooks/useHighlightItem';
 import { PersonalTask } from '../types';
 import { MainTabScreenProps } from '../navigation/types';
 
-const statusChangeMessages: Record<TaskStatusAction, string> = {
-  complete: 'Tarea completada',
+// Completar tiene su propio mensaje con "Deshacer" (useCompleteTask)
+const statusChangeMessages: Record<Exclude<TaskStatusAction, 'complete'>, string> = {
   pause: 'Tarea pausada',
   resume: 'Tarea reanudada',
   cancel: 'Tarea cancelada',
@@ -75,6 +76,7 @@ export default function PersonalTasksScreen({ route }: MainTabScreenProps<'Perso
   } = usePersonalTasks();
   const taskForm = useTaskForm(saveTask);
   const { showSnackbar } = useSnackbar();
+  const handleComplete = useCompleteTask(completeTask, showMessage);
   // Tarea cuyas acciones secundarias están abiertas en la hoja
   const [actionsTask, setActionsTask] = useState<PersonalTask | null>(null);
 
@@ -128,16 +130,7 @@ export default function PersonalTasksScreen({ route }: MainTabScreenProps<'Perso
     async (task: PersonalTask, action: TaskStatusAction) => {
       if (action === 'complete') {
         // Se ve completada al momento y se envía al cerrarse el snackbar, salvo que se deshaga
-        const { undo, done } = completeTask(task);
-        showSnackbar({
-          message: statusChangeMessages.complete,
-          actionLabel: 'Deshacer',
-          onAction: undo,
-        });
-        const completed = await done;
-        if (!completed.ok) {
-          showMessage(completed.error);
-        }
+        await handleComplete(task);
         return;
       }
       const result = await updateTaskStatus(task.id, action);
@@ -160,7 +153,7 @@ export default function PersonalTasksScreen({ route }: MainTabScreenProps<'Perso
         }),
       });
     },
-    [updateTaskStatus, completeTask, showMessage, showSnackbar],
+    [updateTaskStatus, handleComplete, showMessage, showSnackbar],
   );
 
   const confirmDeleteTask = async () => {

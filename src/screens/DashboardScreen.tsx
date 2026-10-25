@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { useHome } from '../hooks/useHome';
 import { useCompleteReminder } from '../hooks/useCompleteReminder';
+import { useCompleteTask } from '../hooks/useCompleteTask';
 import { UserMessage } from '../hooks/actionResult';
 import Button from '../components/Button';
 import EmptyState from '../components/EmptyState';
@@ -17,7 +18,7 @@ import ReminderCard from '../components/reminders/ReminderCard';
 import { formatDaysLabel, getDaysUntil } from '../components/dashboard/dashboardFormat';
 import { formatTaskDate, isTaskOverdue } from '../components/personalTasks/taskForm';
 import { CompaniesIcon } from '../components/icons/TabIcons';
-import { SearchIcon, SettingsIcon } from '../components/icons/ActionIcons';
+import { CheckIcon, SearchIcon, SettingsIcon } from '../components/icons/ActionIcons';
 import { MainTabScreenProps } from '../navigation/types';
 import { ReminderFilter } from '../types';
 
@@ -90,6 +91,8 @@ export default function DashboardScreen({ navigation }: MainTabScreenProps<'Dash
     reminders,
     togglingIds,
     toggleReminder,
+    busyTaskIds,
+    completeTask,
   } = useHome();
   // El mensaje se conserva al cerrar para que no se vacíe durante la animación de salida
   const [errorMessage, setErrorMessage] = useState<UserMessage>({ title: '', message: '' });
@@ -100,6 +103,7 @@ export default function DashboardScreen({ navigation }: MainTabScreenProps<'Dash
     setShowError(true);
   }, []);
   const handleToggle = useCompleteReminder(reminders, toggleReminder, onError);
+  const handleCompleteTask = useCompleteTask(completeTask, onError);
 
   const openReminders = (filter: ReminderFilter) => navigation.navigate('Reminders', { filter });
 
@@ -234,6 +238,7 @@ export default function DashboardScreen({ navigation }: MainTabScreenProps<'Dash
                 <ListGroup>
                   {tasksToday.slice(0, MAX_PER_SECTION).map((task, index) => {
                     const date = formatTaskDate(task.nextOccurrence || task.startDate);
+                    const busy = busyTaskIds.has(task.id);
                     return (
                       <ListRow
                         key={task.id}
@@ -245,6 +250,24 @@ export default function DashboardScreen({ navigation }: MainTabScreenProps<'Dash
                             taskId: task.id,
                             highlightAt: Date.now(),
                           })
+                        }
+                        accessibilityHint="Abre la tarea en Tareas"
+                        accessibilityActions={[{ name: 'complete', label: 'Completar' }]}
+                        onAccessibilityAction={({ nativeEvent }) => {
+                          if (nativeEvent.actionName === 'complete' && !busy) {
+                            handleCompleteTask(task);
+                          }
+                        }}
+                        // Igual que en los recordatorios: completar sin salir de Inicio
+                        trailing={
+                          <Button
+                            label="Completar"
+                            onPress={() => handleCompleteTask(task)}
+                            variant="tonal"
+                            renderIcon={color => <CheckIcon color={color} size={16} />}
+                            busy={busy}
+                            accessibilityLabel={`Completar ${task.title}`}
+                          />
                         }
                       />
                     );

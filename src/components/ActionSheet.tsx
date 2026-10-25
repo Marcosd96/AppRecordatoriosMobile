@@ -3,6 +3,7 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { useThemeColors } from '../theme/colors';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 export interface SheetAction {
   key: string;
@@ -38,6 +39,8 @@ export default function ActionSheet({ visible, title, groups, onClose }: ActionS
   const { isDark } = useTheme();
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
+  // La hoja sube desde abajo; con "Reducir movimiento", solo se funde
+  const reduceMotion = useReducedMotion();
 
   const select = (action: SheetAction) => {
     onClose();
@@ -45,7 +48,12 @@ export default function ActionSheet({ visible, title, groups, onClose }: ActionS
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType={reduceMotion ? 'fade' : 'slide'}
+      onRequestClose={onClose}
+    >
       <View className="flex-1 justify-end">
         <Pressable
           style={StyleSheet.absoluteFill}

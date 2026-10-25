@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { buildAgenda, summarizeAgenda } from '../components/dashboard/agenda';
 import { buildHistory } from '../components/history/historyStats';
-import { usePersonalTasksQuery } from './queries';
+import { usePersonalTasks } from './usePersonalTasks';
 import { useNotificationStatus } from './useNotificationStatus';
 import { useReminders } from './useReminders';
 
@@ -12,11 +12,12 @@ import { useReminders } from './useReminders';
  */
 export function useHome() {
   const reminders = useReminders();
-  const tasksQuery = usePersonalTasksQuery();
+  // Las tareas de hoy se completan desde Inicio con las mismas reglas que en su pestaña
+  const personalTasks = usePersonalTasks();
   const { status: notificationStatus } = useNotificationStatus();
   const [refreshing, setRefreshing] = useState(false);
 
-  const tasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
+  const { tasks } = personalTasks;
   const agenda = useMemo(() => buildAgenda(reminders.reminders, tasks), [reminders.reminders, tasks]);
 
   const completedThisMonth = useMemo(() => {
@@ -26,7 +27,7 @@ export function useHome() {
   }, [reminders.reminders, tasks]);
 
   const { onRefresh: refreshReminders } = reminders;
-  const { refetch: refetchTasks } = tasksQuery;
+  const { retry: refetchTasks } = personalTasks;
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await Promise.all([refreshReminders(), refetchTasks()]);
@@ -50,5 +51,7 @@ export function useHome() {
     reminders: reminders.reminders,
     togglingIds: reminders.togglingIds,
     toggleReminder: reminders.toggleReminder,
+    busyTaskIds: personalTasks.busyTaskIds,
+    completeTask: personalTasks.completeTask,
   };
 }

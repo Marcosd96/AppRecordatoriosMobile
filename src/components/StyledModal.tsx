@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useResponsive } from '../hooks/useResponsive';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import Button, { ButtonVariant } from './Button';
 
 interface StyledModalProps {
@@ -45,6 +46,8 @@ export default function StyledModal({
 }: StyledModalProps) {
   const { isDark } = useTheme();
   const responsive = useResponsive();
+  // Con "Reducir movimiento" el diálogo solo se funde, sin desplazarse ni rebotar
+  const reduceMotion = useReducedMotion();
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
   const slideAnim = React.useRef(new Animated.Value(MODAL_SLIDE_OFFSET)).current;
   const animationRef = React.useRef<Animated.CompositeAnimation | null>(null);
@@ -64,7 +67,7 @@ export default function StyledModal({
       
       // Reiniciar valores antes de animar
       fadeAnim.setValue(0);
-      slideAnim.setValue(MODAL_SLIDE_OFFSET);
+      slideAnim.setValue(reduceMotion ? 0 : MODAL_SLIDE_OFFSET);
 
       // Pequeño delay para asegurar que los valores se han establecido
       const timer = setTimeout(() => {
@@ -105,7 +108,7 @@ export default function StyledModal({
           useNativeDriver: true,
         }),
         Animated.timing(slideAnim, {
-          toValue: animationType === 'slide' ? MODAL_SLIDE_OFFSET : 0,
+          toValue: animationType === 'slide' && !reduceMotion ? MODAL_SLIDE_OFFSET : 0,
           duration: 250,
           useNativeDriver: true,
         }),
@@ -123,6 +126,7 @@ export default function StyledModal({
     animationType,
     fadeAnim,
     isModalVisible,
+    reduceMotion,
     slideAnim,
     visible,
   ]);

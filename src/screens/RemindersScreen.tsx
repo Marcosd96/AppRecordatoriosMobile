@@ -1,13 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  RefreshControl,
-  LayoutAnimation,
-  Platform,
-  UIManager,
-} from 'react-native';
+import { View, Text, FlatList, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { ReminderFilter } from '../types';
@@ -17,6 +9,7 @@ import { UserMessage } from '../hooks/actionResult';
 import { highlightStyle, useHighlightItem } from '../hooks/useHighlightItem';
 import { useTheme } from '../context/ThemeContext';
 import { useResponsive } from '../hooks/useResponsive';
+import { useListTransition } from '../hooks/useReducedMotion';
 import StyledModal from '../components/StyledModal';
 import FilterChips, { FilterChipOption } from '../components/FilterChips';
 import LoadingScreen from '../components/LoadingScreen';
@@ -34,28 +27,11 @@ import { MainTabScreenProps } from '../navigation/types';
 // Clave del chip "Todas las empresas" (en el estado se guarda como null)
 const ALL_COMPANIES = '__all__';
 
-// Habilitar animaciones de layout en Android
-if (
-  Platform.OS === 'android' &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
-// Animación breve al cambiar de filtro
-const animateLayout = () => {
-  LayoutAnimation.configureNext(
-    LayoutAnimation.create(
-      250,
-      LayoutAnimation.Types.easeInEaseOut,
-      LayoutAnimation.Properties.opacity,
-    ),
-  );
-};
-
 export default function RemindersScreen({ route }: MainTabScreenProps<'Reminders'>) {
   const { isDark } = useTheme();
   const responsive = useResponsive();
+  // Transición breve al cambiar de filtro
+  const animateLayout = useListTransition();
   const {
     reminders,
     companies,
