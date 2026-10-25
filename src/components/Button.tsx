@@ -2,6 +2,8 @@ import React from 'react';
 import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useThemeColors } from '../theme/colors';
+import { useFocusRing } from '../hooks/useFocusRing';
+import FocusRing from './FocusRing';
 
 export type ButtonVariant = 'filled' | 'tonal' | 'secondary' | 'text' | 'destructive';
 
@@ -71,6 +73,7 @@ export default function Button({
   const colors = useThemeColors();
   const inactive = disabled || busy;
   const onFilled = variant === 'filled' || variant === 'destructive';
+  const { focused, focusProps } = useFocusRing();
 
   const contentColor = onFilled
     ? colors.onPrimary
@@ -88,6 +91,7 @@ export default function Button({
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: inactive, busy }}
+      {...focusProps}
       android_ripple={{ color: onFilled ? colors.rippleOnFilled : colors.ripple }}
       // El botón mediano mide 40 dp; el área táctil llega a 48
       hitSlop={size === 'medium' ? 4 : 0}
@@ -98,21 +102,24 @@ export default function Button({
       }`}
     >
       {({ pressed }) => (
-        // En iOS no hay ripple: el contenido se atenúa al pulsar
-        <View style={pressed && Platform.OS === 'ios' ? pressedStyle : undefined}>
-          {/* El contenido se mantiene (invisible) durante la carga para que el botón no cambie de tamaño */}
-          <View className={`flex-row items-center py-2 ${busy ? 'opacity-0' : ''}`}>
-            {renderIcon ? <View className="mr-2">{renderIcon(contentColor)}</View> : null}
-            <Text className={`text-sm font-semibold text-center ${labelClasses(variant, isDark)}`}>
-              {label}
-            </Text>
-          </View>
-          {busy ? (
-            <View className="absolute inset-0 items-center justify-center">
-              <ActivityIndicator size="small" color={contentColor} />
+        <>
+          {/* En iOS no hay ripple: el contenido se atenúa al pulsar */}
+          <View style={pressed && Platform.OS === 'ios' ? pressedStyle : undefined}>
+            {/* El contenido se mantiene (invisible) durante la carga para que el botón no cambie de tamaño */}
+            <View className={`flex-row items-center py-2 ${busy ? 'opacity-0' : ''}`}>
+              {renderIcon ? <View className="mr-2">{renderIcon(contentColor)}</View> : null}
+              <Text className={`text-sm font-semibold text-center ${labelClasses(variant, isDark)}`}>
+                {label}
+              </Text>
             </View>
-          ) : null}
-        </View>
+            {busy ? (
+              <View className="absolute inset-0 items-center justify-center">
+                <ActivityIndicator size="small" color={contentColor} />
+              </View>
+            ) : null}
+          </View>
+          <FocusRing visible={focused} radius={12} onFilled={onFilled} />
+        </>
       )}
     </Pressable>
   );

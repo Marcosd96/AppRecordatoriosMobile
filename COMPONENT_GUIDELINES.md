@@ -40,6 +40,8 @@ Cada entrada indica su estado:
 | `ReminderCard` | Existe | `components/reminders/ReminderCard.tsx` | Elemento de lista de recordatorios |
 | `TaskCard` | Existe | `components/personalTasks/TaskCard.tsx` | Elemento de lista de tareas: una acción visible + ⋮; tocarla edita |
 | `CompanyCard` | Existe | `components/companies/CompanyCard.tsx` | Elemento de lista de empresas: tocarla abre sus recordatorios; resto en ⋮ |
+| `FocusRing` + `useFocusRing` | Existe | `components/FocusRing.tsx`, `hooks/useFocusRing.ts` | Anillo de foco de teclado/D-pad (DESIGN_SYSTEM §2.4) en todo control táctil propio |
+| `HighlightRing` | Existe | `components/HighlightRing.tsx` | Resaltado que se funde en una tarjeta al llegar desde una notificación o la búsqueda (`useHighlightItem`) |
 | `ErrorBoundary` | Existe | `components/ErrorBoundary.tsx` | Raíz de la app |
 | Iconos | Existe | `components/icons/` | Todo icono. Nunca emojis ni caracteres (`✕`, `✓`, `▲`) como icono |
 

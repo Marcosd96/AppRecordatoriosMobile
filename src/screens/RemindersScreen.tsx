@@ -6,7 +6,7 @@ import { ReminderFilter } from '../types';
 import { useReminders } from '../hooks/useReminders';
 import { useCompleteReminder } from '../hooks/useCompleteReminder';
 import { UserMessage } from '../hooks/actionResult';
-import { highlightStyle, useHighlightItem } from '../hooks/useHighlightItem';
+import { useHighlightItem } from '../hooks/useHighlightItem';
 import { useTheme } from '../context/ThemeContext';
 import { useResponsive } from '../hooks/useResponsive';
 import { useListTransition } from '../hooks/useReducedMotion';
@@ -218,7 +218,7 @@ export default function RemindersScreen({ route }: MainTabScreenProps<'Reminders
               isDark={isDark}
               busy={togglingIds.has(reminder.id)}
               onToggleStatus={handleToggle}
-              style={highlightedId === reminder.id ? highlightStyle : undefined}
+              highlighted={highlightedId === reminder.id}
             />
           </View>
         )}

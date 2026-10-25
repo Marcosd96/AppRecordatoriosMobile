@@ -2,6 +2,8 @@ import React from 'react';
 import { AccessibilityActionEvent, AccessibilityActionInfo, Pressable, Text, View } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useThemeColors } from '../theme/colors';
+import { useFocusRing } from '../hooks/useFocusRing';
+import FocusRing from './FocusRing';
 import { ChevronRightIcon } from './icons/ActionIcons';
 
 interface ListRowProps {
@@ -38,6 +40,7 @@ export default function ListRow({
 }: ListRowProps) {
   const { isDark } = useTheme();
   const colors = useThemeColors();
+  const { focused, focusProps } = useFocusRing();
 
   const content = (
     <View
@@ -76,9 +79,12 @@ export default function ListRow({
       accessibilityHint={accessibilityHint}
       accessibilityActions={accessibilityActions}
       onAccessibilityAction={onAccessibilityAction}
+      {...focusProps}
       android_ripple={{ color: colors.ripple }}
     >
       {content}
+      {/* Radio menor que el del grupo que la contiene (rounded-2xl) */}
+      <FocusRing visible={focused} radius={12} />
     </Pressable>
   );
 }

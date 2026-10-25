@@ -4,6 +4,8 @@ import { Company } from '../../types';
 import { useTheme } from '../../context/ThemeContext';
 import { useThemeColors } from '../../theme/colors';
 import Button from '../Button';
+import FocusRing from '../FocusRing';
+import { useFocusRing } from '../../hooks/useFocusRing';
 import IconButton from '../IconButton';
 import StatusBadge from '../StatusBadge';
 import { MoreIcon } from '../icons/ActionIcons';
@@ -38,6 +40,7 @@ export default function CompanyCard({
 }: CompanyCardProps) {
   const { isDark } = useTheme();
   const colors = useThemeColors();
+  const { focused, focusProps } = useFocusRing();
   const hasReminders = stats.total > 0;
 
   const summary = [
@@ -79,6 +82,7 @@ export default function CompanyCard({
         { name: 'more', label: 'Más acciones' },
       ]}
       onAccessibilityAction={onAccessibilityAction}
+      {...focusProps}
       android_ripple={{ color: colors.ripple }}
       className={`rounded-2xl border mb-3 overflow-hidden ${
         isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
@@ -126,6 +130,7 @@ export default function CompanyCard({
           </View>
         )}
       </View>
+      <FocusRing visible={focused} radius={16} />
     </Pressable>
   );
 }

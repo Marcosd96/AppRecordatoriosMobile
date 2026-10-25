@@ -3,8 +3,10 @@ import { AccessibilityActionEvent, Pressable, Text, View } from 'react-native';
 import { PersonalTask, TaskPriority, TaskStatus } from '../../types';
 import { useTheme } from '../../context/ThemeContext';
 import { useThemeColors } from '../../theme/colors';
-import { highlightStyle } from '../../hooks/useHighlightItem';
 import Button from '../Button';
+import HighlightRing from '../HighlightRing';
+import FocusRing from '../FocusRing';
+import { useFocusRing } from '../../hooks/useFocusRing';
 import IconButton from '../IconButton';
 import StatusBadge, { BadgeTone } from '../StatusBadge';
 import { CheckIcon, MoreIcon } from '../icons/ActionIcons';
@@ -70,6 +72,7 @@ export default function TaskCard({
 }: TaskCardProps) {
   const { isDark } = useTheme();
   const colors = useThemeColors();
+  const { focused, focusProps } = useFocusRing();
   const overdue = isTaskOverdue(task);
   const closed = task.status === 'completed' || task.status === 'cancelled';
   const primary = primaryAction(task.status);
@@ -109,8 +112,8 @@ export default function TaskCard({
       accessibilityHint="Abre la tarea para editarla"
       accessibilityActions={accessibilityActions}
       onAccessibilityAction={onAccessibilityAction}
+      {...focusProps}
       android_ripple={{ color: colors.ripple }}
-      style={highlighted ? highlightStyle : undefined}
       className={`rounded-2xl border mb-3 overflow-hidden ${
         isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
       }`}
@@ -175,6 +178,8 @@ export default function TaskCard({
           />
         </View>
       </View>
+      <HighlightRing visible={highlighted} />
+      <FocusRing visible={focused} radius={16} />
     </Pressable>
   );
 }

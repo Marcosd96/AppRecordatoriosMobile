@@ -94,14 +94,17 @@ La franja y la insignia de un mismo elemento usan **el mismo** estado.
 | Estado     | Tratamiento |
 |------------|-------------|
 | *Pressed*  | Capa del color del contenido al 10–12 % (`opacity` 0.88 en el contenedor) o el *ripple* nativo en Android (`android_ripple` de `Pressable`). Sin cambios de escala en filas ni listas |
-| *Focused* (teclado/D-pad) | Anillo de 2 dp en `primary` alrededor del control. No eliminar el foco nativo |
+| *Focused* (teclado/D-pad) | Anillo de 2 dp en `primary` (en `onPrimary` sobre un relleno `primary`) superpuesto al control: `FocusRing` + `useFocusRing`. No eliminar el foco nativo |
 | *Disabled* | Contenedor y texto al 38 % de opacidad; `accessibilityState={{ disabled: true }}` |
 | *Busy*     | El botón conserva su tamaño, muestra `ActivityIndicator` en lugar del texto y `accessibilityState={{ busy: true }}` |
 | *Selected* | Chips y segmentos: relleno `primary` + texto `onPrimary` |
 
-`Button` e `IconButton` aplican *pressed*, *disabled* y *busy*. Usarlos en lugar de componer
-botones a mano. **Pendiente**: el indicador de foco por teclado/D-pad; no está verificado que
-`Pressable` muestre uno visible en Android, hay que comprobarlo en un dispositivo.
+`Button` e `IconButton` aplican *pressed*, *focused*, *disabled* y *busy*. Usarlos en lugar de
+componer botones a mano. El anillo de foco también está en `ListRow`, `SearchField`,
+`FilterChips`, `SegmentedControl`, `ActionSheet`, las tarjetas y la barra de pestañas
+(verificado con teclado en un Galaxy S24 Ultra). Un control nuevo hecho con `Pressable` lo
+añade con `useFocusRing`; `TouchableOpacity` no avisa del foco en Android, así que no se usa
+en controles nuevos.
 
 ### 2.3 Reglas
 

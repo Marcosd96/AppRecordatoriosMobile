@@ -2,6 +2,8 @@ import React from 'react';
 import { TextInput, View } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useThemeColors } from '../theme/colors';
+import { useFocusRing } from '../hooks/useFocusRing';
+import FocusRing from './FocusRing';
 import IconButton from './IconButton';
 import { CloseIcon, SearchIcon } from './icons/ActionIcons';
 
@@ -23,6 +25,8 @@ export default function SearchField({
 }: SearchFieldProps) {
   const { isDark } = useTheme();
   const colors = useThemeColors();
+  // El campo no tiene borde: sin el anillo no se ve que está activo (teclado o toque)
+  const { focused, focusProps } = useFocusRing();
 
   return (
     <View
@@ -40,6 +44,7 @@ export default function SearchField({
         autoCorrect={false}
         returnKeyType="search"
         accessibilityLabel={accessibilityLabel}
+        {...focusProps}
         className={`flex-1 py-3 ml-2 text-base ${isDark ? 'text-white' : 'text-gray-900'}`}
       />
       {value ? (
@@ -52,6 +57,7 @@ export default function SearchField({
         // Mantiene el alto y evita que el texto salte al aparecer el botón
         <View className="w-3" />
       )}
+      <FocusRing visible={focused} radius={12} />
     </View>
   );
 }

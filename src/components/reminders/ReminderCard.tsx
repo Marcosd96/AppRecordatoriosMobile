@@ -3,6 +3,7 @@ import { AccessibilityActionEvent, View, Text, StyleProp, ViewStyle } from 'reac
 import { Reminder } from '../../types';
 import { formatDaysLabel, getDaysUntil } from '../dashboard/dashboardFormat';
 import Button from '../Button';
+import HighlightRing from '../HighlightRing';
 import StatusBadge, { BadgeTone } from '../StatusBadge';
 import { CheckIcon } from '../icons/ActionIcons';
 import { getReminderState } from './reminderFilters';
@@ -17,6 +18,8 @@ interface ReminderCardProps {
   /** Cambio de estado en curso: el botón no admite otra pulsación hasta que termine */
   busy?: boolean;
   onToggleStatus: (id: string) => void;
+  /** Resaltado al llegar desde una notificación o la búsqueda */
+  highlighted?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -55,6 +58,7 @@ export default function ReminderCard({
   isDark,
   busy = false,
   onToggleStatus,
+  highlighted = false,
   style,
 }: ReminderCardProps) {
   const state = getReminderState(reminder);
@@ -143,6 +147,7 @@ export default function ReminderCard({
           />
         </View>
       </View>
+      <HighlightRing visible={highlighted} />
     </View>
   );
 }

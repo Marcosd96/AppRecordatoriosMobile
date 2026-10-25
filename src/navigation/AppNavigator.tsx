@@ -2,13 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { flushPendingNavigation, navigationRef } from './notificationNavigation';
 import { createStackNavigator } from '@react-navigation/stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import {
+  BottomTabBarButtonProps,
+  createBottomTabNavigator,
+} from '@react-navigation/bottom-tabs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useResponsive } from '../hooks/useResponsive';
+import { useFocusRing } from '../hooks/useFocusRing';
+import { useThemeColors } from '../theme/colors';
+import FocusRing from '../components/FocusRing';
 
 // Screens
 import SplashScreen from '../screens/SplashScreen';
@@ -40,6 +46,40 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 const TAB_BAR_HEIGHT = 60;
 
+/**
+ * Pestaña de la barra inferior con ripple y anillo de foco (DESIGN_SYSTEM §2.4): el botón por
+ * defecto solo aclaraba el fondo al navegar con teclado y apenas se distinguía.
+ */
+function TabBarButton({
+  children,
+  style,
+  onPress,
+  // Solo web / iOS: el Pressable de RN no los conoce
+  href: _href,
+  pressColor: _pressColor,
+  pressOpacity: _pressOpacity,
+  hoverEffect: _hoverEffect,
+  ref: _ref,
+  ...rest
+}: BottomTabBarButtonProps) {
+  const colors = useThemeColors();
+  const { focused, focusProps } = useFocusRing();
+  return (
+    <Pressable
+      {...rest}
+      {...focusProps}
+      onPress={onPress}
+      android_ripple={{ color: colors.ripple, borderless: true }}
+      style={style}
+    >
+      {children}
+      <FocusRing visible={focused} radius={12} />
+    </Pressable>
+  );
+}
+
+const renderTabBarButton = (props: BottomTabBarButtonProps) => <TabBarButton {...props} />;
+
 function MainTabs() {
   const insets = useSafeAreaInsets();
   const { isDark } = useTheme();
@@ -55,6 +95,7 @@ function MainTabs() {
         <Tab.Navigator
           screenOptions={{
             headerShown: false,
+            tabBarButton: renderTabBarButton,
             // Mismos colores que el encabezado de cada pantalla; en oscuro, un azul más claro
             // para que la pestaña activa contraste
             tabBarActiveTintColor: isDark ? '#60a5fa' : '#2563eb',

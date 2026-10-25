@@ -4,6 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { useThemeColors } from '../theme/colors';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useFocusRing } from '../hooks/useFocusRing';
+import FocusRing from './FocusRing';
 
 export interface SheetAction {
   key: string;
@@ -31,13 +33,38 @@ interface ActionSheetProps {
 // (p. ej. confirmar eliminación) no se superpone a la hoja que se está cerrando
 const RUN_AFTER_CLOSE_MS = 300;
 
+function SheetRow({ action, onPress }: { action: SheetAction; onPress: () => void }) {
+  const { isDark } = useTheme();
+  const colors = useThemeColors();
+  const { focused, focusProps } = useFocusRing();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      {...focusProps}
+      android_ripple={{ color: colors.ripple }}
+      className="min-h-14 px-6 justify-center"
+    >
+      <Text
+        className={`text-base ${
+          action.destructive
+            ? isDark ? 'text-red-300' : 'text-red-600'
+            : isDark ? 'text-gray-100' : 'text-gray-900'
+        }`}
+      >
+        {action.label}
+      </Text>
+      <FocusRing visible={focused} />
+    </Pressable>
+  );
+}
+
 /**
  * Hoja inferior con las acciones secundarias de un elemento (M3 *modal bottom sheet*).
  * Se cierra con Atrás, tocando fuera o al elegir una acción.
  */
 export default function ActionSheet({ visible, title, groups, onClose }: ActionSheetProps) {
   const { isDark } = useTheme();
-  const colors = useThemeColors();
   const insets = useSafeAreaInsets();
   // La hoja sube desde abajo; con "Reducir movimiento", solo se funde
   const reduceMotion = useReducedMotion();
@@ -91,23 +118,7 @@ export default function ActionSheet({ visible, title, groups, onClose }: ActionS
                   </Text>
                 ) : null}
                 {group.actions.map(action => (
-                  <Pressable
-                    key={action.key}
-                    onPress={() => select(action)}
-                    accessibilityRole="button"
-                    android_ripple={{ color: colors.ripple }}
-                    className="min-h-14 px-6 justify-center"
-                  >
-                    <Text
-                      className={`text-base ${
-                        action.destructive
-                          ? isDark ? 'text-red-300' : 'text-red-600'
-                          : isDark ? 'text-gray-100' : 'text-gray-900'
-                      }`}
-                    >
-                      {action.label}
-                    </Text>
-                  </Pressable>
+                  <SheetRow key={action.key} action={action} onPress={() => select(action)} />
                 ))}
               </View>
             ))}

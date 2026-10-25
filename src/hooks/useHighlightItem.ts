@@ -7,8 +7,6 @@ const SCROLL_DELAY_MS = 300;
 // Si el elemento aún no estaba medido, se reintenta una vez cuando la lista lo haya dibujado
 const RETRY_DELAY_MS = 150;
 
-export const highlightStyle = { borderColor: '#3b82f6', borderWidth: 2 };
-
 /**
  * Lleva la lista hasta un elemento y lo resalta unos segundos (p. ej. al abrir la app
  * desde una notificación). `highlightAt` cambia en cada apertura para repetirlo aunque el
